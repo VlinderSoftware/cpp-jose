@@ -1,9 +1,10 @@
 #include "jose/json_utils.hpp"
-#include <sstream>
-#include <map>
-#include <vector>
-#include <stdexcept>
+
 #include <cctype>
+#include <map>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
 
 namespace Vlinder
 {
@@ -59,12 +60,30 @@ JsonValue::Type JsonValue::getType() const
     return impl_->type;
 }
 
-bool JsonValue::isNull() const { return impl_->type == Type::Null; }
-bool JsonValue::isBoolean() const { return impl_->type == Type::Boolean; }
-bool JsonValue::isNumber() const { return impl_->type == Type::Number; }
-bool JsonValue::isString() const { return impl_->type == Type::String; }
-bool JsonValue::isArray() const { return impl_->type == Type::Array; }
-bool JsonValue::isObject() const { return impl_->type == Type::Object; }
+bool JsonValue::isNull() const
+{
+    return impl_->type == Type::Null;
+}
+bool JsonValue::isBoolean() const
+{
+    return impl_->type == Type::Boolean;
+}
+bool JsonValue::isNumber() const
+{
+    return impl_->type == Type::Number;
+}
+bool JsonValue::isString() const
+{
+    return impl_->type == Type::String;
+}
+bool JsonValue::isArray() const
+{
+    return impl_->type == Type::Array;
+}
+bool JsonValue::isObject() const
+{
+    return impl_->type == Type::Object;
+}
 
 bool JsonValue::asBoolean() const
 {
@@ -167,24 +186,38 @@ static std::string escapeString(const std::string& str)
     {
         switch (c)
         {
-            case '"': result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case '\b': result += "\\b"; break;
-            case '\f': result += "\\f"; break;
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            case '\t': result += "\\t"; break;
-            default:
-                if (static_cast<unsigned char>(c) < 0x20)
-                {
-                    char buf[7];
-                    snprintf(buf, sizeof(buf), "\\u%04x", c);
-                    result += buf;
-                }
-                else
-                {
-                    result += c;
-                }
+        case '"':
+            result += "\\\"";
+            break;
+        case '\\':
+            result += "\\\\";
+            break;
+        case '\b':
+            result += "\\b";
+            break;
+        case '\f':
+            result += "\\f";
+            break;
+        case '\n':
+            result += "\\n";
+            break;
+        case '\r':
+            result += "\\r";
+            break;
+        case '\t':
+            result += "\\t";
+            break;
+        default:
+            if (static_cast<unsigned char>(c) < 0x20)
+            {
+                char buf[7];
+                snprintf(buf, sizeof(buf), "\\u%04x", c);
+                result += buf;
+            }
+            else
+            {
+                result += c;
+            }
         }
     }
     return result;
@@ -193,61 +226,61 @@ static std::string escapeString(const std::string& str)
 std::string JsonValue::serialize() const
 {
     std::ostringstream oss;
-    
+
     switch (impl_->type)
     {
-        case Type::Null:
-            oss << "null";
-            break;
-            
-        case Type::Boolean:
-            oss << (impl_->boolValue ? "true" : "false");
-            break;
-            
-        case Type::Number:
-            if (impl_->numberValue == static_cast<int>(impl_->numberValue))
+    case Type::Null:
+        oss << "null";
+        break;
+
+    case Type::Boolean:
+        oss << (impl_->boolValue ? "true" : "false");
+        break;
+
+    case Type::Number:
+        if (impl_->numberValue == static_cast<int>(impl_->numberValue))
+        {
+            oss << static_cast<int>(impl_->numberValue);
+        }
+        else
+        {
+            oss << impl_->numberValue;
+        }
+        break;
+
+    case Type::String:
+        oss << '"' << escapeString(impl_->stringValue) << '"';
+        break;
+
+    case Type::Array:
+        oss << '[';
+        for (size_t i = 0; i < impl_->arrayValue.size(); ++i)
+        {
+            if (i > 0)
             {
-                oss << static_cast<int>(impl_->numberValue);
+                oss << ',';
             }
-            else
+            oss << impl_->arrayValue[i].serialize();
+        }
+        oss << ']';
+        break;
+
+    case Type::Object:
+        oss << '{';
+        bool first = true;
+        for (const auto& pair : impl_->objectValue)
+        {
+            if (!first)
             {
-                oss << impl_->numberValue;
+                oss << ',';
             }
-            break;
-            
-        case Type::String:
-            oss << '"' << escapeString(impl_->stringValue) << '"';
-            break;
-            
-        case Type::Array:
-            oss << '[';
-            for (size_t i = 0; i < impl_->arrayValue.size(); ++i)
-            {
-                if (i > 0)
-                {
-                    oss << ',';
-                }
-                oss << impl_->arrayValue[i].serialize();
-            }
-            oss << ']';
-            break;
-            
-        case Type::Object:
-            oss << '{';
-            bool first = true;
-            for (const auto& pair : impl_->objectValue)
-            {
-                if (!first)
-                {
-                    oss << ',';
-                }
-                first = false;
-                oss << '"' << escapeString(pair.first) << "\":" << pair.second.serialize();
-            }
-            oss << '}';
-            break;
+            first = false;
+            oss << '"' << escapeString(pair.first) << "\":" << pair.second.serialize();
+        }
+        oss << '}';
+        break;
     }
-    
+
     return oss.str();
 }
 
@@ -255,18 +288,20 @@ std::string JsonValue::serialize() const
 class JsonParser
 {
 public:
-    JsonParser(const std::string& json) : json_(json), pos_(0) {}
-    
+    JsonParser(const std::string& json) : json_(json), pos_(0)
+    {
+    }
+
     JsonValue parse()
     {
         skipWhitespace();
         return parseValue();
     }
-    
+
 private:
     std::string json_;
     size_t pos_;
-    
+
     void skipWhitespace()
     {
         while (pos_ < json_.length() && std::isspace(json_[pos_]))
@@ -274,22 +309,22 @@ private:
             ++pos_;
         }
     }
-    
+
     char peek() const
     {
         return pos_ < json_.length() ? json_[pos_] : '\0';
     }
-    
+
     char next()
     {
         return pos_ < json_.length() ? json_[pos_++] : '\0';
     }
-    
+
     JsonValue parseValue()
     {
         skipWhitespace();
         char c = peek();
-        
+
         if (c == 'n')
         {
             return parseNull();
@@ -314,10 +349,10 @@ private:
         {
             return parseNumber();
         }
-        
+
         throw std::runtime_error("Invalid JSON");
     }
-    
+
     JsonValue parseNull()
     {
         if (json_.substr(pos_, 4) == "null")
@@ -327,7 +362,7 @@ private:
         }
         throw std::runtime_error("Invalid null");
     }
-    
+
     JsonValue parseBoolean()
     {
         if (json_.substr(pos_, 4) == "true")
@@ -342,7 +377,7 @@ private:
         }
         throw std::runtime_error("Invalid boolean");
     }
-    
+
     JsonValue parseNumber()
     {
         size_t start = pos_;
@@ -350,12 +385,12 @@ private:
         {
             next();
         }
-        
+
         while (std::isdigit(peek()))
         {
             next();
         }
-        
+
         if (peek() == '.')
         {
             next();
@@ -364,7 +399,7 @@ private:
                 next();
             }
         }
-        
+
         if (peek() == 'e' || peek() == 'E')
         {
             next();
@@ -377,18 +412,18 @@ private:
                 next();
             }
         }
-        
+
         std::string numStr = json_.substr(start, pos_ - start);
         return JsonValue(std::stod(numStr));
     }
-    
+
     JsonValue parseString()
     {
         if (next() != '"')
         {
             throw std::runtime_error("Expected '\"'");
         }
-        
+
         std::string result;
         while (peek() != '"')
         {
@@ -398,15 +433,32 @@ private:
                 char escaped = next();
                 switch (escaped)
                 {
-                    case '"': result += '"'; break;
-                    case '\\': result += '\\'; break;
-                    case '/': result += '/'; break;
-                    case 'b': result += '\b'; break;
-                    case 'f': result += '\f'; break;
-                    case 'n': result += '\n'; break;
-                    case 'r': result += '\r'; break;
-                    case 't': result += '\t'; break;
-                    default: result += escaped;
+                case '"':
+                    result += '"';
+                    break;
+                case '\\':
+                    result += '\\';
+                    break;
+                case '/':
+                    result += '/';
+                    break;
+                case 'b':
+                    result += '\b';
+                    break;
+                case 'f':
+                    result += '\f';
+                    break;
+                case 'n':
+                    result += '\n';
+                    break;
+                case 'r':
+                    result += '\r';
+                    break;
+                case 't':
+                    result += '\t';
+                    break;
+                default:
+                    result += escaped;
                 }
             }
             else
@@ -414,92 +466,92 @@ private:
                 result += c;
             }
         }
-        next(); // consume closing '"'
-        
+        next();  // consume closing '"'
+
         return JsonValue(result);
     }
-    
+
     JsonValue parseArray()
     {
         if (next() != '[')
         {
             throw std::runtime_error("Expected '['");
         }
-        
+
         JsonValue arr;
         arr.setArray();
-        
+
         skipWhitespace();
         if (peek() == ']')
         {
             next();
             return arr;
         }
-        
+
         while (true)
         {
             arr.append(parseValue());
             skipWhitespace();
-            
+
             if (peek() == ']')
             {
                 next();
                 break;
             }
-            
+
             if (next() != ',')
             {
                 throw std::runtime_error("Expected ',' or ']'");
             }
         }
-        
+
         return arr;
     }
-    
+
     JsonValue parseObject()
     {
         if (next() != '{')
         {
             throw std::runtime_error("Expected '{'");
         }
-        
+
         JsonValue obj;
         obj.setObject();
-        
+
         skipWhitespace();
         if (peek() == '}')
         {
             next();
             return obj;
         }
-        
+
         while (true)
         {
             skipWhitespace();
             JsonValue key = parseString();
             skipWhitespace();
-            
+
             if (next() != ':')
             {
                 throw std::runtime_error("Expected ':'");
             }
-            
+
             JsonValue value = parseValue();
             obj.set(key.asString(), value);
-            
+
             skipWhitespace();
             if (peek() == '}')
             {
                 next();
                 break;
             }
-            
+
             if (next() != ',')
             {
                 throw std::runtime_error("Expected ',' or '}'");
             }
         }
-        
+
         return obj;
     }
 };
@@ -510,5 +562,5 @@ JsonValue JsonValue::parse(const std::string& json)
     return parser.parse();
 }
 
-} // namespace jose
-} // namespace Vlinder
+}  // namespace jose
+}  // namespace Vlinder

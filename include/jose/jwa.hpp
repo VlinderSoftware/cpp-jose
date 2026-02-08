@@ -13,7 +13,7 @@ class JWK;
 
 /**
  * @brief JSON Web Algorithms (RFC 7518)
- * 
+ *
  * Provides cryptographic operations for JOSE
  */
 class JWA
@@ -38,25 +38,25 @@ public:
         PS512,  // RSASSA-PSS using SHA-512
         None    // No signature
     };
-    
+
     /**
      * @brief Supported key encryption algorithms
      */
     enum class KeyEncryptionAlgorithm
     {
-        RSA1_5,         // RSAES-PKCS1-v1_5
-        RSA_OAEP,       // RSAES OAEP using default parameters
-        RSA_OAEP_256,   // RSAES OAEP using SHA-256 and MGF1 with SHA-256
-        A128KW,         // AES Key Wrap with default initial value using 128-bit key
-        A192KW,         // AES Key Wrap with default initial value using 192-bit key
-        A256KW,         // AES Key Wrap with default initial value using 256-bit key
-        DIR,            // Direct use of a shared symmetric key
-        ECDH_ES,        // Elliptic Curve Diffie-Hellman Ephemeral Static key agreement
-        A128GCMKW,      // Key wrapping with AES GCM using 128-bit key
-        A192GCMKW,      // Key wrapping with AES GCM using 192-bit key
-        A256GCMKW       // Key wrapping with AES GCM using 256-bit key
+        RSA1_5,        // RSAES-PKCS1-v1_5
+        RSA_OAEP,      // RSAES OAEP using default parameters
+        RSA_OAEP_256,  // RSAES OAEP using SHA-256 and MGF1 with SHA-256
+        A128KW,        // AES Key Wrap with default initial value using 128-bit key
+        A192KW,        // AES Key Wrap with default initial value using 192-bit key
+        A256KW,        // AES Key Wrap with default initial value using 256-bit key
+        DIR,           // Direct use of a shared symmetric key
+        ECDH_ES,       // Elliptic Curve Diffie-Hellman Ephemeral Static key agreement
+        A128GCMKW,     // Key wrapping with AES GCM using 128-bit key
+        A192GCMKW,     // Key wrapping with AES GCM using 192-bit key
+        A256GCMKW      // Key wrapping with AES GCM using 256-bit key
     };
-    
+
     /**
      * @brief Supported content encryption algorithms
      */
@@ -69,7 +69,7 @@ public:
         A192GCM,        // AES GCM using 192-bit key
         A256GCM         // AES GCM using 256-bit key
     };
-    
+
     /**
      * @brief Sign data with the specified algorithm
      * @param algorithm Signature algorithm
@@ -77,12 +77,9 @@ public:
      * @param data Data to sign
      * @return Signature
      */
-    static std::vector<unsigned char> sign(
-        SignatureAlgorithm algorithm,
-        const JWK& key,
-        const std::vector<unsigned char>& data
-    );
-    
+    static std::vector<unsigned char> sign(SignatureAlgorithm algorithm, const JWK& key,
+                                           const std::vector<unsigned char>& data);
+
     /**
      * @brief Verify signature
      * @param algorithm Signature algorithm
@@ -91,13 +88,10 @@ public:
      * @param signature Signature to verify
      * @return true if valid, false otherwise
      */
-    static bool verify(
-        SignatureAlgorithm algorithm,
-        const JWK& key,
-        const std::vector<unsigned char>& data,
-        const std::vector<unsigned char>& signature
-    );
-    
+    static bool verify(SignatureAlgorithm algorithm, const JWK& key,
+                       const std::vector<unsigned char>& data,
+                       const std::vector<unsigned char>& signature);
+
     /**
      * @brief Encrypt content encryption key
      * @param algorithm Key encryption algorithm
@@ -105,12 +99,9 @@ public:
      * @param cek Content encryption key to encrypt
      * @return Encrypted CEK
      */
-    static std::vector<unsigned char> encryptKey(
-        KeyEncryptionAlgorithm algorithm,
-        const JWK& key,
-        const std::vector<unsigned char>& cek
-    );
-    
+    static std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
+                                                 const std::vector<unsigned char>& cek);
+
     /**
      * @brief Decrypt content encryption key
      * @param algorithm Key encryption algorithm
@@ -118,12 +109,9 @@ public:
      * @param encryptedCek Encrypted CEK
      * @return Decrypted CEK
      */
-    static std::vector<unsigned char> decryptKey(
-        KeyEncryptionAlgorithm algorithm,
-        const JWK& key,
-        const std::vector<unsigned char>& encryptedCek
-    );
-    
+    static std::vector<unsigned char> decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
+                                                 const std::vector<unsigned char>& encryptedCek);
+
     /**
      * @brief Encrypt content
      * @param algorithm Content encryption algorithm
@@ -133,14 +121,12 @@ public:
      * @param aad Additional authenticated data
      * @return Ciphertext and authentication tag
      */
-    static std::pair<std::vector<unsigned char>, std::vector<unsigned char>> encryptContent(
-        ContentEncryptionAlgorithm algorithm,
-        const std::vector<unsigned char>& cek,
-        const std::vector<unsigned char>& iv,
-        const std::vector<unsigned char>& plaintext,
-        const std::vector<unsigned char>& aad
-    );
-    
+    static std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    encryptContent(ContentEncryptionAlgorithm algorithm, const std::vector<unsigned char>& cek,
+                   const std::vector<unsigned char>& iv,
+                   const std::vector<unsigned char>& plaintext,
+                   const std::vector<unsigned char>& aad);
+
     /**
      * @brief Decrypt content
      * @param algorithm Content encryption algorithm
@@ -151,22 +137,20 @@ public:
      * @param tag Authentication tag
      * @return Decrypted plaintext
      */
-    static std::vector<unsigned char> decryptContent(
-        ContentEncryptionAlgorithm algorithm,
-        const std::vector<unsigned char>& cek,
-        const std::vector<unsigned char>& iv,
-        const std::vector<unsigned char>& ciphertext,
-        const std::vector<unsigned char>& aad,
-        const std::vector<unsigned char>& tag
-    );
-    
+    static std::vector<unsigned char> decryptContent(ContentEncryptionAlgorithm algorithm,
+                                                     const std::vector<unsigned char>& cek,
+                                                     const std::vector<unsigned char>& iv,
+                                                     const std::vector<unsigned char>& ciphertext,
+                                                     const std::vector<unsigned char>& aad,
+                                                     const std::vector<unsigned char>& tag);
+
     /**
      * @brief Convert algorithm enum to string
      */
     static std::string toString(SignatureAlgorithm alg);
     static std::string toString(KeyEncryptionAlgorithm alg);
     static std::string toString(ContentEncryptionAlgorithm alg);
-    
+
     /**
      * @brief Convert string to algorithm enum
      */
@@ -175,7 +159,7 @@ public:
     static ContentEncryptionAlgorithm contentEncryptionAlgorithmFromString(const std::string& alg);
 };
 
-} // namespace jose
-} // namespace Vlinder
+}  // namespace jose
+}  // namespace Vlinder
 
-#endif // JOSE_JWA_HPP
+#endif  // JOSE_JWA_HPP

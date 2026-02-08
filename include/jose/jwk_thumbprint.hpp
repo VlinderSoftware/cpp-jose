@@ -13,7 +13,7 @@ class JWK;
 
 /**
  * @brief JSON Web Key Thumbprint (RFC 7638)
- * 
+ *
  * Computes thumbprints of JWKs
  */
 class JWKThumbprint
@@ -25,7 +25,7 @@ public:
      * @return Base64URL-encoded thumbprint
      */
     static std::string compute(const JWK& key);
-    
+
     /**
      * @brief Compute JWK thumbprint using specified hash algorithm
      * @param key JWK to compute thumbprint for
@@ -33,17 +33,18 @@ public:
      * @return Base64URL-encoded thumbprint
      */
     static std::string compute(const JWK& key, const std::string& algorithm);
-    
+
     /**
      * @brief Compute raw thumbprint bytes
      * @param key JWK to compute thumbprint for
      * @param algorithm Hash algorithm
      * @return Raw thumbprint bytes
      */
-    static std::vector<unsigned char> computeRaw(const JWK& key, const std::string& algorithm = "SHA-256");
+    static std::vector<unsigned char> computeRaw(const JWK& key,
+                                                 const std::string& algorithm = "SHA-256");
 };
 
-} // namespace jose
-} // namespace Vlinder
+}  // namespace jose
+}  // namespace Vlinder
 
-#endif // JOSE_JWK_THUMBPRINT_HPP
+#endif  // JOSE_JWK_THUMBPRINT_HPP

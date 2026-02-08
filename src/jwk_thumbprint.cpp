@@ -1,16 +1,18 @@
 #include "jose/jwk_thumbprint.hpp"
-#include "jose/jwk.hpp"
-#include "jose/json_utils.hpp"
+
 #include "jose/base64url.hpp"
-#include <openssl/evp.h>
-#include <openssl/sha.h>
-#include <openssl/rsa.h>
-#include <openssl/ec.h>
-#include <openssl/bn.h>
-#include <openssl/err.h>
-#include <stdexcept>
-#include <map>
+#include "jose/json_utils.hpp"
+#include "jose/jwk.hpp"
+
 #include <algorithm>
+#include <map>
+#include <openssl/bn.h>
+#include <openssl/ec.h>
+#include <openssl/err.h>
+#include <openssl/evp.h>
+#include <openssl/rsa.h>
+#include <openssl/sha.h>
+#include <stdexcept>
 
 namespace Vlinder
 {
@@ -36,22 +38,22 @@ std::string getOpenSSLError()
 std::string getCanonicalJWKJson(const JWK& key)
 {
     // Parse the full JWK JSON
-    std::string fullJson = key.toJson(false); // public key only
+    std::string fullJson = key.toJson(false);  // public key only
     JsonValue jwkValue = JsonValue::parse(fullJson);
-    
+
     if (!jwkValue.has("kty"))
     {
         throw std::runtime_error("JWK missing required 'kty' field");
     }
-    
+
     std::string kty = jwkValue["kty"].asString();
-    
+
     // Build canonical JSON with only required fields in lexicographic order
     // Per RFC 7638: Members must be ordered lexicographically
-    
+
     JsonValue canonical;
     canonical.setObject();
-    
+
     if (kty == "RSA")
     {
         // Required members for RSA: e, kty, n (lexicographic order: e, kty, n)
@@ -59,12 +61,12 @@ std::string getCanonicalJWKJson(const JWK& key)
         {
             throw std::runtime_error("RSA JWK missing required fields");
         }
-        
+
         // We need to build JSON in lexicographic order manually
         // e < k < n in ASCII
         std::string e = jwkValue["e"].asString();
         std::string n = jwkValue["n"].asString();
-        
+
         // Manually construct the JSON to ensure exact ordering
         return "{\"e\":\"" + e + "\",\"kty\":\"RSA\",\"n\":\"" + n + "\"}";
     }
@@ -75,11 +77,11 @@ std::string getCanonicalJWKJson(const JWK& key)
         {
             throw std::runtime_error("EC JWK missing required fields");
         }
-        
+
         std::string crv = jwkValue["crv"].asString();
         std::string x = jwkValue["x"].asString();
         std::string y = jwkValue["y"].asString();
-        
+
         // Manually construct the JSON to ensure exact ordering
         // c < k < x < y in ASCII
         return "{\"crv\":\"" + crv + "\",\"kty\":\"EC\",\"x\":\"" + x + "\",\"y\":\"" + y + "\"}";
@@ -91,9 +93,9 @@ std::string getCanonicalJWKJson(const JWK& key)
         {
             throw std::runtime_error("oct JWK missing required 'k' field");
         }
-        
+
         std::string k = jwkValue["k"].asString();
-        
+
         // k < kty in ASCII
         return "{\"k\":\"" + k + "\",\"kty\":\"oct\"}";
     }
@@ -104,10 +106,10 @@ std::string getCanonicalJWKJson(const JWK& key)
         {
             throw std::runtime_error("OKP JWK missing required fields");
         }
-        
+
         std::string crv = jwkValue["crv"].asString();
         std::string x = jwkValue["x"].asString();
-        
+
         // c < k < x in ASCII
         return "{\"crv\":\"" + crv + "\",\"kty\":\"OKP\",\"x\":\"" + x + "\"}";
     }
@@ -137,7 +139,7 @@ const EVP_MD* getHashAlgorithm(const std::string& algorithm)
     }
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 std::string JWKThumbprint::compute(const JWK& key)
 {
@@ -154,47 +156,47 @@ std::vector<unsigned char> JWKThumbprint::computeRaw(const JWK& key, const std::
 {
     // Get canonical JWK JSON representation
     std::string canonicalJson = getCanonicalJWKJson(key);
-    
+
     // Get hash algorithm
     const EVP_MD* md = getHashAlgorithm(algorithm);
     if (!md)
     {
         throw std::runtime_error("Failed to get hash algorithm");
     }
-    
+
     // Compute hash
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();
     if (!ctx)
     {
         throw std::runtime_error("Failed to create EVP_MD_CTX");
     }
-    
+
     if (EVP_DigestInit_ex(ctx, md, nullptr) != 1)
     {
         EVP_MD_CTX_free(ctx);
         throw std::runtime_error("Failed to initialize digest: " + getOpenSSLError());
     }
-    
+
     if (EVP_DigestUpdate(ctx, canonicalJson.data(), canonicalJson.size()) != 1)
     {
         EVP_MD_CTX_free(ctx);
         throw std::runtime_error("Failed to update digest: " + getOpenSSLError());
     }
-    
+
     unsigned int hashLen = 0;
     std::vector<unsigned char> hash(EVP_MD_size(md));
-    
+
     if (EVP_DigestFinal_ex(ctx, hash.data(), &hashLen) != 1)
     {
         EVP_MD_CTX_free(ctx);
         throw std::runtime_error("Failed to finalize digest: " + getOpenSSLError());
     }
-    
+
     EVP_MD_CTX_free(ctx);
-    
+
     hash.resize(hashLen);
     return hash;
 }
 
-} // namespace jose
-} // namespace Vlinder
+}  // namespace jose
+}  // namespace Vlinder

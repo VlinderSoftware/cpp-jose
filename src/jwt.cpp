@@ -1,12 +1,14 @@
 #include "jose/jwt.hpp"
+
+#include "jose/base64url.hpp"
+#include "jose/json_utils.hpp"
+#include "jose/jwa.hpp"
 #include "jose/jwk.hpp"
 #include "jose/jws.hpp"
-#include "jose/jwa.hpp"
-#include "jose/json_utils.hpp"
-#include "jose/base64url.hpp"
-#include <stdexcept>
-#include <map>
+
 #include <algorithm>
+#include <map>
+#include <stdexcept>
 
 namespace Vlinder
 {
@@ -31,17 +33,17 @@ std::chrono::system_clock::time_point timestampToTimePoint(int64_t timestamp)
     return std::chrono::system_clock::time_point(std::chrono::seconds(timestamp));
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 struct JWT::Impl
 {
     std::map<std::string, JsonValue> claims;
-    
+
     void setClaim(const std::string& name, const JsonValue& value)
     {
         claims[name] = value;
     }
-    
+
     JsonValue getClaim(const std::string& name) const
     {
         auto it = claims.find(name);
@@ -51,7 +53,7 @@ struct JWT::Impl
         }
         return JsonValue();
     }
-    
+
     bool hasClaim(const std::string& name) const
     {
         return claims.find(name) != claims.end();
@@ -101,7 +103,7 @@ void JWT::setAudience(const std::vector<std::string>& aud)
     {
         return;
     }
-    
+
     if (aud.size() == 1)
     {
         impl_->setClaim("aud", JsonValue(aud[0]));
@@ -167,7 +169,7 @@ std::vector<std::string> JWT::getAudience() const
 {
     JsonValue claim = impl_->getClaim("aud");
     std::vector<std::string> result;
-    
+
     if (claim.isString())
     {
         result.push_back(claim.asString());
@@ -177,7 +179,7 @@ std::vector<std::string> JWT::getAudience() const
         // Manual array iteration through JSON structure
         std::string serialized = claim.serialize();
         JsonValue reparsed = JsonValue::parse(serialized);
-        
+
         // Note: Limited by JsonValue API which doesn't provide proper iteration
         for (size_t i = 0; i < MAX_AUDIENCE_ENTRIES; ++i)
         {
@@ -199,7 +201,7 @@ std::vector<std::string> JWT::getAudience() const
             }
         }
     }
-    
+
     return result;
 }
 
@@ -263,27 +265,27 @@ std::string JWT::sign(const JWK& key, const std::string& algorithm) const
     // Build claims JSON
     JsonValue claimsJson;
     claimsJson.setObject();
-    
+
     for (const auto& claim : impl_->claims)
     {
         claimsJson.set(claim.first, claim.second);
     }
-    
+
     std::string payload = claimsJson.serialize();
-    
+
     // Create JWS
     JWS jws;
     jws.setPayload(payload);
     jws.setType("JWT");
     jws.setAlgorithm(JWA::signatureAlgorithmFromString(algorithm));
-    
+
     // Copy key ID if present
     std::string kid = key.getKeyId();
     if (!kid.empty())
     {
         jws.setKeyId(kid);
     }
-    
+
     return jws.sign(key);
 }
 
@@ -294,7 +296,7 @@ JWT JWT::verify(const std::string& jwt, const JWK& key)
     {
         throw std::runtime_error("JWT signature verification failed");
     }
-    
+
     // Parse if verification succeeded
     return parse(jwt);
 }
@@ -303,23 +305,23 @@ JWT JWT::parse(const std::string& jwt)
 {
     // Parse as JWS
     JWS jws = JWS::parse(jwt);
-    
+
     // Parse payload as JSON
     std::string payload = jws.getPayload();
     JsonValue claimsJson = JsonValue::parse(payload);
-    
+
     if (!claimsJson.isObject())
     {
         throw std::runtime_error("JWT payload is not a JSON object");
     }
-    
+
     JWT result;
-    
+
     // We need to manually extract all claims from the JSON object
     // Since JsonValue doesn't provide iteration, we'll parse the serialized form
     std::string serialized = claimsJson.serialize();
     JsonValue reparsed = JsonValue::parse(serialized);
-    
+
     // Standard claims
     if (reparsed.has("iss") && reparsed["iss"].isString())
     {
@@ -343,20 +345,25 @@ JWT JWT::parse(const std::string& jwt)
                 try
                 {
                     JsonValue elem = reparsed["aud"][i];
-                    if (elem.isNull()) break;
+                    if (elem.isNull())
+                        break;
                     if (elem.isString())
                     {
                         audiences.push_back(elem.asString());
                     }
                 }
-                catch (...) { break; }
+                catch (...)
+                {
+                    break;
+                }
             }
             result.setAudience(audiences);
         }
     }
     if (reparsed.has("exp") && reparsed["exp"].isNumber())
     {
-        result.setExpiration(timestampToTimePoint(static_cast<int64_t>(reparsed["exp"].asNumber())));
+        result.setExpiration(
+            timestampToTimePoint(static_cast<int64_t>(reparsed["exp"].asNumber())));
     }
     if (reparsed.has("nbf") && reparsed["nbf"].isNumber())
     {
@@ -370,24 +377,31 @@ JWT JWT::parse(const std::string& jwt)
     {
         result.setJwtId(reparsed["jti"].asString());
     }
-    
+
     // Store claims we extracted
     // Note: Full custom claim extraction would require a better JSON iteration API
-    if (reparsed.has("iss")) result.impl_->claims["iss"] = reparsed["iss"];
-    if (reparsed.has("sub")) result.impl_->claims["sub"] = reparsed["sub"];
-    if (reparsed.has("aud")) result.impl_->claims["aud"] = reparsed["aud"];
-    if (reparsed.has("exp")) result.impl_->claims["exp"] = reparsed["exp"];
-    if (reparsed.has("nbf")) result.impl_->claims["nbf"] = reparsed["nbf"];
-    if (reparsed.has("iat")) result.impl_->claims["iat"] = reparsed["iat"];
-    if (reparsed.has("jti")) result.impl_->claims["jti"] = reparsed["jti"];
-    
+    if (reparsed.has("iss"))
+        result.impl_->claims["iss"] = reparsed["iss"];
+    if (reparsed.has("sub"))
+        result.impl_->claims["sub"] = reparsed["sub"];
+    if (reparsed.has("aud"))
+        result.impl_->claims["aud"] = reparsed["aud"];
+    if (reparsed.has("exp"))
+        result.impl_->claims["exp"] = reparsed["exp"];
+    if (reparsed.has("nbf"))
+        result.impl_->claims["nbf"] = reparsed["nbf"];
+    if (reparsed.has("iat"))
+        result.impl_->claims["iat"] = reparsed["iat"];
+    if (reparsed.has("jti"))
+        result.impl_->claims["jti"] = reparsed["jti"];
+
     return result;
 }
 
 bool JWT::validate(const std::string& issuer, const std::string& audience, int leeway) const
 {
     auto now = std::chrono::system_clock::now();
-    
+
     // Check issuer if provided
     if (!issuer.empty())
     {
@@ -396,7 +410,7 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
             return false;
         }
     }
-    
+
     // Check audience if provided
     if (!audience.empty())
     {
@@ -405,7 +419,7 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
         {
             return false;
         }
-        
+
         bool found = false;
         for (const auto& aud : audiences)
         {
@@ -415,13 +429,13 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
                 break;
             }
         }
-        
+
         if (!found)
         {
             return false;
         }
     }
-    
+
     // Check expiration time
     auto exp = getExpiration();
     if (exp != std::chrono::system_clock::time_point())
@@ -432,7 +446,7 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
             return false;
         }
     }
-    
+
     // Check not before time
     auto nbf = getNotBefore();
     if (nbf != std::chrono::system_clock::time_point())
@@ -443,9 +457,9 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
             return false;
         }
     }
-    
+
     return true;
 }
 
-} // namespace jose
-} // namespace Vlinder
+}  // namespace jose
+}  // namespace Vlinder
