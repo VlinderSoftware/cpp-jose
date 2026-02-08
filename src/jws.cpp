@@ -1,18 +1,16 @@
 #include "jose/jws.hpp"
 
+#include <map>
+#include <sstream>
+#include <stdexcept>
+
 #include "jose/base64url.hpp"
 #include "jose/json_utils.hpp"
 #include "jose/jwa.hpp"
 #include "jose/jwk.hpp"
 
-#include <map>
-#include <sstream>
-#include <stdexcept>
-
-namespace Vlinder
-{
-namespace jose
-{
+namespace Vlinder {
+namespace jose {
 
 struct JWS::Impl
 {

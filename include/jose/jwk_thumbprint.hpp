@@ -4,10 +4,8 @@
 #include <string>
 #include <vector>
 
-namespace Vlinder
-{
-namespace jose
-{
+namespace Vlinder {
+namespace jose {
 
 class JWK;
 

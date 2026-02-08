@@ -1,9 +1,5 @@
 #include "jose/jwa.hpp"
 
-#include "jose/jwk.hpp"
-
-#include <cstring>
-#include <map>
 #include <openssl/aes.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
@@ -11,15 +7,17 @@
 #include <openssl/hmac.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
+
+#include <cstring>
+#include <map>
 #include <stdexcept>
 
-namespace Vlinder
-{
-namespace jose
-{
+#include "jose/jwk.hpp"
 
-namespace
-{
+namespace Vlinder {
+namespace jose {
+
+namespace {
 
 std::string getOpenSSLError()
 {
@@ -37,23 +35,23 @@ const EVP_MD* getMD(JWA::SignatureAlgorithm alg)
 {
     switch (alg)
     {
-    case JWA::SignatureAlgorithm::HS256:
-    case JWA::SignatureAlgorithm::RS256:
-    case JWA::SignatureAlgorithm::ES256:
-    case JWA::SignatureAlgorithm::PS256:
-        return EVP_sha256();
-    case JWA::SignatureAlgorithm::HS384:
-    case JWA::SignatureAlgorithm::RS384:
-    case JWA::SignatureAlgorithm::ES384:
-    case JWA::SignatureAlgorithm::PS384:
-        return EVP_sha384();
-    case JWA::SignatureAlgorithm::HS512:
-    case JWA::SignatureAlgorithm::RS512:
-    case JWA::SignatureAlgorithm::ES512:
-    case JWA::SignatureAlgorithm::PS512:
-        return EVP_sha512();
-    default:
-        throw std::runtime_error("Unsupported signature algorithm");
+        case JWA::SignatureAlgorithm::HS256:
+        case JWA::SignatureAlgorithm::RS256:
+        case JWA::SignatureAlgorithm::ES256:
+        case JWA::SignatureAlgorithm::PS256:
+            return EVP_sha256();
+        case JWA::SignatureAlgorithm::HS384:
+        case JWA::SignatureAlgorithm::RS384:
+        case JWA::SignatureAlgorithm::ES384:
+        case JWA::SignatureAlgorithm::PS384:
+            return EVP_sha384();
+        case JWA::SignatureAlgorithm::HS512:
+        case JWA::SignatureAlgorithm::RS512:
+        case JWA::SignatureAlgorithm::ES512:
+        case JWA::SignatureAlgorithm::PS512:
+            return EVP_sha512();
+        default:
+            throw std::runtime_error("Unsupported signature algorithm");
     }
 }
 
@@ -529,18 +527,18 @@ std::vector<unsigned char> aesGcmKeyWrap(const std::vector<unsigned char>& kek,
     const EVP_CIPHER* cipher = nullptr;
     switch (kek.size())
     {
-    case 16:
-        cipher = EVP_aes_128_gcm();
-        break;
-    case 24:
-        cipher = EVP_aes_192_gcm();
-        break;
-    case 32:
-        cipher = EVP_aes_256_gcm();
-        break;
-    default:
-        EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Invalid key size for AES-GCM");
+        case 16:
+            cipher = EVP_aes_128_gcm();
+            break;
+        case 24:
+            cipher = EVP_aes_192_gcm();
+            break;
+        case 32:
+            cipher = EVP_aes_256_gcm();
+            break;
+        default:
+            EVP_CIPHER_CTX_free(ctx);
+            throw std::runtime_error("Invalid key size for AES-GCM");
     }
 
     if (EVP_EncryptInit_ex(ctx, cipher, nullptr, kek.data(), iv.data()) != 1)
@@ -594,18 +592,18 @@ std::vector<unsigned char> aesGcmKeyUnwrap(const std::vector<unsigned char>& kek
     const EVP_CIPHER* cipher = nullptr;
     switch (kek.size())
     {
-    case 16:
-        cipher = EVP_aes_128_gcm();
-        break;
-    case 24:
-        cipher = EVP_aes_192_gcm();
-        break;
-    case 32:
-        cipher = EVP_aes_256_gcm();
-        break;
-    default:
-        EVP_CIPHER_CTX_free(ctx);
-        throw std::runtime_error("Invalid key size for AES-GCM");
+        case 16:
+            cipher = EVP_aes_128_gcm();
+            break;
+        case 24:
+            cipher = EVP_aes_192_gcm();
+            break;
+        case 32:
+            cipher = EVP_aes_256_gcm();
+            break;
+        default:
+            EVP_CIPHER_CTX_free(ctx);
+            throw std::runtime_error("Invalid key size for AES-GCM");
     }
 
     if (EVP_DecryptInit_ex(ctx, cipher, nullptr, kek.data(), iv.data()) != 1)
@@ -918,31 +916,31 @@ std::vector<unsigned char> JWA::sign(SignatureAlgorithm algorithm, const JWK& ke
 {
     switch (algorithm)
     {
-    case SignatureAlgorithm::HS256:
-    case SignatureAlgorithm::HS384:
-    case SignatureAlgorithm::HS512:
-        return hmacSign(getMD(algorithm), key, data);
+        case SignatureAlgorithm::HS256:
+        case SignatureAlgorithm::HS384:
+        case SignatureAlgorithm::HS512:
+            return hmacSign(getMD(algorithm), key, data);
 
-    case SignatureAlgorithm::RS256:
-    case SignatureAlgorithm::RS384:
-    case SignatureAlgorithm::RS512:
-        return rsaSign(getMD(algorithm), key, data, false);
+        case SignatureAlgorithm::RS256:
+        case SignatureAlgorithm::RS384:
+        case SignatureAlgorithm::RS512:
+            return rsaSign(getMD(algorithm), key, data, false);
 
-    case SignatureAlgorithm::ES256:
-    case SignatureAlgorithm::ES384:
-    case SignatureAlgorithm::ES512:
-        return ecdsaSign(getMD(algorithm), key, data);
+        case SignatureAlgorithm::ES256:
+        case SignatureAlgorithm::ES384:
+        case SignatureAlgorithm::ES512:
+            return ecdsaSign(getMD(algorithm), key, data);
 
-    case SignatureAlgorithm::PS256:
-    case SignatureAlgorithm::PS384:
-    case SignatureAlgorithm::PS512:
-        return rsaSign(getMD(algorithm), key, data, true);
+        case SignatureAlgorithm::PS256:
+        case SignatureAlgorithm::PS384:
+        case SignatureAlgorithm::PS512:
+            return rsaSign(getMD(algorithm), key, data, true);
 
-    case SignatureAlgorithm::None:
-        return std::vector<unsigned char>();
+        case SignatureAlgorithm::None:
+            return std::vector<unsigned char>();
 
-    default:
-        throw std::runtime_error("Unsupported signature algorithm");
+        default:
+            throw std::runtime_error("Unsupported signature algorithm");
     }
 }
 
@@ -957,28 +955,28 @@ bool JWA::verify(SignatureAlgorithm algorithm, const JWK& key,
 
     switch (algorithm)
     {
-    case SignatureAlgorithm::HS256:
-    case SignatureAlgorithm::HS384:
-    case SignatureAlgorithm::HS512:
-        return hmacVerify(getMD(algorithm), key, data, signature);
+        case SignatureAlgorithm::HS256:
+        case SignatureAlgorithm::HS384:
+        case SignatureAlgorithm::HS512:
+            return hmacVerify(getMD(algorithm), key, data, signature);
 
-    case SignatureAlgorithm::RS256:
-    case SignatureAlgorithm::RS384:
-    case SignatureAlgorithm::RS512:
-        return rsaVerify(getMD(algorithm), key, data, signature, false);
+        case SignatureAlgorithm::RS256:
+        case SignatureAlgorithm::RS384:
+        case SignatureAlgorithm::RS512:
+            return rsaVerify(getMD(algorithm), key, data, signature, false);
 
-    case SignatureAlgorithm::ES256:
-    case SignatureAlgorithm::ES384:
-    case SignatureAlgorithm::ES512:
-        return ecdsaVerify(getMD(algorithm), key, data, signature);
+        case SignatureAlgorithm::ES256:
+        case SignatureAlgorithm::ES384:
+        case SignatureAlgorithm::ES512:
+            return ecdsaVerify(getMD(algorithm), key, data, signature);
 
-    case SignatureAlgorithm::PS256:
-    case SignatureAlgorithm::PS384:
-    case SignatureAlgorithm::PS512:
-        return rsaVerify(getMD(algorithm), key, data, signature, true);
+        case SignatureAlgorithm::PS256:
+        case SignatureAlgorithm::PS384:
+        case SignatureAlgorithm::PS512:
+            return rsaVerify(getMD(algorithm), key, data, signature, true);
 
-    default:
-        throw std::runtime_error("Unsupported signature algorithm");
+        default:
+            throw std::runtime_error("Unsupported signature algorithm");
     }
 }
 
@@ -987,87 +985,87 @@ std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, con
 {
     switch (algorithm)
     {
-    case KeyEncryptionAlgorithm::RSA1_5:
-        return rsaEncrypt(key, cek, RSA_PKCS1_PADDING);
+        case KeyEncryptionAlgorithm::RSA1_5:
+            return rsaEncrypt(key, cek, RSA_PKCS1_PADDING);
 
-    case KeyEncryptionAlgorithm::RSA_OAEP:
-        return rsaEncrypt(key, cek, RSA_PKCS1_OAEP_PADDING, EVP_sha1());
+        case KeyEncryptionAlgorithm::RSA_OAEP:
+            return rsaEncrypt(key, cek, RSA_PKCS1_OAEP_PADDING, EVP_sha1());
 
-    case KeyEncryptionAlgorithm::RSA_OAEP_256:
-        return rsaEncrypt(key, cek, RSA_PKCS1_OAEP_PADDING, EVP_sha256());
+        case KeyEncryptionAlgorithm::RSA_OAEP_256:
+            return rsaEncrypt(key, cek, RSA_PKCS1_OAEP_PADDING, EVP_sha256());
 
-    case KeyEncryptionAlgorithm::A128KW:
-    case KeyEncryptionAlgorithm::A192KW:
-    case KeyEncryptionAlgorithm::A256KW:
-    {
-        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
-        if (!pkey)
+        case KeyEncryptionAlgorithm::A128KW:
+        case KeyEncryptionAlgorithm::A192KW:
+        case KeyEncryptionAlgorithm::A256KW:
         {
-            throw std::runtime_error("Invalid key");
-        }
+            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            if (!pkey)
+            {
+                throw std::runtime_error("Invalid key");
+            }
 
-        size_t kekLen = 0;
-        unsigned char* kekData = nullptr;
+            size_t kekLen = 0;
+            unsigned char* kekData = nullptr;
 
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
-        {
-            throw std::runtime_error("Failed to get key length");
-        }
+            if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
+            {
+                throw std::runtime_error("Failed to get key length");
+            }
 
-        kekData = new unsigned char[kekLen];
-        if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
-        {
+            kekData = new unsigned char[kekLen];
+            if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
+            {
+                delete[] kekData;
+                throw std::runtime_error("Failed to get key data");
+            }
+
+            std::vector<unsigned char> kek(kekData, kekData + kekLen);
             delete[] kekData;
-            throw std::runtime_error("Failed to get key data");
+
+            return aesKeyWrap(kek, cek);
         }
 
-        std::vector<unsigned char> kek(kekData, kekData + kekLen);
-        delete[] kekData;
+        case KeyEncryptionAlgorithm::DIR:
+            return cek;
 
-        return aesKeyWrap(kek, cek);
-    }
-
-    case KeyEncryptionAlgorithm::DIR:
-        return cek;
-
-    case KeyEncryptionAlgorithm::A128GCMKW:
-    case KeyEncryptionAlgorithm::A192GCMKW:
-    case KeyEncryptionAlgorithm::A256GCMKW:
-    {
-        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
-        if (!pkey)
+        case KeyEncryptionAlgorithm::A128GCMKW:
+        case KeyEncryptionAlgorithm::A192GCMKW:
+        case KeyEncryptionAlgorithm::A256GCMKW:
         {
-            throw std::runtime_error("Invalid key");
-        }
+            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            if (!pkey)
+            {
+                throw std::runtime_error("Invalid key");
+            }
 
-        size_t kekLen = 0;
-        unsigned char* kekData = nullptr;
+            size_t kekLen = 0;
+            unsigned char* kekData = nullptr;
 
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
-        {
-            throw std::runtime_error("Failed to get key length");
-        }
+            if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
+            {
+                throw std::runtime_error("Failed to get key length");
+            }
 
-        kekData = new unsigned char[kekLen];
-        if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
-        {
+            kekData = new unsigned char[kekLen];
+            if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
+            {
+                delete[] kekData;
+                throw std::runtime_error("Failed to get key data");
+            }
+
+            std::vector<unsigned char> kek(kekData, kekData + kekLen);
             delete[] kekData;
-            throw std::runtime_error("Failed to get key data");
+
+            std::vector<unsigned char> iv;
+            std::vector<unsigned char> tag;
+            return aesGcmKeyWrap(kek, cek, iv, tag);
         }
 
-        std::vector<unsigned char> kek(kekData, kekData + kekLen);
-        delete[] kekData;
+        case KeyEncryptionAlgorithm::ECDH_ES:
+            throw std::runtime_error("ECDH-ES not yet implemented");
 
-        std::vector<unsigned char> iv;
-        std::vector<unsigned char> tag;
-        return aesGcmKeyWrap(kek, cek, iv, tag);
-    }
-
-    case KeyEncryptionAlgorithm::ECDH_ES:
-        throw std::runtime_error("ECDH-ES not yet implemented");
-
-    default:
-        throw std::runtime_error("Unsupported key encryption algorithm");
+        default:
+            throw std::runtime_error("Unsupported key encryption algorithm");
     }
 }
 
@@ -1076,54 +1074,54 @@ std::vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, con
 {
     switch (algorithm)
     {
-    case KeyEncryptionAlgorithm::RSA1_5:
-        return rsaDecrypt(key, encryptedCek, RSA_PKCS1_PADDING);
+        case KeyEncryptionAlgorithm::RSA1_5:
+            return rsaDecrypt(key, encryptedCek, RSA_PKCS1_PADDING);
 
-    case KeyEncryptionAlgorithm::RSA_OAEP:
-        return rsaDecrypt(key, encryptedCek, RSA_PKCS1_OAEP_PADDING, EVP_sha1());
+        case KeyEncryptionAlgorithm::RSA_OAEP:
+            return rsaDecrypt(key, encryptedCek, RSA_PKCS1_OAEP_PADDING, EVP_sha1());
 
-    case KeyEncryptionAlgorithm::RSA_OAEP_256:
-        return rsaDecrypt(key, encryptedCek, RSA_PKCS1_OAEP_PADDING, EVP_sha256());
+        case KeyEncryptionAlgorithm::RSA_OAEP_256:
+            return rsaDecrypt(key, encryptedCek, RSA_PKCS1_OAEP_PADDING, EVP_sha256());
 
-    case KeyEncryptionAlgorithm::A128KW:
-    case KeyEncryptionAlgorithm::A192KW:
-    case KeyEncryptionAlgorithm::A256KW:
-    {
-        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
-        if (!pkey)
+        case KeyEncryptionAlgorithm::A128KW:
+        case KeyEncryptionAlgorithm::A192KW:
+        case KeyEncryptionAlgorithm::A256KW:
         {
-            throw std::runtime_error("Invalid key");
-        }
+            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            if (!pkey)
+            {
+                throw std::runtime_error("Invalid key");
+            }
 
-        size_t kekLen = 0;
-        unsigned char* kekData = nullptr;
+            size_t kekLen = 0;
+            unsigned char* kekData = nullptr;
 
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
-        {
-            throw std::runtime_error("Failed to get key length");
-        }
+            if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
+            {
+                throw std::runtime_error("Failed to get key length");
+            }
 
-        kekData = new unsigned char[kekLen];
-        if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
-        {
+            kekData = new unsigned char[kekLen];
+            if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
+            {
+                delete[] kekData;
+                throw std::runtime_error("Failed to get key data");
+            }
+
+            std::vector<unsigned char> kek(kekData, kekData + kekLen);
             delete[] kekData;
-            throw std::runtime_error("Failed to get key data");
+
+            return aesKeyUnwrap(kek, encryptedCek);
         }
 
-        std::vector<unsigned char> kek(kekData, kekData + kekLen);
-        delete[] kekData;
+        case KeyEncryptionAlgorithm::DIR:
+            return encryptedCek;
 
-        return aesKeyUnwrap(kek, encryptedCek);
-    }
+        case KeyEncryptionAlgorithm::ECDH_ES:
+            throw std::runtime_error("ECDH-ES not yet implemented");
 
-    case KeyEncryptionAlgorithm::DIR:
-        return encryptedCek;
-
-    case KeyEncryptionAlgorithm::ECDH_ES:
-        throw std::runtime_error("ECDH-ES not yet implemented");
-
-    default:
-        throw std::runtime_error("Unsupported key encryption algorithm");
+        default:
+            throw std::runtime_error("Unsupported key encryption algorithm");
     }
 }
 
@@ -1135,26 +1133,26 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm, const std::vector<unsi
 {
     switch (algorithm)
     {
-    case ContentEncryptionAlgorithm::A128CBC_HS256:
-        return aesCbcHmacEncrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::A128CBC_HS256:
+            return aesCbcHmacEncrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, plaintext, aad);
 
-    case ContentEncryptionAlgorithm::A192CBC_HS384:
-        return aesCbcHmacEncrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::A192CBC_HS384:
+            return aesCbcHmacEncrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, plaintext, aad);
 
-    case ContentEncryptionAlgorithm::A256CBC_HS512:
-        return aesCbcHmacEncrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::A256CBC_HS512:
+            return aesCbcHmacEncrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, plaintext, aad);
 
-    case ContentEncryptionAlgorithm::A128GCM:
-        return aesGcmEncrypt(EVP_aes_128_gcm(), cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::A128GCM:
+            return aesGcmEncrypt(EVP_aes_128_gcm(), cek, iv, plaintext, aad);
 
-    case ContentEncryptionAlgorithm::A192GCM:
-        return aesGcmEncrypt(EVP_aes_192_gcm(), cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::A192GCM:
+            return aesGcmEncrypt(EVP_aes_192_gcm(), cek, iv, plaintext, aad);
 
-    case ContentEncryptionAlgorithm::A256GCM:
-        return aesGcmEncrypt(EVP_aes_256_gcm(), cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::A256GCM:
+            return aesGcmEncrypt(EVP_aes_256_gcm(), cek, iv, plaintext, aad);
 
-    default:
-        throw std::runtime_error("Unsupported content encryption algorithm");
+        default:
+            throw std::runtime_error("Unsupported content encryption algorithm");
     }
 }
 
@@ -1167,26 +1165,29 @@ std::vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algori
 {
     switch (algorithm)
     {
-    case ContentEncryptionAlgorithm::A128CBC_HS256:
-        return aesCbcHmacDecrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::A128CBC_HS256:
+            return aesCbcHmacDecrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, ciphertext, aad,
+                                     tag);
 
-    case ContentEncryptionAlgorithm::A192CBC_HS384:
-        return aesCbcHmacDecrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::A192CBC_HS384:
+            return aesCbcHmacDecrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, ciphertext, aad,
+                                     tag);
 
-    case ContentEncryptionAlgorithm::A256CBC_HS512:
-        return aesCbcHmacDecrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::A256CBC_HS512:
+            return aesCbcHmacDecrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, ciphertext, aad,
+                                     tag);
 
-    case ContentEncryptionAlgorithm::A128GCM:
-        return aesGcmDecrypt(EVP_aes_128_gcm(), cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::A128GCM:
+            return aesGcmDecrypt(EVP_aes_128_gcm(), cek, iv, ciphertext, aad, tag);
 
-    case ContentEncryptionAlgorithm::A192GCM:
-        return aesGcmDecrypt(EVP_aes_192_gcm(), cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::A192GCM:
+            return aesGcmDecrypt(EVP_aes_192_gcm(), cek, iv, ciphertext, aad, tag);
 
-    case ContentEncryptionAlgorithm::A256GCM:
-        return aesGcmDecrypt(EVP_aes_256_gcm(), cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::A256GCM:
+            return aesGcmDecrypt(EVP_aes_256_gcm(), cek, iv, ciphertext, aad, tag);
 
-    default:
-        throw std::runtime_error("Unsupported content encryption algorithm");
+        default:
+            throw std::runtime_error("Unsupported content encryption algorithm");
     }
 }
 

@@ -1,15 +1,13 @@
 #ifndef JOSE_JWE_HPP
 #define JOSE_JWE_HPP
 
-#include "jwa.hpp"
-
 #include <memory>
 #include <string>
 
-namespace Vlinder
-{
-namespace jose
-{
+#include "jwa.hpp"
+
+namespace Vlinder {
+namespace jose {
 
 class JWK;
 

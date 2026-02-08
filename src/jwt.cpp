@@ -1,22 +1,19 @@
 #include "jose/jwt.hpp"
 
+#include <algorithm>
+#include <map>
+#include <stdexcept>
+
 #include "jose/base64url.hpp"
 #include "jose/json_utils.hpp"
 #include "jose/jwa.hpp"
 #include "jose/jwk.hpp"
 #include "jose/jws.hpp"
 
-#include <algorithm>
-#include <map>
-#include <stdexcept>
+namespace Vlinder {
+namespace jose {
 
-namespace Vlinder
-{
-namespace jose
-{
-
-namespace
-{
+namespace {
 
 // Maximum audience entries when parsing JWT audience arrays
 // This is a workaround for the limited JsonValue API which doesn't provide iteration

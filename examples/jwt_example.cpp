@@ -9,11 +9,12 @@
  * - Validating JWT claims
  */
 
-#include "jose/jose.hpp"
-#include <iostream>
 #include <chrono>
-#include <iomanip>
 #include <exception>
+#include <iomanip>
+#include <iostream>
+
+#include "jose/jose.hpp"
 
 using namespace Vlinder::jose;
 
@@ -43,7 +44,7 @@ int main()
         jwt.setIssuer("https://auth.example.com");
         jwt.setSubject("user@example.com");
         jwt.setAudience("https://api.example.com");
-        
+
         auto now = std::chrono::system_clock::now();
         jwt.setIssuedAt(now);
         jwt.setNotBefore(now);
@@ -58,8 +59,7 @@ int main()
         std::cout << "   Subject: " << jwt.getSubject() << std::endl;
         printTimestamp("   Issued At", jwt.getIssuedAt());
         printTimestamp("   Expires At", jwt.getExpiration());
-        std::cout << "   Custom claim 'role': " << jwt.getClaim("role") << std::endl
-                  << std::endl;
+        std::cout << "   Custom claim 'role': " << jwt.getClaim("role") << std::endl << std::endl;
 
         // Sign the JWT
         std::cout << "3. Signing JWT with HS256..." << std::endl;
@@ -75,32 +75,32 @@ int main()
         std::cout << "   Subject: " << verified.getSubject() << std::endl;
         std::cout << "   JWT ID: " << verified.getJwtId() << std::endl;
         std::cout << "   Custom claim 'department': " << verified.getClaim("department")
-                  << std::endl << std::endl;
+                  << std::endl
+                  << std::endl;
 
         // Validate claims
         std::cout << "5. Validating JWT claims..." << std::endl;
-        bool isValid = verified.validate(
-            "https://auth.example.com",  // Expected issuer
-            "https://api.example.com",   // Expected audience
-            5                             // 5 seconds leeway for time-based claims
+        bool isValid = verified.validate("https://auth.example.com",  // Expected issuer
+                                         "https://api.example.com",   // Expected audience
+                                         5  // 5 seconds leeway for time-based claims
         );
-        std::cout << "   Validation result: " << (isValid ? "✓ VALID" : "✗ INVALID")
-                  << std::endl << std::endl;
+        std::cout << "   Validation result: " << (isValid ? "✓ VALID" : "✗ INVALID") << std::endl
+                  << std::endl;
 
         // Try with RSA keys
         std::cout << "6. Creating JWT with RSA signature (RS256)..." << std::endl;
         JWK rsaKey = JWK::generateRSA(2048);
         rsaKey.setKeyId("rsa-key-2024");
-        
+
         JWT jwtRsa;
         jwtRsa.setIssuer("https://secure.example.com");
         jwtRsa.setSubject("admin@example.com");
         jwtRsa.setExpiration(now + std::chrono::hours(2));
-        
+
         std::string rsaToken = jwtRsa.sign(rsaKey, "RS256");
         std::cout << "   Token created with RS256" << std::endl;
         std::cout << "   Token length: " << rsaToken.length() << " characters" << std::endl;
-        
+
         JWT verifiedRsa = JWT::verify(rsaToken, rsaKey);
         std::cout << "   ✓ RSA signature verified" << std::endl;
         std::cout << "   Subject: " << verifiedRsa.getSubject() << std::endl << std::endl;
@@ -115,11 +115,8 @@ int main()
 
         // Demonstrate validation failure
         std::cout << "8. Testing validation with wrong issuer..." << std::endl;
-        bool invalidResult = verified.validate(
-            "https://wrong-issuer.com",  // Wrong issuer
-            "https://api.example.com",
-            5
-        );
+        bool invalidResult = verified.validate("https://wrong-issuer.com",  // Wrong issuer
+                                               "https://api.example.com", 5);
         std::cout << "   Validation result: " << (invalidResult ? "✓ VALID" : "✗ INVALID")
                   << std::endl;
         std::cout << "   (Expected failure due to issuer mismatch)" << std::endl << std::endl;

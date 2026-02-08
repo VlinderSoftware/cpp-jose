@@ -6,10 +6,8 @@
 #include <string>
 #include <vector>
 
-namespace Vlinder
-{
-namespace jose
-{
+namespace Vlinder {
+namespace jose {
 
 /**
  * @brief JSON Web Key (RFC 7517)

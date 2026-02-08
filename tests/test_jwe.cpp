@@ -1,7 +1,8 @@
-#include "jose/jose.hpp"
-
 #include <gtest/gtest.h>
+
 #include <string>
+
+#include "jose/jose.hpp"
 
 using namespace Vlinder::jose;
 

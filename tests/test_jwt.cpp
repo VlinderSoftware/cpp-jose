@@ -1,9 +1,10 @@
-#include "jose/jose.hpp"
+#include <gtest/gtest.h>
 
 #include <chrono>
-#include <gtest/gtest.h>
 #include <string>
 #include <thread>
+
+#include "jose/jose.hpp"
 
 using namespace Vlinder::jose;
 

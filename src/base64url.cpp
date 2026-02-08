@@ -1,15 +1,14 @@
 #include "jose/base64url.hpp"
 
-#include <cstring>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
+
+#include <cstring>
 #include <stdexcept>
 
-namespace Vlinder
-{
-namespace jose
-{
+namespace Vlinder {
+namespace jose {
 
 std::string Base64Url::encode(const std::vector<unsigned char>& data)
 {

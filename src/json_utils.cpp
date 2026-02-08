@@ -6,10 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
-namespace Vlinder
-{
-namespace jose
-{
+namespace Vlinder {
+namespace jose {
 
 struct JsonValue::Impl
 {
@@ -186,38 +184,38 @@ static std::string escapeString(const std::string& str)
     {
         switch (c)
         {
-        case '"':
-            result += "\\\"";
-            break;
-        case '\\':
-            result += "\\\\";
-            break;
-        case '\b':
-            result += "\\b";
-            break;
-        case '\f':
-            result += "\\f";
-            break;
-        case '\n':
-            result += "\\n";
-            break;
-        case '\r':
-            result += "\\r";
-            break;
-        case '\t':
-            result += "\\t";
-            break;
-        default:
-            if (static_cast<unsigned char>(c) < 0x20)
-            {
-                char buf[7];
-                snprintf(buf, sizeof(buf), "\\u%04x", c);
-                result += buf;
-            }
-            else
-            {
-                result += c;
-            }
+            case '"':
+                result += "\\\"";
+                break;
+            case '\\':
+                result += "\\\\";
+                break;
+            case '\b':
+                result += "\\b";
+                break;
+            case '\f':
+                result += "\\f";
+                break;
+            case '\n':
+                result += "\\n";
+                break;
+            case '\r':
+                result += "\\r";
+                break;
+            case '\t':
+                result += "\\t";
+                break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20)
+                {
+                    char buf[7];
+                    snprintf(buf, sizeof(buf), "\\u%04x", c);
+                    result += buf;
+                }
+                else
+                {
+                    result += c;
+                }
         }
     }
     return result;
@@ -229,56 +227,56 @@ std::string JsonValue::serialize() const
 
     switch (impl_->type)
     {
-    case Type::Null:
-        oss << "null";
-        break;
+        case Type::Null:
+            oss << "null";
+            break;
 
-    case Type::Boolean:
-        oss << (impl_->boolValue ? "true" : "false");
-        break;
+        case Type::Boolean:
+            oss << (impl_->boolValue ? "true" : "false");
+            break;
 
-    case Type::Number:
-        if (impl_->numberValue == static_cast<int>(impl_->numberValue))
-        {
-            oss << static_cast<int>(impl_->numberValue);
-        }
-        else
-        {
-            oss << impl_->numberValue;
-        }
-        break;
-
-    case Type::String:
-        oss << '"' << escapeString(impl_->stringValue) << '"';
-        break;
-
-    case Type::Array:
-        oss << '[';
-        for (size_t i = 0; i < impl_->arrayValue.size(); ++i)
-        {
-            if (i > 0)
+        case Type::Number:
+            if (impl_->numberValue == static_cast<int>(impl_->numberValue))
             {
-                oss << ',';
+                oss << static_cast<int>(impl_->numberValue);
             }
-            oss << impl_->arrayValue[i].serialize();
-        }
-        oss << ']';
-        break;
-
-    case Type::Object:
-        oss << '{';
-        bool first = true;
-        for (const auto& pair : impl_->objectValue)
-        {
-            if (!first)
+            else
             {
-                oss << ',';
+                oss << impl_->numberValue;
             }
-            first = false;
-            oss << '"' << escapeString(pair.first) << "\":" << pair.second.serialize();
-        }
-        oss << '}';
-        break;
+            break;
+
+        case Type::String:
+            oss << '"' << escapeString(impl_->stringValue) << '"';
+            break;
+
+        case Type::Array:
+            oss << '[';
+            for (size_t i = 0; i < impl_->arrayValue.size(); ++i)
+            {
+                if (i > 0)
+                {
+                    oss << ',';
+                }
+                oss << impl_->arrayValue[i].serialize();
+            }
+            oss << ']';
+            break;
+
+        case Type::Object:
+            oss << '{';
+            bool first = true;
+            for (const auto& pair : impl_->objectValue)
+            {
+                if (!first)
+                {
+                    oss << ',';
+                }
+                first = false;
+                oss << '"' << escapeString(pair.first) << "\":" << pair.second.serialize();
+            }
+            oss << '}';
+            break;
     }
 
     return oss.str();
@@ -433,32 +431,32 @@ private:
                 char escaped = next();
                 switch (escaped)
                 {
-                case '"':
-                    result += '"';
-                    break;
-                case '\\':
-                    result += '\\';
-                    break;
-                case '/':
-                    result += '/';
-                    break;
-                case 'b':
-                    result += '\b';
-                    break;
-                case 'f':
-                    result += '\f';
-                    break;
-                case 'n':
-                    result += '\n';
-                    break;
-                case 'r':
-                    result += '\r';
-                    break;
-                case 't':
-                    result += '\t';
-                    break;
-                default:
-                    result += escaped;
+                    case '"':
+                        result += '"';
+                        break;
+                    case '\\':
+                        result += '\\';
+                        break;
+                    case '/':
+                        result += '/';
+                        break;
+                    case 'b':
+                        result += '\b';
+                        break;
+                    case 'f':
+                        result += '\f';
+                        break;
+                    case 'n':
+                        result += '\n';
+                        break;
+                    case 'r':
+                        result += '\r';
+                        break;
+                    case 't':
+                        result += '\t';
+                        break;
+                    default:
+                        result += escaped;
                 }
             }
             else

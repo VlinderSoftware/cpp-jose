@@ -1,26 +1,24 @@
 #include "jose/jwk_thumbprint.hpp"
 
-#include "jose/base64url.hpp"
-#include "jose/json_utils.hpp"
-#include "jose/jwk.hpp"
-
-#include <algorithm>
-#include <map>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rsa.h>
 #include <openssl/sha.h>
+
+#include <algorithm>
+#include <map>
 #include <stdexcept>
 
-namespace Vlinder
-{
-namespace jose
-{
+#include "jose/base64url.hpp"
+#include "jose/json_utils.hpp"
+#include "jose/jwk.hpp"
 
-namespace
-{
+namespace Vlinder {
+namespace jose {
+
+namespace {
 
 std::string getOpenSSLError()
 {

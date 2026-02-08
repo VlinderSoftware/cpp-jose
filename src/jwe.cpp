@@ -1,38 +1,36 @@
 #include "jose/jwe.hpp"
 
+#include <openssl/rand.h>
+
+#include <map>
+#include <sstream>
+#include <stdexcept>
+
 #include "jose/base64url.hpp"
 #include "jose/json_utils.hpp"
 #include "jose/jwa.hpp"
 #include "jose/jwk.hpp"
 
-#include <map>
-#include <openssl/rand.h>
-#include <sstream>
-#include <stdexcept>
+namespace Vlinder {
+namespace jose {
 
-namespace Vlinder
-{
-namespace jose
-{
-
-namespace
-{
+namespace {
 
 size_t getKeySize(JWA::ContentEncryptionAlgorithm algorithm)
 {
     switch (algorithm)
     {
-    case JWA::ContentEncryptionAlgorithm::A128GCM:
-    case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
-        return 32;  // 256 bits for A128CBC_HS256 (128 for AES + 128 for HMAC)
-    case JWA::ContentEncryptionAlgorithm::A192GCM:
-    case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
-        return 48;  // 384 bits
-    case JWA::ContentEncryptionAlgorithm::A256GCM:
-    case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
-        return 64;  // 512 bits for A256CBC_HS512
-    default:
-        throw std::runtime_error("Unsupported content encryption algorithm");
+        case JWA::ContentEncryptionAlgorithm::A128GCM:
+        case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
+            return 32;  // 256 bits for A128CBC_HS256 (128 for AES + 128 for HMAC)
+        case JWA::ContentEncryptionAlgorithm::A192GCM:
+        case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
+            return 48;  // 384 bits
+        case JWA::ContentEncryptionAlgorithm::A256GCM:
+        case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
+            return 64;  // 512 bits for A256CBC_HS512
+        default:
+            throw std::runtime_error("Unsupported content encryption algorithm");
     }
 }
 
@@ -40,16 +38,16 @@ size_t getIVSize(JWA::ContentEncryptionAlgorithm algorithm)
 {
     switch (algorithm)
     {
-    case JWA::ContentEncryptionAlgorithm::A128GCM:
-    case JWA::ContentEncryptionAlgorithm::A192GCM:
-    case JWA::ContentEncryptionAlgorithm::A256GCM:
-        return 12;  // 96 bits for GCM
-    case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
-    case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
-    case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
-        return 16;  // 128 bits for CBC
-    default:
-        throw std::runtime_error("Unsupported content encryption algorithm");
+        case JWA::ContentEncryptionAlgorithm::A128GCM:
+        case JWA::ContentEncryptionAlgorithm::A192GCM:
+        case JWA::ContentEncryptionAlgorithm::A256GCM:
+            return 12;  // 96 bits for GCM
+        case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
+        case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
+        case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
+            return 16;  // 128 bits for CBC
+        default:
+            throw std::runtime_error("Unsupported content encryption algorithm");
     }
 }
 

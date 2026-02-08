@@ -1,21 +1,20 @@
 #include "jose/jwk.hpp"
 
-#include "jose/base64url.hpp"
-#include "jose/json_utils.hpp"
-
-#include <cstring>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
+
+#include <cstring>
 #include <stdexcept>
 
-namespace Vlinder
-{
-namespace jose
-{
+#include "jose/base64url.hpp"
+#include "jose/json_utils.hpp"
+
+namespace Vlinder {
+namespace jose {
 
 struct JWK::Impl
 {
@@ -183,18 +182,18 @@ std::string JWK::toJson(bool includePrivate) const
     // Set key type
     switch (impl_->keyType)
     {
-    case KeyType::RSA:
-        json.set("kty", JsonValue("RSA"));
-        break;
-    case KeyType::EC:
-        json.set("kty", JsonValue("EC"));
-        break;
-    case KeyType::OKP:
-        json.set("kty", JsonValue("OKP"));
-        break;
-    case KeyType::oct:
-        json.set("kty", JsonValue("oct"));
-        break;
+        case KeyType::RSA:
+            json.set("kty", JsonValue("RSA"));
+            break;
+        case KeyType::EC:
+            json.set("kty", JsonValue("EC"));
+            break;
+        case KeyType::OKP:
+            json.set("kty", JsonValue("OKP"));
+            break;
+        case KeyType::oct:
+            json.set("kty", JsonValue("oct"));
+            break;
     }
 
     // Add optional fields
