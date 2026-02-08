@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include <string>
 
@@ -6,19 +6,9 @@
 
 using namespace Vlinder::jose;
 
-class JWETest : public ::testing::Test
-{
-protected:
-    void SetUp() override
-    {
-    }
-    void TearDown() override
-    {
-    }
-};
 
 // Basic JWE creation tests
-TEST_F(JWETest, CreateSimpleJWE)
+TEST_CASE("JWE_CreateSimpleJWE", "[jwe][createsimplejwe]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -28,7 +18,7 @@ TEST_F(JWETest, CreateSimpleJWE)
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     // Should have 5 parts separated by dots
     int dotCount = 0;
@@ -37,10 +27,10 @@ TEST_F(JWETest, CreateSimpleJWE)
         if (c == '.')
             dotCount++;
     }
-    EXPECT_EQ(4, dotCount);  // 5 parts = 4 dots
+    REQUIRE(4 == dotCount);  // 5 parts = 4 dots
 }
 
-TEST_F(JWETest, EncryptDecryptRSA_OAEP_A128GCM)
+TEST_CASE("JWE_EncryptDecryptRSA_OAEP_A128GCM", "[jwe][encryptdecryptrsa-oaep-a128gcm]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -53,10 +43,10 @@ TEST_F(JWETest, EncryptDecryptRSA_OAEP_A128GCM)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptRSA_OAEP_A256GCM)
+TEST_CASE("JWE_EncryptDecryptRSA_OAEP_A256GCM", "[jwe][encryptdecryptrsa-oaep-a256gcm]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -69,10 +59,10 @@ TEST_F(JWETest, EncryptDecryptRSA_OAEP_A256GCM)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptRSA_OAEP_256_A128GCM)
+TEST_CASE("JWE_EncryptDecryptRSA_OAEP_256_A128GCM", "[jwe][encryptdecryptrsa-oaep-256-a128gcm]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -85,10 +75,10 @@ TEST_F(JWETest, EncryptDecryptRSA_OAEP_256_A128GCM)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptA128KW_A128GCM)
+TEST_CASE("JWE_EncryptDecryptA128KW_A128GCM", "[jwe][encryptdecrypta128kw-a128gcm]")
 {
     JWK key = JWK::generateOct(128);
 
@@ -101,10 +91,10 @@ TEST_F(JWETest, EncryptDecryptA128KW_A128GCM)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptA256KW_A256GCM)
+TEST_CASE("JWE_EncryptDecryptA256KW_A256GCM", "[jwe][encryptdecrypta256kw-a256gcm]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -117,10 +107,10 @@ TEST_F(JWETest, EncryptDecryptA256KW_A256GCM)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptDIR_A128GCM)
+TEST_CASE("JWE_EncryptDecryptDIR_A128GCM", "[jwe][encryptdecryptdir-a128gcm]")
 {
     JWK key = JWK::generateOct(128);
 
@@ -133,10 +123,10 @@ TEST_F(JWETest, EncryptDecryptDIR_A128GCM)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptA128CBC_HS256)
+TEST_CASE("JWE_EncryptDecryptA128CBC_HS256", "[jwe][encryptdecrypta128cbc-hs256]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -149,10 +139,10 @@ TEST_F(JWETest, EncryptDecryptA128CBC_HS256)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, EncryptDecryptA256CBC_HS512)
+TEST_CASE("JWE_EncryptDecryptA256CBC_HS512", "[jwe][encryptdecrypta256cbc-hs512]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -165,11 +155,11 @@ TEST_F(JWETest, EncryptDecryptA256CBC_HS512)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
 // Header and metadata tests
-TEST_F(JWETest, SetKeyId)
+TEST_CASE("JWE_SetKeyId", "[jwe][setkeyid]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -184,10 +174,10 @@ TEST_F(JWETest, SetKeyId)
     JWE parsed = JWE::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("my-key-id"));
+    REQUIRE(std::string::npos != header.find("my-key-id"));
 }
 
-TEST_F(JWETest, SetType)
+TEST_CASE("JWE_SetType", "[jwe][settype]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -202,10 +192,10 @@ TEST_F(JWETest, SetType)
     JWE parsed = JWE::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("JWT"));
+    REQUIRE(std::string::npos != header.find("JWT"));
 }
 
-TEST_F(JWETest, SetCustomHeaderParam)
+TEST_CASE("JWE_SetCustomHeaderParam", "[jwe][setcustomheaderparam]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -220,11 +210,11 @@ TEST_F(JWETest, SetCustomHeaderParam)
     JWE parsed = JWE::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("custom"));
-    EXPECT_NE(std::string::npos, header.find("value"));
+    REQUIRE(std::string::npos != header.find("custom"));
+    REQUIRE(std::string::npos != header.find("value"));
 }
 
-TEST_F(JWETest, GetHeader)
+TEST_CASE("JWE_GetHeader", "[jwe][getheader]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -238,13 +228,13 @@ TEST_F(JWETest, GetHeader)
     JWE parsed = JWE::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_FALSE(header.empty());
-    EXPECT_NE(std::string::npos, header.find("alg"));
-    EXPECT_NE(std::string::npos, header.find("enc"));
+    REQUIRE_FALSE(header.empty());
+    REQUIRE(std::string::npos != header.find("alg"));
+    REQUIRE(std::string::npos != header.find("enc"));
 }
 
 // Parsing tests
-TEST_F(JWETest, ParseJWE)
+TEST_CASE("JWE_ParseJWE", "[jwe][parsejwe]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -259,11 +249,11 @@ TEST_F(JWETest, ParseJWE)
     JWE parsed = JWE::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("key-123"));
+    REQUIRE(std::string::npos != header.find("key-123"));
 }
 
 // Wrong key tests
-TEST_F(JWETest, DecryptWithWrongKeyFails)
+TEST_CASE("JWE_DecryptWithWrongKeyFails", "[jwe][decryptwithwrongkeyfails]")
 {
     JWK key1 = JWK::generateRSA(2048);
     JWK key2 = JWK::generateRSA(2048);
@@ -275,10 +265,10 @@ TEST_F(JWETest, DecryptWithWrongKeyFails)
 
     std::string token = jwe.encrypt(key1);
 
-    EXPECT_THROW({ JWE::decrypt(token, key2); }, std::exception);
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key2), std::exception);
 }
 
-TEST_F(JWETest, SymmetricWrongKeyFails)
+TEST_CASE("JWE_SymmetricWrongKeyFails", "[jwe][symmetricwrongkeyfails]")
 {
     JWK key1 = JWK::generateOct(256);
     JWK key2 = JWK::generateOct(256);
@@ -290,11 +280,11 @@ TEST_F(JWETest, SymmetricWrongKeyFails)
 
     std::string token = jwe.encrypt(key1);
 
-    EXPECT_THROW({ JWE::decrypt(token, key2); }, std::exception);
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key2), std::exception);
 }
 
 // Tampering tests
-TEST_F(JWETest, TamperedCiphertextFails)
+TEST_CASE("JWE_TamperedCiphertextFails", "[jwe][tamperedciphertextfails]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -316,11 +306,11 @@ TEST_F(JWETest, TamperedCiphertextFails)
         token[dot3 + 1] = (token[dot3 + 1] == 'A') ? 'B' : 'A';
     }
 
-    EXPECT_THROW({ JWE::decrypt(token, key); }, std::exception);
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key), std::exception);
 }
 
 // Copy and move semantics
-TEST_F(JWETest, CopyConstructor)
+TEST_CASE("JWE_CopyConstructor", "[jwe][copyconstructor]")
 {
     JWE original;
     original.setPlaintext("test");
@@ -328,10 +318,10 @@ TEST_F(JWETest, CopyConstructor)
     original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
 
     JWE copy(original);
-    EXPECT_EQ(original.getPlaintext(), copy.getPlaintext());
+    REQUIRE(original.getPlaintext() == copy.getPlaintext());
 }
 
-TEST_F(JWETest, CopyAssignment)
+TEST_CASE("JWE_CopyAssignment", "[jwe][copyassignment]")
 {
     JWE original;
     original.setPlaintext("test");
@@ -339,10 +329,10 @@ TEST_F(JWETest, CopyAssignment)
     original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
 
     JWE copy = original;
-    EXPECT_EQ(original.getPlaintext(), copy.getPlaintext());
+    REQUIRE(original.getPlaintext() == copy.getPlaintext());
 }
 
-TEST_F(JWETest, MoveConstructor)
+TEST_CASE("JWE_MoveConstructor", "[jwe][moveconstructor]")
 {
     JWE original;
     original.setPlaintext("test plaintext");
@@ -350,10 +340,10 @@ TEST_F(JWETest, MoveConstructor)
     original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
 
     JWE moved(std::move(original));
-    EXPECT_EQ("test plaintext", moved.getPlaintext());
+    REQUIRE("test plaintext" == moved.getPlaintext());
 }
 
-TEST_F(JWETest, MoveAssignment)
+TEST_CASE("JWE_MoveAssignment", "[jwe][moveassignment]")
 {
     JWE original;
     original.setPlaintext("test plaintext");
@@ -361,11 +351,11 @@ TEST_F(JWETest, MoveAssignment)
     original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
 
     JWE moved = std::move(original);
-    EXPECT_EQ("test plaintext", moved.getPlaintext());
+    REQUIRE("test plaintext" == moved.getPlaintext());
 }
 
 // Edge cases
-TEST_F(JWETest, EmptyPlaintext)
+TEST_CASE("JWE_EmptyPlaintext", "[jwe][emptyplaintext]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -375,13 +365,13 @@ TEST_F(JWETest, EmptyPlaintext)
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ("", decrypted);
+    REQUIRE("" == decrypted);
 }
 
-TEST_F(JWETest, LargePlaintext)
+TEST_CASE("JWE_LargePlaintext", "[jwe][largeplaintext]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -395,10 +385,10 @@ TEST_F(JWETest, LargePlaintext)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(largePlaintext, decrypted);
+    REQUIRE(largePlaintext == decrypted);
 }
 
-TEST_F(JWETest, PlaintextWithSpecialCharacters)
+TEST_CASE("JWE_PlaintextWithSpecialCharacters", "[jwe][plaintextwithspecialcharacters]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -412,10 +402,10 @@ TEST_F(JWETest, PlaintextWithSpecialCharacters)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, BinaryPlaintext)
+TEST_CASE("JWE_BinaryPlaintext", "[jwe][binaryplaintext]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -433,10 +423,10 @@ TEST_F(JWETest, BinaryPlaintext)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(JWETest, JSONPlaintext)
+TEST_CASE("JWE_JSONPlaintext", "[jwe][jsonplaintext]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -454,10 +444,10 @@ TEST_F(JWETest, JSONPlaintext)
     std::string token = jwe.encrypt(key);
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(jsonPlaintext, decrypted);
+    REQUIRE(jsonPlaintext == decrypted);
 }
 
-TEST_F(JWETest, MultipleEncryptionsSamePlaintext)
+TEST_CASE("JWE_MultipleEncryptionsSamePlaintext", "[jwe][multipleencryptionssameplaintext]")
 {
     JWK key = JWK::generateRSA(2048);
     std::string plaintext = "same plaintext";
@@ -476,9 +466,9 @@ TEST_F(JWETest, MultipleEncryptionsSamePlaintext)
     std::string token2 = jwe2.encrypt(key);
 
     // Tokens should be different due to random IV/CEK
-    EXPECT_NE(token1, token2);
+    REQUIRE(token1 != token2);
 
     // But both should decrypt to same plaintext
-    EXPECT_EQ(plaintext, JWE::decrypt(token1, key));
-    EXPECT_EQ(plaintext, JWE::decrypt(token2, key));
+    REQUIRE(plaintext == JWE::decrypt(token1, key));
+    REQUIRE(plaintext == JWE::decrypt(token2, key));
 }

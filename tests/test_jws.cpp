@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include <string>
 
@@ -6,19 +6,8 @@
 
 using namespace Vlinder::jose;
 
-class JWSTest : public ::testing::Test
-{
-protected:
-    void SetUp() override
-    {
-    }
-    void TearDown() override
-    {
-    }
-};
-
 // Basic JWS creation tests
-TEST_F(JWSTest, CreateSimpleJWS)
+TEST_CASE("JWS_CreateSimpleJWS", "[jws][createsimplejws]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -27,16 +16,16 @@ TEST_F(JWSTest, CreateSimpleJWS)
     jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     // Should have 3 parts separated by dots
     size_t firstDot = token.find('.');
     size_t secondDot = token.find('.', firstDot + 1);
-    EXPECT_NE(std::string::npos, firstDot);
-    EXPECT_NE(std::string::npos, secondDot);
+    REQUIRE(std::string::npos != firstDot);
+    REQUIRE(std::string::npos != secondDot);
 }
 
-TEST_F(JWSTest, CreateJWSWithAllAlgorithms)
+TEST_CASE("JWS_CreateJWSWithAllAlgorithms", "[jws][createjwswithallalgorithms]")
 {
     std::vector<std::pair<JWA::SignatureAlgorithm, JWK>> testCases = {
         {JWA::SignatureAlgorithm::HS256, JWK::generateOct(256)},
@@ -59,11 +48,11 @@ TEST_F(JWSTest, CreateJWSWithAllAlgorithms)
         jws.setAlgorithm(alg);
 
         std::string token = jws.sign(key);
-        EXPECT_FALSE(token.empty()) << "Failed for algorithm: " << JWA::toString(alg);
+        REQUIRE_FALSE(token.empty());
     }
 }
 
-TEST_F(JWSTest, SetPayload)
+TEST_CASE("JWS_SetPayload", "[jws][setpayload]")
 {
     JWS jws;
     jws.setPayload("Hello, World!");
@@ -74,10 +63,10 @@ TEST_F(JWSTest, SetPayload)
     std::string token = jws.sign(key);
     JWS parsed = JWS::parse(token);
 
-    EXPECT_EQ("Hello, World!", parsed.getPayload());
+    REQUIRE(parsed.getPayload() == "Hello, World!");
 }
 
-TEST_F(JWSTest, SetKeyId)
+TEST_CASE("JWS_SetKeyId", "[jws][setkeyid]")
 {
     JWS jws;
     jws.setPayload("test");
@@ -90,10 +79,10 @@ TEST_F(JWSTest, SetKeyId)
     JWS parsed = JWS::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("my-key-123"));
+    REQUIRE(std::string::npos != header.find("my-key-123"));
 }
 
-TEST_F(JWSTest, SetType)
+TEST_CASE("JWS_SetType", "[jws][settype]")
 {
     JWS jws;
     jws.setPayload("test");
@@ -106,10 +95,10 @@ TEST_F(JWSTest, SetType)
     JWS parsed = JWS::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("JWT"));
+    REQUIRE(std::string::npos != header.find("JWT"));
 }
 
-TEST_F(JWSTest, SetCustomHeaderParam)
+TEST_CASE("JWS_SetCustomHeaderParam", "[jws][setcustomheaderparam]")
 {
     JWS jws;
     jws.setPayload("test");
@@ -122,11 +111,11 @@ TEST_F(JWSTest, SetCustomHeaderParam)
     JWS parsed = JWS::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("custom"));
-    EXPECT_NE(std::string::npos, header.find("value"));
+    REQUIRE(std::string::npos != header.find("custom"));
+    REQUIRE(std::string::npos != header.find("value"));
 }
 
-TEST_F(JWSTest, GetHeader)
+TEST_CASE("JWS_GetHeader", "[jws][getheader]")
 {
     JWS jws;
     jws.setPayload("test");
@@ -140,12 +129,12 @@ TEST_F(JWSTest, GetHeader)
     JWS parsed = JWS::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_FALSE(header.empty());
-    EXPECT_NE(std::string::npos, header.find("alg"));
-    EXPECT_NE(std::string::npos, header.find("HS256"));
+    REQUIRE_FALSE(header.empty());
+    REQUIRE(std::string::npos != header.find("alg"));
+    REQUIRE(std::string::npos != header.find("HS256"));
 }
 
-TEST_F(JWSTest, GetAlgorithm)
+TEST_CASE("JWS_GetAlgorithm", "[jws][getalgorithm]")
 {
     JWS jws;
     jws.setPayload("test");
@@ -155,11 +144,11 @@ TEST_F(JWSTest, GetAlgorithm)
     std::string token = jws.sign(key);
 
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ(JWA::SignatureAlgorithm::RS256, parsed.getAlgorithm());
+    REQUIRE(JWA::SignatureAlgorithm::RS256 == parsed.getAlgorithm());
 }
 
 // Verification tests
-TEST_F(JWSTest, VerifyValidHS256)
+TEST_CASE("JWS_VerifyValidHS256", "[jws][verifyvalidhs256]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -170,10 +159,10 @@ TEST_F(JWSTest, VerifyValidHS256)
     std::string token = jws.sign(key);
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(JWSTest, VerifyValidRS256)
+TEST_CASE("JWS_VerifyValidRS256", "[jws][verifyvalidrs256]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -184,10 +173,10 @@ TEST_F(JWSTest, VerifyValidRS256)
     std::string token = jws.sign(key);
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(JWSTest, VerifyValidES256)
+TEST_CASE("JWS_VerifyValidES256", "[jws][verifyvalides256]")
 {
     JWK key = JWK::generateEC("P-256");
 
@@ -198,10 +187,10 @@ TEST_F(JWSTest, VerifyValidES256)
     std::string token = jws.sign(key);
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(JWSTest, VerifyWithWrongKeyFails)
+TEST_CASE("JWS_VerifyWithWrongKeyFails", "[jws][verifywithwrongkeyfails]")
 {
     JWK key1 = JWK::generateOct(256);
     JWK key2 = JWK::generateOct(256);
@@ -213,10 +202,10 @@ TEST_F(JWSTest, VerifyWithWrongKeyFails)
     std::string token = jws.sign(key1);
 
     bool verified = JWS::verify(token, key2);
-    EXPECT_FALSE(verified);
+    REQUIRE_FALSE(verified);
 }
 
-TEST_F(JWSTest, VerifyTamperedPayloadFails)
+TEST_CASE("JWS_VerifyTamperedPayloadFails", "[jws][verifytamperedpayloadfails]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -235,10 +224,10 @@ TEST_F(JWSTest, VerifyTamperedPayloadFails)
     }
 
     bool verified = JWS::verify(token, key);
-    EXPECT_FALSE(verified);
+    REQUIRE_FALSE(verified);
 }
 
-TEST_F(JWSTest, VerifyTamperedSignatureFails)
+TEST_CASE("JWS_VerifyTamperedSignatureFails", "[jws][verifytamperedsignaturefails]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -256,11 +245,11 @@ TEST_F(JWSTest, VerifyTamperedSignatureFails)
     }
 
     bool verified = JWS::verify(token, key);
-    EXPECT_FALSE(verified);
+    REQUIRE_FALSE(verified);
 }
 
 // Parsing tests
-TEST_F(JWSTest, ParseJWS)
+TEST_CASE("JWS_ParseJWS", "[jws][parsejws]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -272,11 +261,11 @@ TEST_F(JWSTest, ParseJWS)
     std::string token = original.sign(key);
 
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ("test payload", parsed.getPayload());
-    EXPECT_EQ(JWA::SignatureAlgorithm::HS256, parsed.getAlgorithm());
+    REQUIRE("test payload" == parsed.getPayload());
+    REQUIRE(JWA::SignatureAlgorithm::HS256 == parsed.getAlgorithm());
 }
 
-TEST_F(JWSTest, ParseAndGetPayload)
+TEST_CASE("JWS_ParseAndGetPayload", "[jws][parseandgetpayload]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -287,53 +276,53 @@ TEST_F(JWSTest, ParseAndGetPayload)
     std::string token = jws.sign(key);
 
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ("This is the payload content", parsed.getPayload());
+    REQUIRE("This is the payload content" == parsed.getPayload());
 }
 
 // Copy and move semantics
-TEST_F(JWSTest, CopyConstructor)
+TEST_CASE("JWS_CopyConstructor", "[jws][copyconstructor]")
 {
     JWS original;
     original.setPayload("test");
     original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     JWS copy(original);
-    EXPECT_EQ(original.getPayload(), copy.getPayload());
-    EXPECT_EQ(original.getAlgorithm(), copy.getAlgorithm());
+    REQUIRE(original.getPayload() == copy.getPayload());
+    REQUIRE(original.getAlgorithm() == copy.getAlgorithm());
 }
 
-TEST_F(JWSTest, CopyAssignment)
+TEST_CASE("JWS_CopyAssignment", "[jws][copyassignment]")
 {
     JWS original;
     original.setPayload("test");
     original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     JWS copy = original;
-    EXPECT_EQ(original.getPayload(), copy.getPayload());
+    REQUIRE(original.getPayload() == copy.getPayload());
 }
 
-TEST_F(JWSTest, MoveConstructor)
+TEST_CASE("JWS_MoveConstructor", "[jws][moveconstructor]")
 {
     JWS original;
     original.setPayload("test payload");
     original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     JWS moved(std::move(original));
-    EXPECT_EQ("test payload", moved.getPayload());
+    REQUIRE("test payload" == moved.getPayload());
 }
 
-TEST_F(JWSTest, MoveAssignment)
+TEST_CASE("JWS_MoveAssignment", "[jws][moveassignment]")
 {
     JWS original;
     original.setPayload("test payload");
     original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     JWS moved = std::move(original);
-    EXPECT_EQ("test payload", moved.getPayload());
+    REQUIRE("test payload" == moved.getPayload());
 }
 
 // Edge cases
-TEST_F(JWSTest, EmptyPayload)
+TEST_CASE("JWS_EmptyPayload", "[jws][emptypayload]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -342,13 +331,13 @@ TEST_F(JWSTest, EmptyPayload)
     jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(JWSTest, LargePayload)
+TEST_CASE("JWS_LargePayload", "[jws][largepayload]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -359,13 +348,13 @@ TEST_F(JWSTest, LargePayload)
     jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ(largePayload, parsed.getPayload());
+    REQUIRE(largePayload == parsed.getPayload());
 }
 
-TEST_F(JWSTest, PayloadWithSpecialCharacters)
+TEST_CASE("JWS_PayloadWithSpecialCharacters", "[jws][payloadwithspecialcharacters]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -378,10 +367,10 @@ TEST_F(JWSTest, PayloadWithSpecialCharacters)
     std::string token = jws.sign(key);
 
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ(payload, parsed.getPayload());
+    REQUIRE(payload == parsed.getPayload());
 }
 
-TEST_F(JWSTest, JSONPayload)
+TEST_CASE("JWS_JSONPayload", "[jws][jsonpayload]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -394,10 +383,10 @@ TEST_F(JWSTest, JSONPayload)
     std::string token = jws.sign(key);
 
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ(jsonPayload, parsed.getPayload());
+    REQUIRE(jsonPayload == parsed.getPayload());
 }
 
-TEST_F(JWSTest, MultipleHeaderParams)
+TEST_CASE("JWS_MultipleHeaderParams", "[jws][multipleheaderparams]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -414,12 +403,12 @@ TEST_F(JWSTest, MultipleHeaderParams)
     JWS parsed = JWS::parse(token);
     std::string header = parsed.getHeader();
 
-    EXPECT_NE(std::string::npos, header.find("custom1"));
-    EXPECT_NE(std::string::npos, header.find("custom2"));
+    REQUIRE(std::string::npos != header.find("custom1"));
+    REQUIRE(std::string::npos != header.find("custom2"));
 }
 
 // Public key verification
-TEST_F(JWSTest, RSAPublicKeyVerification)
+TEST_CASE("JWS_JWS_RSAPublicKeyVerification", "[jws][rsapublickeyverification]")
 {
     JWK privateKey = JWK::generateRSA(2048);
 
@@ -434,10 +423,10 @@ TEST_F(JWSTest, RSAPublicKeyVerification)
     JWK publicKey = JWK::fromJson(publicKeyJson);
 
     bool verified = JWS::verify(token, publicKey);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(JWSTest, ECPublicKeyVerification)
+TEST_CASE("JWS_ECPublicKeyVerification", "[jws][ecpublickeyverification]")
 {
     JWK privateKey = JWK::generateEC("P-256");
 
@@ -452,11 +441,11 @@ TEST_F(JWSTest, ECPublicKeyVerification)
     JWK publicKey = JWK::fromJson(publicKeyJson);
 
     bool verified = JWS::verify(token, publicKey);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
 // Interoperability test
-TEST_F(JWSTest, CreateWithJWSVerifyWithJWT)
+TEST_CASE("JWS_CreateWithJWSVerifyWithJWT", "[jws][createwithjwsverifywithjwt]")
 {
     JWK key = JWK::generateOct(256);
 
@@ -470,5 +459,5 @@ TEST_F(JWSTest, CreateWithJWSVerifyWithJWT)
 
     // Should be verifiable as JWT
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }

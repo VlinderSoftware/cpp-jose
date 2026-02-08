@@ -1,16 +1,15 @@
 cmake_minimum_required(VERSION 3.14)
 
-# GoogleTest setup
-find_package(GTest QUIET)
-if(NOT GTest_FOUND)
+# Catch2 setup
+find_package(Catch2 3 QUIET)
+if(NOT Catch2_FOUND)
     include(FetchContent)
     FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG release-1.12.1
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG v3.5.2
     )
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
+    FetchContent_MakeAvailable(Catch2)
 endif()
 
 enable_testing()
@@ -31,11 +30,13 @@ add_executable(jose_tests
 target_link_libraries(jose_tests
     jose
     nlohmann_json::nlohmann_json
-    GTest::gtest_main
+    Catch2::Catch2WithMain
 )
 
-include(GoogleTest)
-gtest_discover_tests(jose_tests)
+include(CTest)
+list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+include(Catch)
+catch_discover_tests(jose_tests)
 
 # Coverage flags
 if(CMAKE_BUILD_TYPE MATCHES Debug)

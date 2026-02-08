@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include <string>
 
@@ -6,22 +6,11 @@
 
 using namespace Vlinder::jose;
 
-class RFC7520Test : public ::testing::Test
-{
-protected:
-    void SetUp() override
-    {
-    }
-    void TearDown() override
-    {
-    }
-};
-
 // RFC 7520 provides extensive examples for JWS, JWE, and JWK
 // These tests verify compliance with the RFC examples
 
 // Section 3 - JSON Web Key Examples
-TEST_F(RFC7520Test, Section3_1_ECPublicKey)
+TEST_CASE("Section3_1_ECPublicKey", "[jwa][section3-1-ecpublickey]")
 {
     // RFC 7520 Section 3.1 - EC Public Key
     std::string jwkJson = R"({
@@ -34,11 +23,11 @@ TEST_F(RFC7520Test, Section3_1_ECPublicKey)
     })";
 
     JWK key = JWK::fromJson(jwkJson);
-    EXPECT_EQ(JWK::KeyType::EC, key.getKeyType());
-    EXPECT_EQ("bilbo.baggins@hobbiton.example", key.getKeyId());
+    REQUIRE(JWK::KeyType::EC == key.getKeyType());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
 }
 
-TEST_F(RFC7520Test, Section3_2_ECPrivateKey)
+TEST_CASE("Section3_2_ECPrivateKey", "[jwa][section3-2-ecprivatekey]")
 {
     // RFC 7520 Section 3.2 - EC Private Key
     std::string jwkJson = R"({
@@ -52,12 +41,12 @@ TEST_F(RFC7520Test, Section3_2_ECPrivateKey)
     })";
 
     JWK key = JWK::fromJson(jwkJson);
-    EXPECT_EQ(JWK::KeyType::EC, key.getKeyType());
-    EXPECT_TRUE(key.hasPrivateKey());
-    EXPECT_EQ("bilbo.baggins@hobbiton.example", key.getKeyId());
+    REQUIRE(JWK::KeyType::EC == key.getKeyType());
+    REQUIRE(key.hasPrivateKey());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
 }
 
-TEST_F(RFC7520Test, Section3_3_RSAPublicKey)
+TEST_CASE("Section3_3_RSAPublicKey", "[jwa][section3-3-rsapublickey]")
 {
     // RFC 7520 Section 3.3 - RSA Public Key
     std::string jwkJson = R"({
@@ -69,12 +58,12 @@ TEST_F(RFC7520Test, Section3_3_RSAPublicKey)
     })";
 
     JWK key = JWK::fromJson(jwkJson);
-    EXPECT_EQ(JWK::KeyType::RSA, key.getKeyType());
-    EXPECT_FALSE(key.hasPrivateKey());
-    EXPECT_EQ("bilbo.baggins@hobbiton.example", key.getKeyId());
+    REQUIRE(JWK::KeyType::RSA == key.getKeyType());
+    REQUIRE_FALSE(key.hasPrivateKey());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
 }
 
-TEST_F(RFC7520Test, Section3_4_RSAPrivateKey)
+TEST_CASE("Section3_4_RSAPrivateKey", "[jwa][section3-4-rsaprivatekey]")
 {
     // RFC 7520 Section 3.4 - RSA Private Key (truncated for brevity)
     std::string jwkJson = R"({
@@ -92,12 +81,12 @@ TEST_F(RFC7520Test, Section3_4_RSAPrivateKey)
     })";
 
     JWK key = JWK::fromJson(jwkJson);
-    EXPECT_EQ(JWK::KeyType::RSA, key.getKeyType());
-    EXPECT_TRUE(key.hasPrivateKey());
-    EXPECT_EQ("bilbo.baggins@hobbiton.example", key.getKeyId());
+    REQUIRE(JWK::KeyType::RSA == key.getKeyType());
+    REQUIRE(key.hasPrivateKey());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
 }
 
-TEST_F(RFC7520Test, Section3_5_SymmetricKey)
+TEST_CASE("Section3_5_SymmetricKey", "[jwa][section3-5-symmetrickey]")
 {
     // RFC 7520 Section 3.5 - Symmetric Key
     std::string jwkJson = R"({
@@ -109,13 +98,13 @@ TEST_F(RFC7520Test, Section3_5_SymmetricKey)
     })";
 
     JWK key = JWK::fromJson(jwkJson);
-    EXPECT_EQ(JWK::KeyType::oct, key.getKeyType());
-    EXPECT_EQ("018c0ae5-4d9b-471b-bfd6-eef314bc7037", key.getKeyId());
-    EXPECT_EQ("HS256", key.getAlgorithm());
+    REQUIRE(JWK::KeyType::oct == key.getKeyType());
+    REQUIRE("018c0ae5-4d9b-471b-bfd6-eef314bc7037" == key.getKeyId());
+    REQUIRE("HS256" == key.getAlgorithm());
 }
 
 // Section 4 - JSON Web Signature Examples
-TEST_F(RFC7520Test, Section4_1_RSA_v15_Signature)
+TEST_CASE("Section4_1_RSA_v15_Signature", "[jwa][section4-1-rsa-v15-signature]")
 {
     // RFC 7520 Section 4.1 - RSA v1.5 Signature
     std::string payload = "It\xe2\x80\x99s a dangerous business, Frodo, going out your door. You "
@@ -131,18 +120,18 @@ TEST_F(RFC7520Test, Section4_1_RSA_v15_Signature)
     JWK key = JWK::generateRSA(2048);
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     // Verify
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 
     // Parse and check payload
     JWS parsed = JWS::parse(token);
-    EXPECT_EQ(payload, parsed.getPayload());
+    REQUIRE(payload == parsed.getPayload());
 }
 
-TEST_F(RFC7520Test, Section4_2_RSA_PSS_Signature)
+TEST_CASE("Section4_2_RSA_PSS_Signature", "[jwa][section4-2-rsa-pss-signature]")
 {
     // RFC 7520 Section 4.2 - RSA-PSS Signature
     std::string payload = "It\xe2\x80\x99s a dangerous business, Frodo, going out your door. You "
@@ -156,13 +145,13 @@ TEST_F(RFC7520Test, Section4_2_RSA_PSS_Signature)
     JWK key = JWK::generateRSA(2048);
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(RFC7520Test, Section4_3_ECDSA_Signature)
+TEST_CASE("Section4_3_ECDSA_Signature", "[jwa][section4-3-ecdsa-signature]")
 {
     // RFC 7520 Section 4.3 - ECDSA Signature
     std::string payload = "It\xe2\x80\x99s a dangerous business, Frodo, going out your door. You "
@@ -176,13 +165,13 @@ TEST_F(RFC7520Test, Section4_3_ECDSA_Signature)
     JWK key = JWK::generateEC("P-521");
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(RFC7520Test, Section4_4_HMAC_SHA2_Signature)
+TEST_CASE("Section4_4_HMAC_SHA2_Signature", "[jwa][section4-4-hmac-sha2-signature]")
 {
     // RFC 7520 Section 4.4 - HMAC-SHA2 Signature
     std::string payload = "It\xe2\x80\x99s a dangerous business, Frodo, going out your door. You "
@@ -196,13 +185,13 @@ TEST_F(RFC7520Test, Section4_4_HMAC_SHA2_Signature)
     JWK key = JWK::generateOct(256);
 
     std::string token = jws.sign(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
-TEST_F(RFC7520Test, Section4_5_DetachedSignature)
+TEST_CASE("Section4_5_DetachedSignature", "[jwa][section4-5-detachedsignature]")
 {
     // RFC 7520 Section 4.5 - Signature with Detached Content
     std::string payload = "It\xe2\x80\x99s a dangerous business, Frodo, going out your door. You "
@@ -220,11 +209,11 @@ TEST_F(RFC7520Test, Section4_5_DetachedSignature)
     // For detached content, the payload would be removed from the token
     // This is implementation-specific; here we just verify the standard flow works
     bool verified = JWS::verify(token, key);
-    EXPECT_TRUE(verified);
+    REQUIRE(verified);
 }
 
 // Section 5 - JSON Web Encryption Examples
-TEST_F(RFC7520Test, Section5_1_RSA_v15_KeyEncryption)
+TEST_CASE("Section5_1_RSA_v15_KeyEncryption", "[jwa][section5-1-rsa-v15-keyencryption]")
 {
     // RFC 7520 Section 5.1 - RSA v1.5 Key Encryption
     std::string plaintext =
@@ -241,13 +230,13 @@ TEST_F(RFC7520Test, Section5_1_RSA_v15_KeyEncryption)
     JWK key = JWK::generateRSA(2048);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(RFC7520Test, Section5_2_RSA_OAEP_KeyEncryption)
+TEST_CASE("Section5_2_RSA_OAEP_KeyEncryption", "[jwa][section5-2-rsa-oaep-keyencryption]")
 {
     // RFC 7520 Section 5.2 - RSA-OAEP Key Encryption
     std::string plaintext =
@@ -264,13 +253,13 @@ TEST_F(RFC7520Test, Section5_2_RSA_OAEP_KeyEncryption)
     JWK key = JWK::generateRSA(2048);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(RFC7520Test, Section5_3_AES_KeyWrap)
+TEST_CASE("Section5_3_AES_KeyWrap", "[jwa][section5-3-aes-keywrap]")
 {
     // RFC 7520 Section 5.3 - AES Key Wrap
     std::string plaintext =
@@ -287,13 +276,13 @@ TEST_F(RFC7520Test, Section5_3_AES_KeyWrap)
     JWK key = JWK::generateOct(128);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(RFC7520Test, Section5_4_DirectEncryption)
+TEST_CASE("Section5_4_DirectEncryption", "[jwa][section5-4-directencryption]")
 {
     // RFC 7520 Section 5.4 - Direct Encryption
     std::string plaintext =
@@ -310,13 +299,13 @@ TEST_F(RFC7520Test, Section5_4_DirectEncryption)
     JWK key = JWK::generateOct(128);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(RFC7520Test, Section5_5_DirectKeyAgreement)
+TEST_CASE("Section5_5_DirectKeyAgreement", "[jwa][section5-5-directkeyagreement]")
 {
     // RFC 7520 Section 5.5 - Direct Key Agreement (ECDH-ES)
     std::string plaintext =
@@ -333,13 +322,13 @@ TEST_F(RFC7520Test, Section5_5_DirectKeyAgreement)
     JWK key = JWK::generateEC("P-256");
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
-TEST_F(RFC7520Test, Section5_6_AES_GCM_KeyWrap)
+TEST_CASE("Section5_6_AES_GCM_KeyWrap", "[jwa][section5-6-aes-gcm-keywrap]")
 {
     // RFC 7520 Section 5.6 - AES-GCM Key Wrap
     std::string plaintext =
@@ -356,14 +345,14 @@ TEST_F(RFC7520Test, Section5_6_AES_GCM_KeyWrap)
     JWK key = JWK::generateOct(128);
 
     std::string token = jwe.encrypt(key);
-    EXPECT_FALSE(token.empty());
+    REQUIRE_FALSE(token.empty());
 
     std::string decrypted = JWE::decrypt(token, key);
-    EXPECT_EQ(plaintext, decrypted);
+    REQUIRE(plaintext == decrypted);
 }
 
 // Comprehensive integration tests
-TEST_F(RFC7520Test, JWTWithAllClaims)
+TEST_CASE("JWTWithAllClaims", "[jwa][jwtwithallclaims]")
 {
     // Test JWT with all standard claims
     JWT jwt;
@@ -384,15 +373,15 @@ TEST_F(RFC7520Test, JWTWithAllClaims)
     std::string token = jwt.sign(key, "RS256");
 
     JWT verified = JWT::verify(token, key);
-    EXPECT_EQ("https://example.com", verified.getIssuer());
-    EXPECT_EQ("user123", verified.getSubject());
-    EXPECT_EQ("admin", verified.getClaim("role"));
+    REQUIRE("https://example.com" == verified.getIssuer());
+    REQUIRE("user123" == verified.getSubject());
+    REQUIRE("admin" == verified.getClaim("role"));
 
     bool valid = verified.validate("https://example.com", "https://api.example.com", 10);
-    EXPECT_TRUE(valid);
+    REQUIRE(valid);
 }
 
-TEST_F(RFC7520Test, RoundTripWithDifferentAlgorithms)
+TEST_CASE("RoundTripWithDifferentAlgorithms", "[jwa][roundtripwithdifferentalgorithms]")
 {
     std::string payload = "Test payload for RFC 7520 compliance";
 
@@ -411,9 +400,9 @@ TEST_F(RFC7520Test, RoundTripWithDifferentAlgorithms)
 
         std::string token = jws.sign(key);
         bool verified = JWS::verify(token, key);
-        EXPECT_TRUE(verified) << "Failed for algorithm: " << JWA::toString(alg);
+        REQUIRE(verified);
 
         JWS parsed = JWS::parse(token);
-        EXPECT_EQ(payload, parsed.getPayload());
+        REQUIRE(payload == parsed.getPayload());
     }
 }

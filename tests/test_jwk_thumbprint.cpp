@@ -1,95 +1,86 @@
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
+#include <set>
 #include <string>
 
 #include "jose/jose.hpp"
 
 using namespace Vlinder::jose;
 
-class JWKThumbprintTest : public ::testing::Test
-{
-protected:
-    void SetUp() override
-    {
-    }
-    void TearDown() override
-    {
-    }
-};
 
 // Basic thumbprint computation tests
-TEST_F(JWKThumbprintTest, ComputeRSAThumbprint)
+TEST_CASE("ComputeRSAThumbprint", "[jwa][computersathumbprint]")
 {
     JWK key = JWK::generateRSA(2048);
     std::string thumbprint = JWKThumbprint::compute(key);
 
-    EXPECT_FALSE(thumbprint.empty());
+    REQUIRE_FALSE(thumbprint.empty());
     // Base64URL encoded SHA-256 is 43 characters (256 bits / 6 bits per char, rounded up)
-    EXPECT_EQ(43, thumbprint.length());
+    REQUIRE(43 == thumbprint.length());
 }
 
-TEST_F(JWKThumbprintTest, ComputeECThumbprint)
+TEST_CASE("ComputeECThumbprint", "[jwa][computeecthumbprint]")
 {
     JWK key = JWK::generateEC("P-256");
     std::string thumbprint = JWKThumbprint::compute(key);
 
-    EXPECT_FALSE(thumbprint.empty());
-    EXPECT_EQ(43, thumbprint.length());
+    REQUIRE_FALSE(thumbprint.empty());
+    REQUIRE(43 == thumbprint.length());
 }
 
-TEST_F(JWKThumbprintTest, ComputeOctThumbprint)
+TEST_CASE("ComputeOctThumbprint", "[jwa][computeoctthumbprint]")
 {
     JWK key = JWK::generateOct(256);
     std::string thumbprint = JWKThumbprint::compute(key);
 
-    EXPECT_FALSE(thumbprint.empty());
-    EXPECT_EQ(43, thumbprint.length());
+    REQUIRE_FALSE(thumbprint.empty());
+    REQUIRE(43 == thumbprint.length());
 }
 
 // Default algorithm is SHA-256
-TEST_F(JWKThumbprintTest, DefaultAlgorithmIsSHA256)
+TEST_CASE("DefaultAlgorithmIsSHA256", "[jwa][defaultalgorithmissha256]")
 {
     JWK key = JWK::generateRSA(2048);
 
     std::string thumbprint1 = JWKThumbprint::compute(key);
     std::string thumbprint2 = JWKThumbprint::compute(key, "SHA-256");
 
-    EXPECT_EQ(thumbprint1, thumbprint2);
+    REQUIRE(thumbprint1 == thumbprint2);
 }
 
 // Different hash algorithms
-TEST_F(JWKThumbprintTest, ComputeWithSHA384)
+TEST_CASE("ComputeWithSHA384", "[jwa][computewithsha384]")
 {
     JWK key = JWK::generateRSA(2048);
     std::string thumbprint = JWKThumbprint::compute(key, "SHA-384");
 
-    EXPECT_FALSE(thumbprint.empty());
+    REQUIRE_FALSE(thumbprint.empty());
     // SHA-384 produces 384 bits = 64 base64url characters
-    EXPECT_EQ(64, thumbprint.length());
+    REQUIRE(64 == thumbprint.length());
 }
 
-TEST_F(JWKThumbprintTest, ComputeWithSHA512)
+TEST_CASE("ComputeWithSHA512", "[jwa][computewithsha512]")
 {
     JWK key = JWK::generateRSA(2048);
     std::string thumbprint = JWKThumbprint::compute(key, "SHA-512");
 
-    EXPECT_FALSE(thumbprint.empty());
+    REQUIRE_FALSE(thumbprint.empty());
     // SHA-512 produces 512 bits = 86 base64url characters
-    EXPECT_EQ(86, thumbprint.length());
+    REQUIRE(86 == thumbprint.length());
 }
 
 // Deterministic thumbprints
-TEST_F(JWKThumbprintTest, ThumbprintIsDeterministic)
+TEST_CASE("ThumbprintIsDeterministic", "[jwa][thumbprintisdeterministic]")
 {
     JWK key = JWK::generateRSA(2048);
 
     std::string thumbprint1 = JWKThumbprint::compute(key);
     std::string thumbprint2 = JWKThumbprint::compute(key);
 
-    EXPECT_EQ(thumbprint1, thumbprint2);
+    REQUIRE(thumbprint1 == thumbprint2);
 }
 
-TEST_F(JWKThumbprintTest, SameKeyDifferentPropertiesSameThumbprint)
+TEST_CASE("SameKeyDifferentPropertiesSameThumbprint", "[jwa][samekeydifferentpropertiessamethumbprint]")
 {
     JWK key1 = JWK::generateRSA(2048);
     std::string keyJson = key1.toJson(true);
@@ -103,11 +94,11 @@ TEST_F(JWKThumbprintTest, SameKeyDifferentPropertiesSameThumbprint)
     std::string thumbprint1 = JWKThumbprint::compute(key1);
     std::string thumbprint2 = JWKThumbprint::compute(key2);
 
-    EXPECT_EQ(thumbprint1, thumbprint2);
+    REQUIRE(thumbprint1 == thumbprint2);
 }
 
 // Different keys produce different thumbprints
-TEST_F(JWKThumbprintTest, DifferentKeysProduceDifferentThumbprints)
+TEST_CASE("DifferentKeysProduceDifferentThumbprints", "[jwa][differentkeysproducedifferentthumbprints]")
 {
     JWK key1 = JWK::generateRSA(2048);
     JWK key2 = JWK::generateRSA(2048);
@@ -115,10 +106,10 @@ TEST_F(JWKThumbprintTest, DifferentKeysProduceDifferentThumbprints)
     std::string thumbprint1 = JWKThumbprint::compute(key1);
     std::string thumbprint2 = JWKThumbprint::compute(key2);
 
-    EXPECT_NE(thumbprint1, thumbprint2);
+    REQUIRE(thumbprint1 != thumbprint2);
 }
 
-TEST_F(JWKThumbprintTest, DifferentKeyTypesProduceDifferentThumbprints)
+TEST_CASE("DifferentKeyTypesProduceDifferentThumbprints", "[jwa][differentkeytypesproducedifferentthumbprints]")
 {
     JWK rsaKey = JWK::generateRSA(2048);
     JWK ecKey = JWK::generateEC("P-256");
@@ -128,13 +119,13 @@ TEST_F(JWKThumbprintTest, DifferentKeyTypesProduceDifferentThumbprints)
     std::string ecThumbprint = JWKThumbprint::compute(ecKey);
     std::string octThumbprint = JWKThumbprint::compute(octKey);
 
-    EXPECT_NE(rsaThumbprint, ecThumbprint);
-    EXPECT_NE(rsaThumbprint, octThumbprint);
-    EXPECT_NE(ecThumbprint, octThumbprint);
+    REQUIRE(rsaThumbprint != ecThumbprint);
+    REQUIRE(rsaThumbprint != octThumbprint);
+    REQUIRE(ecThumbprint != octThumbprint);
 }
 
 // Test with different EC curves
-TEST_F(JWKThumbprintTest, DifferentECCurvesProduceDifferentThumbprints)
+TEST_CASE("DifferentECCurvesProduceDifferentThumbprints", "[jwa][differenteccurvesproducedifferentthumbprints]")
 {
     JWK keyP256 = JWK::generateEC("P-256");
     JWK keyP384 = JWK::generateEC("P-384");
@@ -144,46 +135,46 @@ TEST_F(JWKThumbprintTest, DifferentECCurvesProduceDifferentThumbprints)
     std::string thumbprintP384 = JWKThumbprint::compute(keyP384);
     std::string thumbprintP521 = JWKThumbprint::compute(keyP521);
 
-    EXPECT_NE(thumbprintP256, thumbprintP384);
-    EXPECT_NE(thumbprintP256, thumbprintP521);
-    EXPECT_NE(thumbprintP384, thumbprintP521);
+    REQUIRE(thumbprintP256 != thumbprintP384);
+    REQUIRE(thumbprintP256 != thumbprintP521);
+    REQUIRE(thumbprintP384 != thumbprintP521);
 }
 
 // Raw thumbprint tests
-TEST_F(JWKThumbprintTest, ComputeRawThumbprint)
+TEST_CASE("ComputeRawThumbprint", "[jwa][computerawthumbprint]")
 {
     JWK key = JWK::generateRSA(2048);
 
     std::vector<unsigned char> rawThumbprint = JWKThumbprint::computeRaw(key);
 
-    EXPECT_FALSE(rawThumbprint.empty());
+    REQUIRE_FALSE(rawThumbprint.empty());
     // SHA-256 produces 32 bytes
-    EXPECT_EQ(32, rawThumbprint.size());
+    REQUIRE(32 == rawThumbprint.size());
 }
 
-TEST_F(JWKThumbprintTest, ComputeRawThumbprintSHA384)
+TEST_CASE("ComputeRawThumbprintSHA384", "[jwa][computerawthumbprintsha384]")
 {
     JWK key = JWK::generateRSA(2048);
 
     std::vector<unsigned char> rawThumbprint = JWKThumbprint::computeRaw(key, "SHA-384");
 
-    EXPECT_FALSE(rawThumbprint.empty());
+    REQUIRE_FALSE(rawThumbprint.empty());
     // SHA-384 produces 48 bytes
-    EXPECT_EQ(48, rawThumbprint.size());
+    REQUIRE(48 == rawThumbprint.size());
 }
 
-TEST_F(JWKThumbprintTest, ComputeRawThumbprintSHA512)
+TEST_CASE("ComputeRawThumbprintSHA512", "[jwa][computerawthumbprintsha512]")
 {
     JWK key = JWK::generateRSA(2048);
 
     std::vector<unsigned char> rawThumbprint = JWKThumbprint::computeRaw(key, "SHA-512");
 
-    EXPECT_FALSE(rawThumbprint.empty());
+    REQUIRE_FALSE(rawThumbprint.empty());
     // SHA-512 produces 64 bytes
-    EXPECT_EQ(64, rawThumbprint.size());
+    REQUIRE(64 == rawThumbprint.size());
 }
 
-TEST_F(JWKThumbprintTest, RawThumbprintMatchesEncodedThumbprint)
+TEST_CASE("RawThumbprintMatchesEncodedThumbprint", "[jwa][rawthumbprintmatchesencodedthumbprint]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -193,11 +184,11 @@ TEST_F(JWKThumbprintTest, RawThumbprintMatchesEncodedThumbprint)
     // Encode the raw thumbprint and compare
     std::string encodedFromRaw = Base64Url::encode(raw);
 
-    EXPECT_EQ(encoded, encodedFromRaw);
+    REQUIRE(encoded == encodedFromRaw);
 }
 
 // Round-trip tests
-TEST_F(JWKThumbprintTest, ThumbprintSurvivesSerializationRoundTrip)
+TEST_CASE("ThumbprintSurvivesSerializationRoundTrip", "[jwa][thumbprintsurvivesserializationroundtrip]")
 {
     JWK original = JWK::generateRSA(2048);
     std::string originalThumbprint = JWKThumbprint::compute(original);
@@ -208,10 +199,10 @@ TEST_F(JWKThumbprintTest, ThumbprintSurvivesSerializationRoundTrip)
 
     std::string deserializedThumbprint = JWKThumbprint::compute(deserialized);
 
-    EXPECT_EQ(originalThumbprint, deserializedThumbprint);
+    REQUIRE(originalThumbprint == deserializedThumbprint);
 }
 
-TEST_F(JWKThumbprintTest, PublicKeyOnlyThumbprintMatchesFullKey)
+TEST_CASE("PublicKeyOnlyThumbprintMatchesFullKey", "[jwa][publickeyonlythumbprintmatchesfullkey]")
 {
     JWK privateKey = JWK::generateRSA(2048);
     std::string privateThumbprint = JWKThumbprint::compute(privateKey);
@@ -223,50 +214,50 @@ TEST_F(JWKThumbprintTest, PublicKeyOnlyThumbprintMatchesFullKey)
     std::string publicThumbprint = JWKThumbprint::compute(publicKey);
 
     // Thumbprint should be the same
-    EXPECT_EQ(privateThumbprint, publicThumbprint);
+    REQUIRE(privateThumbprint == publicThumbprint);
 }
 
 // Test that thumbprint doesn't contain invalid base64url characters
-TEST_F(JWKThumbprintTest, ThumbprintIsValidBase64Url)
+TEST_CASE("ThumbprintIsValidBase64Url", "[jwa][thumbprintisvalidbase64url]")
 {
     JWK key = JWK::generateRSA(2048);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     // Should not contain '+', '/', or '='
-    EXPECT_EQ(std::string::npos, thumbprint.find('+'));
-    EXPECT_EQ(std::string::npos, thumbprint.find('/'));
-    EXPECT_EQ(std::string::npos, thumbprint.find('='));
+    REQUIRE(std::string::npos == thumbprint.find('+'));
+    REQUIRE(std::string::npos == thumbprint.find('/'));
+    REQUIRE(std::string::npos == thumbprint.find('='));
 
     // Should only contain valid base64url characters: A-Z, a-z, 0-9, -, _
     for (char c : thumbprint)
     {
         bool valid = (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
                      c == '-' || c == '_';
-        EXPECT_TRUE(valid) << "Invalid character: " << c;
+        REQUIRE(valid);
     }
 }
 
 // Edge cases
-TEST_F(JWKThumbprintTest, SmallKeyThumbprint)
+TEST_CASE("SmallKeyThumbprint", "[jwa][smallkeythumbprint]")
 {
     JWK key = JWK::generateOct(128);
     std::string thumbprint = JWKThumbprint::compute(key);
 
-    EXPECT_FALSE(thumbprint.empty());
-    EXPECT_EQ(43, thumbprint.length());
+    REQUIRE_FALSE(thumbprint.empty());
+    REQUIRE(43 == thumbprint.length());
 }
 
-TEST_F(JWKThumbprintTest, LargeKeyThumbprint)
+TEST_CASE("LargeKeyThumbprint", "[jwa][largekeythumbprint]")
 {
     JWK key = JWK::generateRSA(4096);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     // Thumbprint size should be the same regardless of key size
-    EXPECT_EQ(43, thumbprint.length());
+    REQUIRE(43 == thumbprint.length());
 }
 
 // RFC 7638 compliance test
-TEST_F(JWKThumbprintTest, RFC7638Example)
+TEST_CASE("RFC7638Example", "[jwa][rfc7638example]")
 {
     // RFC 7638 Section 3.1 provides an example
     // We can't test the exact example without the exact key, but we can test the format
@@ -275,15 +266,15 @@ TEST_F(JWKThumbprintTest, RFC7638Example)
     std::string thumbprint = JWKThumbprint::compute(key);
 
     // Verify it's a valid base64url string of the right length for SHA-256
-    EXPECT_EQ(43, thumbprint.length());
+    REQUIRE(43 == thumbprint.length());
 
     // Verify it's deterministic
     std::string thumbprint2 = JWKThumbprint::compute(key);
-    EXPECT_EQ(thumbprint, thumbprint2);
+    REQUIRE(thumbprint == thumbprint2);
 }
 
 // Test all key types
-TEST_F(JWKThumbprintTest, AllKeyTypesProduceValidThumbprints)
+TEST_CASE("AllKeyTypesProduceValidThumbprints", "[jwa][allkeytypesproducevalidthumbprints]")
 {
     std::vector<JWK> keys = {JWK::generateRSA(2048),   JWK::generateEC("P-256"),
                              JWK::generateEC("P-384"), JWK::generateEC("P-521"),
@@ -293,18 +284,18 @@ TEST_F(JWKThumbprintTest, AllKeyTypesProduceValidThumbprints)
     for (const auto& key : keys)
     {
         std::string thumbprint = JWKThumbprint::compute(key);
-        EXPECT_FALSE(thumbprint.empty());
-        EXPECT_EQ(43, thumbprint.length());
+        REQUIRE_FALSE(thumbprint.empty());
+        REQUIRE(43 == thumbprint.length());
 
         // Verify it's base64url
-        EXPECT_EQ(std::string::npos, thumbprint.find('+'));
-        EXPECT_EQ(std::string::npos, thumbprint.find('/'));
-        EXPECT_EQ(std::string::npos, thumbprint.find('='));
+        REQUIRE(std::string::npos == thumbprint.find('+'));
+        REQUIRE(std::string::npos == thumbprint.find('/'));
+        REQUIRE(std::string::npos == thumbprint.find('='));
     }
 }
 
 // Test with different hash algorithms for all key types
-TEST_F(JWKThumbprintTest, AllHashAlgorithmsWork)
+TEST_CASE("AllHashAlgorithmsWork", "[jwa][allhashalgorithmswork]")
 {
     JWK key = JWK::generateRSA(2048);
 
@@ -314,34 +305,34 @@ TEST_F(JWKThumbprintTest, AllHashAlgorithmsWork)
     for (const auto& [alg, expectedLength] : algorithms)
     {
         std::string thumbprint = JWKThumbprint::compute(key, alg);
-        EXPECT_FALSE(thumbprint.empty()) << "Failed for " << alg;
-        EXPECT_EQ(expectedLength, thumbprint.length()) << "Wrong length for " << alg;
+        REQUIRE_FALSE(thumbprint.empty());
+        REQUIRE(expectedLength == thumbprint.length());
     }
 }
 
 // Use thumbprint as key ID
-TEST_F(JWKThumbprintTest, UseThumbprintAsKeyId)
+TEST_CASE("UseThumbprintAsKeyId", "[jwa][usethumbprintaskeyid]")
 {
     JWK key = JWK::generateRSA(2048);
 
     std::string thumbprint = JWKThumbprint::compute(key);
     key.setKeyId(thumbprint);
 
-    EXPECT_EQ(thumbprint, key.getKeyId());
+    REQUIRE(thumbprint == key.getKeyId());
 
     // Verify it survives serialization
     std::string json = key.toJson(false);
     JWK parsed = JWK::fromJson(json);
 
-    EXPECT_EQ(thumbprint, parsed.getKeyId());
+    REQUIRE(thumbprint == parsed.getKeyId());
 
     // Verify the thumbprint of the parsed key is still the same
     std::string parsedThumbprint = JWKThumbprint::compute(parsed);
-    EXPECT_EQ(thumbprint, parsedThumbprint);
+    REQUIRE(thumbprint == parsedThumbprint);
 }
 
 // Uniqueness test
-TEST_F(JWKThumbprintTest, ManyKeysProduceUniqueThumbprints)
+TEST_CASE("ManyKeysProduceUniqueThumbprints", "[jwa][manykeysproduceuniquethumbprints]")
 {
     std::set<std::string> thumbprints;
 
@@ -351,9 +342,9 @@ TEST_F(JWKThumbprintTest, ManyKeysProduceUniqueThumbprints)
         JWK key = JWK::generateRSA(2048);
         std::string thumbprint = JWKThumbprint::compute(key);
 
-        EXPECT_EQ(0, thumbprints.count(thumbprint)) << "Duplicate thumbprint found!";
+        REQUIRE(0 == thumbprints.count(thumbprint));
         thumbprints.insert(thumbprint);
     }
 
-    EXPECT_EQ(100, thumbprints.size());
+    REQUIRE(100 == thumbprints.size());
 }

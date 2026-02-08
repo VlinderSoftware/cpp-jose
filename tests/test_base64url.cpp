@@ -1,4 +1,4 @@
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
 #include <string>
 #include <vector>
@@ -7,238 +7,353 @@
 
 using namespace Vlinder::jose;
 
-class Base64UrlTest : public ::testing::Test
+// BDD-style tests for encoding
+SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd]")
 {
-protected:
-    void SetUp() override
+    GIVEN("an empty string")
     {
+        std::string input = "";
+        
+        WHEN("encoding the empty string")
+        {
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("the result should be empty")
+            {
+                REQUIRE(encoded == "");
+            }
+        }
     }
-    void TearDown() override
+    
+    GIVEN("an empty vector")
     {
+        std::vector<unsigned char> input;
+        
+        WHEN("encoding the empty vector")
+        {
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("the result should be empty")
+            {
+                REQUIRE(encoded == "");
+            }
+        }
     }
-};
-
-// Basic encoding tests
-TEST_F(Base64UrlTest, EncodeEmptyString)
-{
-    std::string input = "";
-    std::string encoded = Base64Url::encode(input);
-    EXPECT_EQ("", encoded);
+    
+    GIVEN("a simple string")
+    {
+        std::string input = "hello";
+        
+        WHEN("encoding the string")
+        {
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("it should be properly base64url encoded")
+            {
+                REQUIRE(encoded == "aGVsbG8");
+            }
+        }
+    }
 }
 
-TEST_F(Base64UrlTest, EncodeEmptyVector)
+SCENARIO("Base64Url encoding removes padding", "[base64url][encoding][padding][bdd]")
 {
-    std::vector<unsigned char> input;
-    std::string encoded = Base64Url::encode(input);
-    EXPECT_EQ("", encoded);
+    GIVEN("strings that would normally require padding")
+    {
+        WHEN("encoding 'Man' (no padding needed)")
+        {
+            std::string input = "Man";
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("the result should be 'TWFu'")
+            {
+                REQUIRE(encoded == "TWFu");
+            }
+        }
+        
+        WHEN("encoding 'Ma' (would be TWE= in base64)")
+        {
+            std::string input = "Ma";
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("padding should be removed")
+            {
+                REQUIRE(encoded == "TWE");
+            }
+        }
+        
+        WHEN("encoding 'M' (would be TQ== in base64)")
+        {
+            std::string input = "M";
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("all padding should be removed")
+            {
+                REQUIRE(encoded == "TQ");
+            }
+        }
+    }
 }
 
-TEST_F(Base64UrlTest, EncodeSimpleString)
+SCENARIO("Base64Url uses URL-safe characters", "[base64url][encoding][special-chars][bdd]")
 {
-    std::string input = "hello";
-    std::string encoded = Base64Url::encode(input);
-    EXPECT_EQ("aGVsbG8", encoded);
+    GIVEN("binary data that would produce + or / in standard base64")
+    {
+        std::vector<unsigned char> input = {0xfb, 0xff, 0xff};
+        
+        WHEN("encoding the data")
+        {
+            std::string encoded = Base64Url::encode(input);
+            
+            THEN("it should use '-' and '_' instead of '+' and '/'")
+            {
+                REQUIRE(encoded == "-___");
+            }
+        }
+    }
 }
 
-TEST_F(Base64UrlTest, EncodeWithPaddingRemoved)
-{
-    // "Man" in base64 is "TWFu" (no padding needed)
-    std::string input = "Man";
-    std::string encoded = Base64Url::encode(input);
-    EXPECT_EQ("TWFu", encoded);
-
-    // "Ma" in base64 would be "TWE=" but base64url removes padding
-    input = "Ma";
-    encoded = Base64Url::encode(input);
-    EXPECT_EQ("TWE", encoded);
-
-    // "M" in base64 would be "TQ==" but base64url removes padding
-    input = "M";
-    encoded = Base64Url::encode(input);
-    EXPECT_EQ("TQ", encoded);
-}
-
-TEST_F(Base64UrlTest, EncodeSpecialCharacters)
-{
-    // Base64url uses '-' instead of '+' and '_' instead of '/'
-    std::vector<unsigned char> input = {0xfb, 0xff, 0xff};
-    std::string encoded = Base64Url::encode(input);
-    // Standard base64: "+///", base64url: "-___"
-    EXPECT_EQ("-___", encoded);
-}
-
-TEST_F(Base64UrlTest, EncodeBinaryData)
+// Regular test cases for encoding
+TEST_CASE("Base64Url encodes binary data correctly", "[base64url][encoding]")
 {
     std::vector<unsigned char> input = {0x00, 0x01, 0x02, 0x03, 0xff, 0xfe, 0xfd};
     std::string encoded = Base64Url::encode(input);
     std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(input, decoded);
+    REQUIRE(input == decoded);
 }
 
-TEST_F(Base64UrlTest, EncodeRFC7515Example)
+TEST_CASE("Base64Url encodes RFC7515 example", "[base64url][encoding][rfc7515]")
 {
     // From RFC 7515 Appendix A.1
     std::string input = "{\"typ\":\"JWT\",\r\n \"alg\":\"HS256\"}";
     std::string encoded = Base64Url::encode(input);
-    EXPECT_EQ("eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9", encoded);
+    REQUIRE(encoded == "eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9");
 }
 
-// Basic decoding tests
-TEST_F(Base64UrlTest, DecodeEmptyString)
+// BDD-style tests for decoding
+SCENARIO("Base64Url decoding handles various inputs", "[base64url][decoding][bdd]")
 {
-    std::string input = "";
-    std::vector<unsigned char> decoded = Base64Url::decode(input);
-    EXPECT_TRUE(decoded.empty());
+    GIVEN("an empty string")
+    {
+        std::string input = "";
+        
+        WHEN("decoding to vector")
+        {
+            std::vector<unsigned char> decoded = Base64Url::decode(input);
+            
+            THEN("the result should be empty")
+            {
+                REQUIRE(decoded.empty());
+            }
+        }
+        
+        WHEN("decoding to string")
+        {
+            std::string decoded = Base64Url::decodeToString(input);
+            
+            THEN("the result should be empty")
+            {
+                REQUIRE(decoded == "");
+            }
+        }
+    }
+    
+    GIVEN("a simple encoded string")
+    {
+        std::string encoded = "aGVsbG8";
+        
+        WHEN("decoding to string")
+        {
+            std::string decoded = Base64Url::decodeToString(encoded);
+            
+            THEN("it should produce the original text")
+            {
+                REQUIRE(decoded == "hello");
+            }
+        }
+    }
 }
 
-TEST_F(Base64UrlTest, DecodeToStringEmpty)
+SCENARIO("Base64Url decoding handles missing padding", "[base64url][decoding][padding][bdd]")
 {
-    std::string input = "";
-    std::string decoded = Base64Url::decodeToString(input);
-    EXPECT_EQ("", decoded);
+    GIVEN("encoded strings with missing padding")
+    {
+        WHEN("decoding 'TWE' (Ma with padding removed)")
+        {
+            std::string encoded = "TWE";
+            std::string decoded = Base64Url::decodeToString(encoded);
+            
+            THEN("it should correctly decode without padding")
+            {
+                REQUIRE(decoded == "Ma");
+            }
+        }
+        
+        WHEN("decoding 'TQ' (M with padding removed)")
+        {
+            std::string encoded = "TQ";
+            std::string decoded = Base64Url::decodeToString(encoded);
+            
+            THEN("it should correctly decode without padding")
+            {
+                REQUIRE(decoded == "M");
+            }
+        }
+    }
 }
 
-TEST_F(Base64UrlTest, DecodeSimpleString)
+SCENARIO("Base64Url decodes URL-safe characters", "[base64url][decoding][special-chars][bdd]")
 {
-    std::string encoded = "aGVsbG8";
-    std::string decoded = Base64Url::decodeToString(encoded);
-    EXPECT_EQ("hello", decoded);
+    GIVEN("encoded string with URL-safe characters")
+    {
+        std::string encoded = "-___";
+        
+        WHEN("decoding the string")
+        {
+            std::vector<unsigned char> decoded = Base64Url::decode(encoded);
+            
+            THEN("it should correctly interpret '-' and '_'")
+            {
+                std::vector<unsigned char> expected = {0xfb, 0xff, 0xff};
+                REQUIRE(decoded == expected);
+            }
+        }
+    }
 }
 
-TEST_F(Base64UrlTest, DecodeWithMissingPadding)
-{
-    // Base64url should handle missing padding
-    std::string encoded1 = "TWE";  // "Ma" with padding removed
-    std::string decoded1 = Base64Url::decodeToString(encoded1);
-    EXPECT_EQ("Ma", decoded1);
-
-    std::string encoded2 = "TQ";  // "M" with padding removed
-    std::string decoded2 = Base64Url::decodeToString(encoded2);
-    EXPECT_EQ("M", decoded2);
-}
-
-TEST_F(Base64UrlTest, DecodeSpecialCharacters)
-{
-    std::string encoded = "-___";
-    std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    std::vector<unsigned char> expected = {0xfb, 0xff, 0xff};
-    EXPECT_EQ(expected, decoded);
-}
-
-TEST_F(Base64UrlTest, DecodeBinaryData)
+TEST_CASE("Base64Url decodes binary data correctly", "[base64url][decoding]")
 {
     std::vector<unsigned char> original = {0x00, 0x10, 0x83, 0x10, 0x51, 0x87, 0x20, 0x92, 0x8b};
     std::string encoded = Base64Url::encode(original);
     std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(original, decoded);
+    REQUIRE(original == decoded);
 }
 
-// Round-trip tests
-TEST_F(Base64UrlTest, RoundTripString)
+// BDD-style round-trip tests
+SCENARIO("Base64Url encoding and decoding are reversible", "[base64url][round-trip][bdd]")
 {
-    std::string original = "The quick brown fox jumps over the lazy dog";
-    std::string encoded = Base64Url::encode(original);
-    std::string decoded = Base64Url::decodeToString(encoded);
-    EXPECT_EQ(original, decoded);
-}
-
-TEST_F(Base64UrlTest, RoundTripVector)
-{
-    std::vector<unsigned char> original = {0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x21};
-    std::string encoded = Base64Url::encode(original);
-    std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(original, decoded);
-}
-
-TEST_F(Base64UrlTest, RoundTripAllByteValues)
-{
-    std::vector<unsigned char> original;
-    for (int i = 0; i < 256; i++)
+    GIVEN("various types of data")
     {
-        original.push_back(static_cast<unsigned char>(i));
+        WHEN("encoding and decoding a text string")
+        {
+            std::string original = "The quick brown fox jumps over the lazy dog";
+            std::string encoded = Base64Url::encode(original);
+            std::string decoded = Base64Url::decodeToString(encoded);
+            
+            THEN("the decoded string should match the original")
+            {
+                REQUIRE(decoded == original);
+            }
+        }
+        
+        WHEN("encoding and decoding a byte vector")
+        {
+            std::vector<unsigned char> original = {0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x21};
+            std::string encoded = Base64Url::encode(original);
+            std::vector<unsigned char> decoded = Base64Url::decode(encoded);
+            
+            THEN("the decoded vector should match the original")
+            {
+                REQUIRE(decoded == original);
+            }
+        }
+        
+        WHEN("encoding and decoding all byte values")
+        {
+            std::vector<unsigned char> original;
+            for (int i = 0; i < 256; i++)
+            {
+                original.push_back(static_cast<unsigned char>(i));
+            }
+            std::string encoded = Base64Url::encode(original);
+            std::vector<unsigned char> decoded = Base64Url::decode(encoded);
+            
+            THEN("all bytes should be preserved")
+            {
+                REQUIRE(decoded == original);
+            }
+        }
+        
+        WHEN("encoding and decoding UTF-8 text")
+        {
+            std::string original = "Hello 世界 🌍";
+            std::string encoded = Base64Url::encode(original);
+            std::string decoded = Base64Url::decodeToString(encoded);
+            
+            THEN("the UTF-8 characters should be preserved")
+            {
+                REQUIRE(decoded == original);
+            }
+        }
     }
-    std::string encoded = Base64Url::encode(original);
-    std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(original, decoded);
-}
-
-TEST_F(Base64UrlTest, RoundTripUTF8)
-{
-    std::string original = "Hello 世界 🌍";
-    std::string encoded = Base64Url::encode(original);
-    std::string decoded = Base64Url::decodeToString(encoded);
-    EXPECT_EQ(original, decoded);
 }
 
 // Edge cases
-TEST_F(Base64UrlTest, LongString)
+TEST_CASE("Base64Url handles long strings", "[base64url][edge-cases]")
 {
     std::string original(10000, 'A');
     std::string encoded = Base64Url::encode(original);
     std::string decoded = Base64Url::decodeToString(encoded);
-    EXPECT_EQ(original, decoded);
+    REQUIRE(original == decoded);
 }
 
-TEST_F(Base64UrlTest, SingleByte)
+TEST_CASE("Base64Url handles single byte", "[base64url][edge-cases]")
 {
     std::vector<unsigned char> original = {0x42};
     std::string encoded = Base64Url::encode(original);
     std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(original, decoded);
+    REQUIRE(original == decoded);
 }
 
-TEST_F(Base64UrlTest, TwoBytes)
+TEST_CASE("Base64Url handles two bytes", "[base64url][edge-cases]")
 {
     std::vector<unsigned char> original = {0x42, 0x43};
     std::string encoded = Base64Url::encode(original);
     std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(original, decoded);
+    REQUIRE(original == decoded);
 }
 
-TEST_F(Base64UrlTest, ThreeBytes)
+TEST_CASE("Base64Url handles three bytes", "[base64url][edge-cases]")
 {
     std::vector<unsigned char> original = {0x42, 0x43, 0x44};
     std::string encoded = Base64Url::encode(original);
     std::vector<unsigned char> decoded = Base64Url::decode(encoded);
-    EXPECT_EQ(original, decoded);
+    REQUIRE(original == decoded);
 }
 
-TEST_F(Base64UrlTest, NoPlusOrSlash)
+TEST_CASE("Base64Url never contains + or /", "[base64url][invariants]")
 {
-    // Verify that encoded strings never contain '+' or '/'
     std::vector<unsigned char> input;
     for (int i = 0; i < 256; i++)
     {
         input.push_back(static_cast<unsigned char>(i));
     }
     std::string encoded = Base64Url::encode(input);
-    EXPECT_EQ(std::string::npos, encoded.find('+'));
-    EXPECT_EQ(std::string::npos, encoded.find('/'));
+    REQUIRE(encoded.find('+') == std::string::npos);
+    REQUIRE(encoded.find('/') == std::string::npos);
 }
 
-TEST_F(Base64UrlTest, NoPadding)
+TEST_CASE("Base64Url never contains padding", "[base64url][invariants]")
 {
-    // Verify that encoded strings never contain '='
     std::vector<unsigned char> input1 = {0x42};
     std::string encoded1 = Base64Url::encode(input1);
-    EXPECT_EQ(std::string::npos, encoded1.find('='));
+    REQUIRE(encoded1.find('=') == std::string::npos);
 
     std::vector<unsigned char> input2 = {0x42, 0x43};
     std::string encoded2 = Base64Url::encode(input2);
-    EXPECT_EQ(std::string::npos, encoded2.find('='));
+    REQUIRE(encoded2.find('=') == std::string::npos);
 }
 
 // RFC 7515 test vectors
-TEST_F(Base64UrlTest, RFC7515AppendixC)
+TEST_CASE("Base64Url RFC7515 Appendix C example", "[base64url][rfc7515]")
 {
-    // Example from RFC 7515 Appendix C
     std::string payload =
         "{\"iss\":\"joe\",\r\n \"exp\":1300819380,\r\n \"http://example.com/is_root\":true}";
     std::string encoded = Base64Url::encode(payload);
     std::string expected = "eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmN"
                            "vbS9pc19yb290Ijp0cnVlfQ";
-    EXPECT_EQ(expected, encoded);
+    REQUIRE(encoded == expected);
 
     std::string decoded = Base64Url::decodeToString(encoded);
-    EXPECT_EQ(payload, decoded);
+    REQUIRE(decoded == payload);
 }
