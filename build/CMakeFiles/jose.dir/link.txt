@@ -1,0 +1,2 @@
+/usr/bin/ar qc libjose.a CMakeFiles/jose.dir/src/jwk.cpp.o CMakeFiles/jose.dir/src/jwa.cpp.o CMakeFiles/jose.dir/src/jws.cpp.o CMakeFiles/jose.dir/src/jwe.cpp.o CMakeFiles/jose.dir/src/jwt.cpp.o CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o CMakeFiles/jose.dir/src/base64url.cpp.o CMakeFiles/jose.dir/src/json_utils.cpp.o
+/usr/bin/ranlib libjose.a
