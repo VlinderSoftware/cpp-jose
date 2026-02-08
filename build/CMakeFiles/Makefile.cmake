@@ -20,6 +20,7 @@ set(CMAKE_MAKEFILE_DEPENDS
   "_deps/googletest-src/googletest/cmake/gtest.pc.in"
   "_deps/googletest-src/googletest/cmake/gtest_main.pc.in"
   "_deps/googletest-src/googletest/cmake/internal_utils.cmake"
+  "/home/runner/work/cpp-jose/cpp-jose/examples/CMakeLists.txt"
   "/home/runner/work/cpp-jose/cpp-jose/tests/CMakeLists.txt"
   "/usr/local/share/cmake-3.31/Modules/BasicConfigVersion-AnyNewerVersion.cmake.in"
   "/usr/local/share/cmake-3.31/Modules/CMakeCCompiler.cmake.in"
@@ -176,6 +177,7 @@ set(CMAKE_MAKEFILE_PRODUCTS
   "_deps/googletest-build/googletest/generated/gtest.pc"
   "_deps/googletest-build/googletest/generated/gtest_main.pc"
   "_deps/googletest-build/googletest/CMakeFiles/CMakeDirectoryInformation.cmake"
+  "examples/CMakeFiles/CMakeDirectoryInformation.cmake"
   )
 
 # Dependency information for all targets:
@@ -186,4 +188,8 @@ set(CMAKE_DEPEND_INFO_FILES
   "_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/DependInfo.cmake"
   "_deps/googletest-build/googletest/CMakeFiles/gtest.dir/DependInfo.cmake"
   "_deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/DependInfo.cmake"
+  "examples/CMakeFiles/jwt_example.dir/DependInfo.cmake"
+  "examples/CMakeFiles/jws_example.dir/DependInfo.cmake"
+  "examples/CMakeFiles/jwe_example.dir/DependInfo.cmake"
+  "examples/CMakeFiles/jwk_example.dir/DependInfo.cmake"
   )

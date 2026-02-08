@@ -249,6 +249,58 @@ gtest_main/fast:
 	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/build.make _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/build
 .PHONY : gtest_main/fast
 
+#=============================================================================
+# Target rules for targets named jwt_example
+
+# Build rule for target.
+jwt_example: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 jwt_example
+.PHONY : jwt_example
+
+# fast build rule for target.
+jwt_example/fast:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwt_example.dir/build.make examples/CMakeFiles/jwt_example.dir/build
+.PHONY : jwt_example/fast
+
+#=============================================================================
+# Target rules for targets named jws_example
+
+# Build rule for target.
+jws_example: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 jws_example
+.PHONY : jws_example
+
+# fast build rule for target.
+jws_example/fast:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jws_example.dir/build.make examples/CMakeFiles/jws_example.dir/build
+.PHONY : jws_example/fast
+
+#=============================================================================
+# Target rules for targets named jwe_example
+
+# Build rule for target.
+jwe_example: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 jwe_example
+.PHONY : jwe_example
+
+# fast build rule for target.
+jwe_example/fast:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwe_example.dir/build.make examples/CMakeFiles/jwe_example.dir/build
+.PHONY : jwe_example/fast
+
+#=============================================================================
+# Target rules for targets named jwk_example
+
+# Build rule for target.
+jwk_example: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 jwk_example
+.PHONY : jwk_example
+
+# fast build rule for target.
+jwk_example/fast:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwk_example.dir/build.make examples/CMakeFiles/jwk_example.dir/build
+.PHONY : jwk_example/fast
+
 src/base64url.o: src/base64url.cpp.o
 .PHONY : src/base64url.o
 
@@ -460,6 +512,10 @@ help:
 	@echo "... gtest_main"
 	@echo "... jose"
 	@echo "... jose_tests"
+	@echo "... jwe_example"
+	@echo "... jwk_example"
+	@echo "... jws_example"
+	@echo "... jwt_example"
 	@echo "... src/base64url.o"
 	@echo "... src/base64url.i"
 	@echo "... src/base64url.s"

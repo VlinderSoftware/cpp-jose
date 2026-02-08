@@ -65,20 +65,24 @@ CMAKE_BINARY_DIR = /home/runner/work/cpp-jose/cpp-jose/build
 # The main recursive "all" target.
 all: CMakeFiles/jose.dir/all
 all: tests/all
+all: examples/all
 .PHONY : all
 
 # The main recursive "codegen" target.
 codegen: CMakeFiles/jose.dir/codegen
 codegen: tests/codegen
+codegen: examples/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
 preinstall: tests/preinstall
+preinstall: examples/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: CMakeFiles/jose.dir/clean
 clean: tests/clean
+clean: examples/clean
 .PHONY : clean
 
 #=============================================================================
@@ -146,6 +150,34 @@ _deps/googletest-build/googletest/preinstall:
 _deps/googletest-build/googletest/clean: _deps/googletest-build/googletest/CMakeFiles/gtest.dir/clean
 _deps/googletest-build/googletest/clean: _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/clean
 .PHONY : _deps/googletest-build/googletest/clean
+
+#=============================================================================
+# Directory level rules for directory examples
+
+# Recursive "all" directory target.
+examples/all: examples/CMakeFiles/jwt_example.dir/all
+examples/all: examples/CMakeFiles/jws_example.dir/all
+examples/all: examples/CMakeFiles/jwe_example.dir/all
+examples/all: examples/CMakeFiles/jwk_example.dir/all
+.PHONY : examples/all
+
+# Recursive "codegen" directory target.
+examples/codegen: examples/CMakeFiles/jwt_example.dir/codegen
+examples/codegen: examples/CMakeFiles/jws_example.dir/codegen
+examples/codegen: examples/CMakeFiles/jwe_example.dir/codegen
+examples/codegen: examples/CMakeFiles/jwk_example.dir/codegen
+.PHONY : examples/codegen
+
+# Recursive "preinstall" directory target.
+examples/preinstall:
+.PHONY : examples/preinstall
+
+# Recursive "clean" directory target.
+examples/clean: examples/CMakeFiles/jwt_example.dir/clean
+examples/clean: examples/CMakeFiles/jws_example.dir/clean
+examples/clean: examples/CMakeFiles/jwe_example.dir/clean
+examples/clean: examples/CMakeFiles/jwk_example.dir/clean
+.PHONY : examples/clean
 
 #=============================================================================
 # Directory level rules for directory tests
@@ -271,8 +303,8 @@ _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/clean:
 # Target rules for target _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir
 
 # All Build rule for target.
-_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/all: _deps/googletest-build/googletest/CMakeFiles/gtest.dir/all
 _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/all: _deps/googletest-build/googlemock/CMakeFiles/gmock.dir/all
+_deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/all: _deps/googletest-build/googletest/CMakeFiles/gtest.dir/all
 	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/build.make _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/depend
 	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/build.make _deps/googletest-build/googlemock/CMakeFiles/gmock_main.dir/build
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=3,4 "Built target gmock_main"
@@ -363,6 +395,134 @@ _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/codegen:
 _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/clean:
 	$(MAKE) $(MAKESILENT) -f _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/build.make _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/clean
 .PHONY : _deps/googletest-build/googletest/CMakeFiles/gtest_main.dir/clean
+
+#=============================================================================
+# Target rules for target examples/CMakeFiles/jwt_example.dir
+
+# All Build rule for target.
+examples/CMakeFiles/jwt_example.dir/all: CMakeFiles/jose.dir/all
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwt_example.dir/build.make examples/CMakeFiles/jwt_example.dir/depend
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwt_example.dir/build.make examples/CMakeFiles/jwt_example.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=34,35 "Built target jwt_example"
+.PHONY : examples/CMakeFiles/jwt_example.dir/all
+
+# Build rule for subdir invocation for target.
+examples/CMakeFiles/jwt_example.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 11
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/jwt_example.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 0
+.PHONY : examples/CMakeFiles/jwt_example.dir/rule
+
+# Convenience name for target.
+jwt_example: examples/CMakeFiles/jwt_example.dir/rule
+.PHONY : jwt_example
+
+# codegen rule for target.
+examples/CMakeFiles/jwt_example.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwt_example.dir/build.make examples/CMakeFiles/jwt_example.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=34,35 "Finished codegen for target jwt_example"
+.PHONY : examples/CMakeFiles/jwt_example.dir/codegen
+
+# clean rule for target.
+examples/CMakeFiles/jwt_example.dir/clean:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwt_example.dir/build.make examples/CMakeFiles/jwt_example.dir/clean
+.PHONY : examples/CMakeFiles/jwt_example.dir/clean
+
+#=============================================================================
+# Target rules for target examples/CMakeFiles/jws_example.dir
+
+# All Build rule for target.
+examples/CMakeFiles/jws_example.dir/all: CMakeFiles/jose.dir/all
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jws_example.dir/build.make examples/CMakeFiles/jws_example.dir/depend
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jws_example.dir/build.make examples/CMakeFiles/jws_example.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=32,33 "Built target jws_example"
+.PHONY : examples/CMakeFiles/jws_example.dir/all
+
+# Build rule for subdir invocation for target.
+examples/CMakeFiles/jws_example.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 11
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/jws_example.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 0
+.PHONY : examples/CMakeFiles/jws_example.dir/rule
+
+# Convenience name for target.
+jws_example: examples/CMakeFiles/jws_example.dir/rule
+.PHONY : jws_example
+
+# codegen rule for target.
+examples/CMakeFiles/jws_example.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jws_example.dir/build.make examples/CMakeFiles/jws_example.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=32,33 "Finished codegen for target jws_example"
+.PHONY : examples/CMakeFiles/jws_example.dir/codegen
+
+# clean rule for target.
+examples/CMakeFiles/jws_example.dir/clean:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jws_example.dir/build.make examples/CMakeFiles/jws_example.dir/clean
+.PHONY : examples/CMakeFiles/jws_example.dir/clean
+
+#=============================================================================
+# Target rules for target examples/CMakeFiles/jwe_example.dir
+
+# All Build rule for target.
+examples/CMakeFiles/jwe_example.dir/all: CMakeFiles/jose.dir/all
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwe_example.dir/build.make examples/CMakeFiles/jwe_example.dir/depend
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwe_example.dir/build.make examples/CMakeFiles/jwe_example.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=28,29 "Built target jwe_example"
+.PHONY : examples/CMakeFiles/jwe_example.dir/all
+
+# Build rule for subdir invocation for target.
+examples/CMakeFiles/jwe_example.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 11
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/jwe_example.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 0
+.PHONY : examples/CMakeFiles/jwe_example.dir/rule
+
+# Convenience name for target.
+jwe_example: examples/CMakeFiles/jwe_example.dir/rule
+.PHONY : jwe_example
+
+# codegen rule for target.
+examples/CMakeFiles/jwe_example.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwe_example.dir/build.make examples/CMakeFiles/jwe_example.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=28,29 "Finished codegen for target jwe_example"
+.PHONY : examples/CMakeFiles/jwe_example.dir/codegen
+
+# clean rule for target.
+examples/CMakeFiles/jwe_example.dir/clean:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwe_example.dir/build.make examples/CMakeFiles/jwe_example.dir/clean
+.PHONY : examples/CMakeFiles/jwe_example.dir/clean
+
+#=============================================================================
+# Target rules for target examples/CMakeFiles/jwk_example.dir
+
+# All Build rule for target.
+examples/CMakeFiles/jwk_example.dir/all: CMakeFiles/jose.dir/all
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwk_example.dir/build.make examples/CMakeFiles/jwk_example.dir/depend
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwk_example.dir/build.make examples/CMakeFiles/jwk_example.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=30,31 "Built target jwk_example"
+.PHONY : examples/CMakeFiles/jwk_example.dir/all
+
+# Build rule for subdir invocation for target.
+examples/CMakeFiles/jwk_example.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 11
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 examples/CMakeFiles/jwk_example.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 0
+.PHONY : examples/CMakeFiles/jwk_example.dir/rule
+
+# Convenience name for target.
+jwk_example: examples/CMakeFiles/jwk_example.dir/rule
+.PHONY : jwk_example
+
+# codegen rule for target.
+examples/CMakeFiles/jwk_example.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwk_example.dir/build.make examples/CMakeFiles/jwk_example.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=30,31 "Finished codegen for target jwk_example"
+.PHONY : examples/CMakeFiles/jwk_example.dir/codegen
+
+# clean rule for target.
+examples/CMakeFiles/jwk_example.dir/clean:
+	$(MAKE) $(MAKESILENT) -f examples/CMakeFiles/jwk_example.dir/build.make examples/CMakeFiles/jwk_example.dir/clean
+.PHONY : examples/CMakeFiles/jwk_example.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.
