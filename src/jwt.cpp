@@ -16,6 +16,10 @@ namespace jose
 namespace
 {
 
+// Maximum audience entries when parsing JWT audience arrays
+// This is a workaround for the limited JsonValue API which doesn't provide iteration
+const size_t MAX_AUDIENCE_ENTRIES = 100;
+
 int64_t timePointToTimestamp(std::chrono::system_clock::time_point tp)
 {
     auto duration = tp.time_since_epoch();
@@ -174,8 +178,8 @@ std::vector<std::string> JWT::getAudience() const
         std::string serialized = claim.serialize();
         JsonValue reparsed = JsonValue::parse(serialized);
         
-        // Since we can't iterate directly, we try indices until we get null
-        for (size_t i = 0; i < 100; ++i) // reasonable limit
+        // Note: Limited by JsonValue API which doesn't provide proper iteration
+        for (size_t i = 0; i < MAX_AUDIENCE_ENTRIES; ++i)
         {
             try
             {
@@ -334,7 +338,7 @@ JWT JWT::parse(const std::string& jwt)
         else if (reparsed["aud"].isArray())
         {
             std::vector<std::string> audiences;
-            for (size_t i = 0; i < 100; ++i)
+            for (size_t i = 0; i < MAX_AUDIENCE_ENTRIES; ++i)
             {
                 try
                 {
@@ -367,24 +371,8 @@ JWT JWT::parse(const std::string& jwt)
         result.setJwtId(reparsed["jti"].asString());
     }
     
-    // Store the raw claims for custom claims
-    result.impl_->claims.clear();
-    
-    // Re-parse to extract all claims properly
-    // This is a workaround for the limited JsonValue API
-    size_t openBrace = serialized.find('{');
-    size_t closeBrace = serialized.rfind('}');
-    if (openBrace != std::string::npos && closeBrace != std::string::npos)
-    {
-        // Simple parsing - extract key-value pairs
-        // This is simplified; in production you'd want a more robust parser
-        std::string content = serialized.substr(openBrace + 1, closeBrace - openBrace - 1);
-        
-        // For now, just store what we can through the standard setters
-        // The full claim storage would require a better JSON iteration API
-    }
-    
-    // Store claims we know about
+    // Store claims we extracted
+    // Note: Full custom claim extraction would require a better JSON iteration API
     if (reparsed.has("iss")) result.impl_->claims["iss"] = reparsed["iss"];
     if (reparsed.has("sub")) result.impl_->claims["sub"] = reparsed["sub"];
     if (reparsed.has("aud")) result.impl_->claims["aud"] = reparsed["aud"];
