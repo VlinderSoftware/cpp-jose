@@ -6,6 +6,8 @@
 #include <vector>
 #include <chrono>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -160,5 +162,6 @@ private:
 };
 
 } // namespace jose
+} // namespace Vlinder
 
 #endif // JOSE_JWT_HPP

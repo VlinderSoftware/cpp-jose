@@ -11,6 +11,8 @@
 #include <cstring>
 #include <map>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -1309,4 +1311,5 @@ JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const 
     throw std::runtime_error("Unknown content encryption algorithm: " + alg);
 }
 
-}
+} // namespace jose
+} // namespace Vlinder

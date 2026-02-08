@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -42,5 +44,6 @@ public:
 };
 
 } // namespace jose
+} // namespace Vlinder
 
 #endif // JOSE_JWK_THUMBPRINT_HPP

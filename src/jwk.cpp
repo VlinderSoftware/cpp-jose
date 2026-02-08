@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <cstring>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -462,7 +464,7 @@ JWKSet JWKSet::fromJson(const std::string& jsonStr)
     // Note: Array access would need to be implemented in JsonValue
     // For now, simplified implementation
     
-    return set;
+    return std::move(set);
 }
 
 void JWKSet::addKey(const JWK& key)
@@ -505,3 +507,4 @@ std::string JWKSet::toJson() const
 }
 
 } // namespace jose
+} // namespace Vlinder

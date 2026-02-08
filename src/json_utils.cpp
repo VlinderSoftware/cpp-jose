@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <cctype>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -509,3 +511,4 @@ JsonValue JsonValue::parse(const std::string& json)
 }
 
 } // namespace jose
+} // namespace Vlinder

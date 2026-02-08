@@ -6,6 +6,8 @@
 #include <vector>
 #include <memory>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -65,5 +67,6 @@ private:
 };
 
 } // namespace jose
+} // namespace Vlinder
 
 #endif // JOSE_JSON_UTILS_HPP

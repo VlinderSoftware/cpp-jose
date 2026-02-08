@@ -6,6 +6,8 @@
 #include <memory>
 #include <map>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -129,6 +131,10 @@ public:
     JWKSet();
     ~JWKSet();
     
+    // Move constructors/operators
+    JWKSet(JWKSet&& other) noexcept = default;
+    JWKSet& operator=(JWKSet&& other) noexcept = default;
+    
     /**
      * @brief Parse JWK Set from JSON
      */
@@ -160,5 +166,6 @@ private:
 };
 
 } // namespace jose
+} // namespace Vlinder
 
 #endif // JOSE_JWK_HPP

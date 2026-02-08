@@ -5,6 +5,8 @@
 #include <memory>
 #include "jwa.hpp"
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -102,5 +104,6 @@ private:
 };
 
 } // namespace jose
+} // namespace Vlinder
 
 #endif // JOSE_JWE_HPP

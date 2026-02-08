@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <cstring>
 
+namespace Vlinder
+{
 namespace jose
 {
 
@@ -113,3 +115,4 @@ std::string Base64Url::decodeToString(const std::string& encoded)
 }
 
 } // namespace jose
+} // namespace Vlinder
