@@ -246,6 +246,30 @@ src/jwa.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwa.cpp.s
 .PHONY : src/jwa.cpp.s
 
+src/jwe.o: src/jwe.cpp.o
+.PHONY : src/jwe.o
+
+# target to build an object file
+src/jwe.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwe.cpp.o
+.PHONY : src/jwe.cpp.o
+
+src/jwe.i: src/jwe.cpp.i
+.PHONY : src/jwe.i
+
+# target to preprocess a source file
+src/jwe.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwe.cpp.i
+.PHONY : src/jwe.cpp.i
+
+src/jwe.s: src/jwe.cpp.s
+.PHONY : src/jwe.s
+
+# target to generate assembly for a file
+src/jwe.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwe.cpp.s
+.PHONY : src/jwe.cpp.s
+
 src/jwk.o: src/jwk.cpp.o
 .PHONY : src/jwk.o
 
@@ -270,6 +294,78 @@ src/jwk.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwk.cpp.s
 .PHONY : src/jwk.cpp.s
 
+src/jwk_thumbprint.o: src/jwk_thumbprint.cpp.o
+.PHONY : src/jwk_thumbprint.o
+
+# target to build an object file
+src/jwk_thumbprint.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o
+.PHONY : src/jwk_thumbprint.cpp.o
+
+src/jwk_thumbprint.i: src/jwk_thumbprint.cpp.i
+.PHONY : src/jwk_thumbprint.i
+
+# target to preprocess a source file
+src/jwk_thumbprint.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.i
+.PHONY : src/jwk_thumbprint.cpp.i
+
+src/jwk_thumbprint.s: src/jwk_thumbprint.cpp.s
+.PHONY : src/jwk_thumbprint.s
+
+# target to generate assembly for a file
+src/jwk_thumbprint.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.s
+.PHONY : src/jwk_thumbprint.cpp.s
+
+src/jws.o: src/jws.cpp.o
+.PHONY : src/jws.o
+
+# target to build an object file
+src/jws.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jws.cpp.o
+.PHONY : src/jws.cpp.o
+
+src/jws.i: src/jws.cpp.i
+.PHONY : src/jws.i
+
+# target to preprocess a source file
+src/jws.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jws.cpp.i
+.PHONY : src/jws.cpp.i
+
+src/jws.s: src/jws.cpp.s
+.PHONY : src/jws.s
+
+# target to generate assembly for a file
+src/jws.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jws.cpp.s
+.PHONY : src/jws.cpp.s
+
+src/jwt.o: src/jwt.cpp.o
+.PHONY : src/jwt.o
+
+# target to build an object file
+src/jwt.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwt.cpp.o
+.PHONY : src/jwt.cpp.o
+
+src/jwt.i: src/jwt.cpp.i
+.PHONY : src/jwt.i
+
+# target to preprocess a source file
+src/jwt.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwt.cpp.i
+.PHONY : src/jwt.cpp.i
+
+src/jwt.s: src/jwt.cpp.s
+.PHONY : src/jwt.s
+
+# target to generate assembly for a file
+src/jwt.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/src/jwt.cpp.s
+.PHONY : src/jwt.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -292,9 +388,21 @@ help:
 	@echo "... src/jwa.o"
 	@echo "... src/jwa.i"
 	@echo "... src/jwa.s"
+	@echo "... src/jwe.o"
+	@echo "... src/jwe.i"
+	@echo "... src/jwe.s"
 	@echo "... src/jwk.o"
 	@echo "... src/jwk.i"
 	@echo "... src/jwk.s"
+	@echo "... src/jwk_thumbprint.o"
+	@echo "... src/jwk_thumbprint.i"
+	@echo "... src/jwk_thumbprint.s"
+	@echo "... src/jws.o"
+	@echo "... src/jws.i"
+	@echo "... src/jws.s"
+	@echo "... src/jwt.o"
+	@echo "... src/jwt.i"
+	@echo "... src/jwt.s"
 .PHONY : help
 
 

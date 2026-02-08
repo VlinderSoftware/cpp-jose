@@ -100,10 +100,66 @@ CMakeFiles/jose.dir/src/jwa.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/jose.dir/src/jwa.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/work/cpp-jose/cpp-jose/src/jwa.cpp -o CMakeFiles/jose.dir/src/jwa.cpp.s
 
+CMakeFiles/jose.dir/src/jws.cpp.o: CMakeFiles/jose.dir/flags.make
+CMakeFiles/jose.dir/src/jws.cpp.o: /home/runner/work/cpp-jose/cpp-jose/src/jws.cpp
+CMakeFiles/jose.dir/src/jws.cpp.o: CMakeFiles/jose.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/jose.dir/src/jws.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/jose.dir/src/jws.cpp.o -MF CMakeFiles/jose.dir/src/jws.cpp.o.d -o CMakeFiles/jose.dir/src/jws.cpp.o -c /home/runner/work/cpp-jose/cpp-jose/src/jws.cpp
+
+CMakeFiles/jose.dir/src/jws.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/jose.dir/src/jws.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/work/cpp-jose/cpp-jose/src/jws.cpp > CMakeFiles/jose.dir/src/jws.cpp.i
+
+CMakeFiles/jose.dir/src/jws.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/jose.dir/src/jws.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/work/cpp-jose/cpp-jose/src/jws.cpp -o CMakeFiles/jose.dir/src/jws.cpp.s
+
+CMakeFiles/jose.dir/src/jwe.cpp.o: CMakeFiles/jose.dir/flags.make
+CMakeFiles/jose.dir/src/jwe.cpp.o: /home/runner/work/cpp-jose/cpp-jose/src/jwe.cpp
+CMakeFiles/jose.dir/src/jwe.cpp.o: CMakeFiles/jose.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/jose.dir/src/jwe.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/jose.dir/src/jwe.cpp.o -MF CMakeFiles/jose.dir/src/jwe.cpp.o.d -o CMakeFiles/jose.dir/src/jwe.cpp.o -c /home/runner/work/cpp-jose/cpp-jose/src/jwe.cpp
+
+CMakeFiles/jose.dir/src/jwe.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/jose.dir/src/jwe.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/work/cpp-jose/cpp-jose/src/jwe.cpp > CMakeFiles/jose.dir/src/jwe.cpp.i
+
+CMakeFiles/jose.dir/src/jwe.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/jose.dir/src/jwe.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/work/cpp-jose/cpp-jose/src/jwe.cpp -o CMakeFiles/jose.dir/src/jwe.cpp.s
+
+CMakeFiles/jose.dir/src/jwt.cpp.o: CMakeFiles/jose.dir/flags.make
+CMakeFiles/jose.dir/src/jwt.cpp.o: /home/runner/work/cpp-jose/cpp-jose/src/jwt.cpp
+CMakeFiles/jose.dir/src/jwt.cpp.o: CMakeFiles/jose.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/jose.dir/src/jwt.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/jose.dir/src/jwt.cpp.o -MF CMakeFiles/jose.dir/src/jwt.cpp.o.d -o CMakeFiles/jose.dir/src/jwt.cpp.o -c /home/runner/work/cpp-jose/cpp-jose/src/jwt.cpp
+
+CMakeFiles/jose.dir/src/jwt.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/jose.dir/src/jwt.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/work/cpp-jose/cpp-jose/src/jwt.cpp > CMakeFiles/jose.dir/src/jwt.cpp.i
+
+CMakeFiles/jose.dir/src/jwt.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/jose.dir/src/jwt.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/work/cpp-jose/cpp-jose/src/jwt.cpp -o CMakeFiles/jose.dir/src/jwt.cpp.s
+
+CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o: CMakeFiles/jose.dir/flags.make
+CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o: /home/runner/work/cpp-jose/cpp-jose/src/jwk_thumbprint.cpp
+CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o: CMakeFiles/jose.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o -MF CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o.d -o CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o -c /home/runner/work/cpp-jose/cpp-jose/src/jwk_thumbprint.cpp
+
+CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/runner/work/cpp-jose/cpp-jose/src/jwk_thumbprint.cpp > CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.i
+
+CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/runner/work/cpp-jose/cpp-jose/src/jwk_thumbprint.cpp -o CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.s
+
 CMakeFiles/jose.dir/src/base64url.cpp.o: CMakeFiles/jose.dir/flags.make
 CMakeFiles/jose.dir/src/base64url.cpp.o: /home/runner/work/cpp-jose/cpp-jose/src/base64url.cpp
 CMakeFiles/jose.dir/src/base64url.cpp.o: CMakeFiles/jose.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/jose.dir/src/base64url.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/jose.dir/src/base64url.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/jose.dir/src/base64url.cpp.o -MF CMakeFiles/jose.dir/src/base64url.cpp.o.d -o CMakeFiles/jose.dir/src/base64url.cpp.o -c /home/runner/work/cpp-jose/cpp-jose/src/base64url.cpp
 
 CMakeFiles/jose.dir/src/base64url.cpp.i: cmake_force
@@ -117,7 +173,7 @@ CMakeFiles/jose.dir/src/base64url.cpp.s: cmake_force
 CMakeFiles/jose.dir/src/json_utils.cpp.o: CMakeFiles/jose.dir/flags.make
 CMakeFiles/jose.dir/src/json_utils.cpp.o: /home/runner/work/cpp-jose/cpp-jose/src/json_utils.cpp
 CMakeFiles/jose.dir/src/json_utils.cpp.o: CMakeFiles/jose.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/jose.dir/src/json_utils.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/jose.dir/src/json_utils.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/jose.dir/src/json_utils.cpp.o -MF CMakeFiles/jose.dir/src/json_utils.cpp.o.d -o CMakeFiles/jose.dir/src/json_utils.cpp.o -c /home/runner/work/cpp-jose/cpp-jose/src/json_utils.cpp
 
 CMakeFiles/jose.dir/src/json_utils.cpp.i: cmake_force
@@ -132,6 +188,10 @@ CMakeFiles/jose.dir/src/json_utils.cpp.s: cmake_force
 jose_OBJECTS = \
 "CMakeFiles/jose.dir/src/jwk.cpp.o" \
 "CMakeFiles/jose.dir/src/jwa.cpp.o" \
+"CMakeFiles/jose.dir/src/jws.cpp.o" \
+"CMakeFiles/jose.dir/src/jwe.cpp.o" \
+"CMakeFiles/jose.dir/src/jwt.cpp.o" \
+"CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o" \
 "CMakeFiles/jose.dir/src/base64url.cpp.o" \
 "CMakeFiles/jose.dir/src/json_utils.cpp.o"
 
@@ -140,11 +200,15 @@ jose_EXTERNAL_OBJECTS =
 
 libjose.a: CMakeFiles/jose.dir/src/jwk.cpp.o
 libjose.a: CMakeFiles/jose.dir/src/jwa.cpp.o
+libjose.a: CMakeFiles/jose.dir/src/jws.cpp.o
+libjose.a: CMakeFiles/jose.dir/src/jwe.cpp.o
+libjose.a: CMakeFiles/jose.dir/src/jwt.cpp.o
+libjose.a: CMakeFiles/jose.dir/src/jwk_thumbprint.cpp.o
 libjose.a: CMakeFiles/jose.dir/src/base64url.cpp.o
 libjose.a: CMakeFiles/jose.dir/src/json_utils.cpp.o
 libjose.a: CMakeFiles/jose.dir/build.make
 libjose.a: CMakeFiles/jose.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX static library libjose.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Linking CXX static library libjose.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/jose.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/jose.dir/link.txt --verbose=$(VERBOSE)
 

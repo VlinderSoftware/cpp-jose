@@ -85,12 +85,12 @@ clean: CMakeFiles/jose.dir/clean
 CMakeFiles/jose.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=1,2,3,4,5 "Built target jose"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9 "Built target jose"
 .PHONY : CMakeFiles/jose.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/jose.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 5
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 9
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/jose.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles 0
 .PHONY : CMakeFiles/jose.dir/rule
@@ -102,7 +102,7 @@ jose: CMakeFiles/jose.dir/rule
 # codegen rule for target.
 CMakeFiles/jose.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/jose.dir/build.make CMakeFiles/jose.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=1,2,3,4,5 "Finished codegen for target jose"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/runner/work/cpp-jose/cpp-jose/build/CMakeFiles --progress-num=1,2,3,4,5,6,7,8,9 "Finished codegen for target jose"
 .PHONY : CMakeFiles/jose.dir/codegen
 
 # clean rule for target.
