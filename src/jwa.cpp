@@ -461,46 +461,100 @@ std::vector<unsigned char> rsaDecrypt(const JWK& key, const std::vector<unsigned
 std::vector<unsigned char> aesKeyWrap(const std::vector<unsigned char>& kek,
                                       const std::vector<unsigned char>& plaintext)
 {
-    AES_KEY wrapKey;
-    if (AES_set_encrypt_key(kek.data(), kek.size() * 8, &wrapKey) < 0)
+    // Use EVP API for OpenSSL 3.0+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx)
     {
-        throw std::runtime_error("Failed to set AES key: " + getOpenSSLError());
+        throw std::runtime_error("Failed to create cipher context: " + getOpenSSLError());
     }
 
-    std::vector<unsigned char> ciphertext(plaintext.size() + 8);
-
-    int outLen =
-        AES_wrap_key(&wrapKey, nullptr, ciphertext.data(), plaintext.data(), plaintext.size());
-
-    if (outLen <= 0)
+    const EVP_CIPHER* cipher = nullptr;
+    if (kek.size() == 16)
+        cipher = EVP_aes_128_wrap();
+    else if (kek.size() == 24)
+        cipher = EVP_aes_192_wrap();
+    else if (kek.size() == 32)
+        cipher = EVP_aes_256_wrap();
+    else
     {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("Invalid AES key size for key wrap");
+    }
+
+    if (EVP_EncryptInit_ex(ctx, cipher, nullptr, kek.data(), nullptr) != 1)
+    {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("Failed to initialize AES key wrap: " + getOpenSSLError());
+    }
+
+    std::vector<unsigned char> ciphertext(plaintext.size() + EVP_CIPHER_CTX_block_size(ctx));
+    int outLen = 0;
+    
+    if (EVP_EncryptUpdate(ctx, ciphertext.data(), &outLen, plaintext.data(), plaintext.size()) != 1)
+    {
+        EVP_CIPHER_CTX_free(ctx);
         throw std::runtime_error("AES key wrap failed: " + getOpenSSLError());
     }
 
-    ciphertext.resize(outLen);
+    int finalLen = 0;
+    if (EVP_EncryptFinal_ex(ctx, ciphertext.data() + outLen, &finalLen) != 1)
+    {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("AES key wrap finalization failed: " + getOpenSSLError());
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+    ciphertext.resize(outLen + finalLen);
     return ciphertext;
 }
 
 std::vector<unsigned char> aesKeyUnwrap(const std::vector<unsigned char>& kek,
                                         const std::vector<unsigned char>& ciphertext)
 {
-    AES_KEY unwrapKey;
-    if (AES_set_decrypt_key(kek.data(), kek.size() * 8, &unwrapKey) < 0)
+    // Use EVP API for OpenSSL 3.0+
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx)
     {
-        throw std::runtime_error("Failed to set AES key: " + getOpenSSLError());
+        throw std::runtime_error("Failed to create cipher context: " + getOpenSSLError());
+    }
+
+    const EVP_CIPHER* cipher = nullptr;
+    if (kek.size() == 16)
+        cipher = EVP_aes_128_wrap();
+    else if (kek.size() == 24)
+        cipher = EVP_aes_192_wrap();
+    else if (kek.size() == 32)
+        cipher = EVP_aes_256_wrap();
+    else
+    {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("Invalid AES key size for key unwrap");
+    }
+
+    if (EVP_DecryptInit_ex(ctx, cipher, nullptr, kek.data(), nullptr) != 1)
+    {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("Failed to initialize AES key unwrap: " + getOpenSSLError());
     }
 
     std::vector<unsigned char> plaintext(ciphertext.size());
-
-    int outLen =
-        AES_unwrap_key(&unwrapKey, nullptr, plaintext.data(), ciphertext.data(), ciphertext.size());
-
-    if (outLen <= 0)
+    int outLen = 0;
+    
+    if (EVP_DecryptUpdate(ctx, plaintext.data(), &outLen, ciphertext.data(), ciphertext.size()) != 1)
     {
+        EVP_CIPHER_CTX_free(ctx);
         throw std::runtime_error("AES key unwrap failed: " + getOpenSSLError());
     }
 
-    plaintext.resize(outLen);
+    int finalLen = 0;
+    if (EVP_DecryptFinal_ex(ctx, plaintext.data() + outLen, &finalLen) != 1)
+    {
+        EVP_CIPHER_CTX_free(ctx);
+        throw std::runtime_error("AES key unwrap finalization failed: " + getOpenSSLError());
+    }
+
+    EVP_CIPHER_CTX_free(ctx);
+    plaintext.resize(outLen + finalLen);
     return plaintext;
 }
 

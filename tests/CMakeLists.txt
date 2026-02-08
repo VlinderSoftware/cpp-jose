@@ -18,7 +18,7 @@ enable_testing()
 # Test executable
 add_executable(jose_tests
     test_base64url.cpp
-    test_json.cpp
+    # test_json.cpp - Removed because JsonValue class was replaced with nlohmann::json
     test_jwk.cpp
     test_jwa.cpp
     test_jws.cpp
@@ -30,6 +30,7 @@ add_executable(jose_tests
 
 target_link_libraries(jose_tests
     jose
+    nlohmann_json::nlohmann_json
     GTest::gtest_main
 )
 

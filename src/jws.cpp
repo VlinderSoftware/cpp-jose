@@ -72,27 +72,26 @@ void JWS::setHeaderParam(const std::string& name, const std::string& value)
 std::string JWS::sign(const JWK& key) const
 {
     // Build JOSE header
-    JsonValue header;
-    header.setObject();
-    header.set("alg", JsonValue(JWA::toString(impl_->algorithm)));
+    json header = json::object();
+    header["alg"] = JWA::toString(impl_->algorithm);
 
     if (!impl_->typ.empty())
     {
-        header.set("typ", JsonValue(impl_->typ));
+        header["typ"] = impl_->typ;
     }
 
     if (!impl_->kid.empty())
     {
-        header.set("kid", JsonValue(impl_->kid));
+        header["kid"] = impl_->kid;
     }
 
     // Add custom header parameters
     for (const auto& param : impl_->headerParams)
     {
-        header.set(param.first, JsonValue(param.second));
+        header[param.first] = param.second;
     }
 
-    std::string headerJson = header.serialize();
+    std::string headerJson = header.dump();
     std::string encodedHeader = Base64Url::encode(headerJson);
     std::string encodedPayload = Base64Url::encode(impl_->payload);
 
@@ -136,14 +135,14 @@ bool JWS::verify(const std::string& jws, const JWK& key)
 
         // Decode header to get algorithm
         std::string headerJson = Base64Url::decodeToString(encodedHeader);
-        JsonValue header = JsonValue::parse(headerJson);
+        json header = json::parse(headerJson);
 
-        if (!header.has("alg"))
+        if (!header.contains("alg"))
         {
             return false;
         }
 
-        std::string algStr = header["alg"].asString();
+        std::string algStr = header["alg"].get<std::string>();
         JWA::SignatureAlgorithm algorithm = JWA::signatureAlgorithmFromString(algStr);
 
         // Handle "none" algorithm
@@ -186,26 +185,26 @@ JWS JWS::parse(const std::string& jws)
     std::string payload = Base64Url::decodeToString(encodedPayload);
 
     // Parse header
-    JsonValue header = JsonValue::parse(headerJson);
+    json header = json::parse(headerJson);
 
     JWS result;
     result.impl_->payload = payload;
     result.impl_->headerJson = headerJson;
 
-    if (header.has("alg"))
+    if (header.contains("alg"))
     {
-        std::string algStr = header["alg"].asString();
+        std::string algStr = header["alg"].get<std::string>();
         result.impl_->algorithm = JWA::signatureAlgorithmFromString(algStr);
     }
 
-    if (header.has("kid"))
+    if (header.contains("kid"))
     {
-        result.impl_->kid = header["kid"].asString();
+        result.impl_->kid = header["kid"].get<std::string>();
     }
 
-    if (header.has("typ"))
+    if (header.contains("typ"))
     {
-        result.impl_->typ = header["typ"].asString();
+        result.impl_->typ = header["typ"].get<std::string>();
     }
 
     return result;
@@ -223,26 +222,25 @@ std::string JWS::getHeader() const
         return impl_->headerJson;
     }
 
-    JsonValue header;
-    header.setObject();
-    header.set("alg", JsonValue(JWA::toString(impl_->algorithm)));
+    json header = json::object();
+    header["alg"] = JWA::toString(impl_->algorithm);
 
     if (!impl_->typ.empty())
     {
-        header.set("typ", JsonValue(impl_->typ));
+        header["typ"] = impl_->typ;
     }
 
     if (!impl_->kid.empty())
     {
-        header.set("kid", JsonValue(impl_->kid));
+        header["kid"] = impl_->kid;
     }
 
     for (const auto& param : impl_->headerParams)
     {
-        header.set(param.first, JsonValue(param.second));
+        header[param.first] = param.second;
     }
 
-    return header.serialize();
+    return header.dump();
 }
 
 JWA::SignatureAlgorithm JWS::getAlgorithm() const

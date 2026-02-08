@@ -119,28 +119,27 @@ void JWE::setHeaderParam(const std::string& name, const std::string& value)
 std::string JWE::encrypt(const JWK& key) const
 {
     // Build JOSE header
-    JsonValue header;
-    header.setObject();
-    header.set("alg", JsonValue(JWA::toString(impl_->keyAlgorithm)));
-    header.set("enc", JsonValue(JWA::toString(impl_->contentAlgorithm)));
+    json header = json::object();
+    header["alg"] = JWA::toString(impl_->keyAlgorithm);
+    header["enc"] = JWA::toString(impl_->contentAlgorithm);
 
     if (!impl_->typ.empty())
     {
-        header.set("typ", JsonValue(impl_->typ));
+        header["typ"] = impl_->typ;
     }
 
     if (!impl_->kid.empty())
     {
-        header.set("kid", JsonValue(impl_->kid));
+        header["kid"] = impl_->kid;
     }
 
     // Add custom header parameters
     for (const auto& param : impl_->headerParams)
     {
-        header.set(param.first, JsonValue(param.second));
+        header[param.first] = param.second;
     }
 
-    std::string headerJson = header.serialize();
+    std::string headerJson = header.dump();
     std::string encodedHeader = Base64Url::encode(headerJson);
 
     // Generate CEK (Content Encryption Key)
@@ -215,15 +214,15 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
 
     // Decode header to get algorithms
     std::string headerJson = Base64Url::decodeToString(encodedHeader);
-    JsonValue header = JsonValue::parse(headerJson);
+    json header = json::parse(headerJson);
 
-    if (!header.has("alg") || !header.has("enc"))
+    if (!header.contains("alg") || !header.contains("enc"))
     {
         throw std::runtime_error("JWE header missing required algorithm fields");
     }
 
-    std::string algStr = header["alg"].asString();
-    std::string encStr = header["enc"].asString();
+    std::string algStr = header["alg"].get<std::string>();
+    std::string encStr = header["enc"].get<std::string>();
 
     JWA::KeyEncryptionAlgorithm keyAlg = JWA::keyEncryptionAlgorithmFromString(algStr);
     JWA::ContentEncryptionAlgorithm contentAlg = JWA::contentEncryptionAlgorithmFromString(encStr);
@@ -280,31 +279,31 @@ JWE JWE::parse(const std::string& jwe)
 
     // Decode header
     std::string headerJson = Base64Url::decodeToString(encodedHeader);
-    JsonValue header = JsonValue::parse(headerJson);
+    json header = json::parse(headerJson);
 
     JWE result;
     result.impl_->headerJson = headerJson;
 
-    if (header.has("alg"))
+    if (header.contains("alg"))
     {
-        std::string algStr = header["alg"].asString();
+        std::string algStr = header["alg"].get<std::string>();
         result.impl_->keyAlgorithm = JWA::keyEncryptionAlgorithmFromString(algStr);
     }
 
-    if (header.has("enc"))
+    if (header.contains("enc"))
     {
-        std::string encStr = header["enc"].asString();
+        std::string encStr = header["enc"].get<std::string>();
         result.impl_->contentAlgorithm = JWA::contentEncryptionAlgorithmFromString(encStr);
     }
 
-    if (header.has("kid"))
+    if (header.contains("kid"))
     {
-        result.impl_->kid = header["kid"].asString();
+        result.impl_->kid = header["kid"].get<std::string>();
     }
 
-    if (header.has("typ"))
+    if (header.contains("typ"))
     {
-        result.impl_->typ = header["typ"].asString();
+        result.impl_->typ = header["typ"].get<std::string>();
     }
 
     return result;
@@ -322,27 +321,26 @@ std::string JWE::getHeader() const
         return impl_->headerJson;
     }
 
-    JsonValue header;
-    header.setObject();
-    header.set("alg", JsonValue(JWA::toString(impl_->keyAlgorithm)));
-    header.set("enc", JsonValue(JWA::toString(impl_->contentAlgorithm)));
+    json header = json::object();
+    header["alg"] = JWA::toString(impl_->keyAlgorithm);
+    header["enc"] = JWA::toString(impl_->contentAlgorithm);
 
     if (!impl_->typ.empty())
     {
-        header.set("typ", JsonValue(impl_->typ));
+        header["typ"] = impl_->typ;
     }
 
     if (!impl_->kid.empty())
     {
-        header.set("kid", JsonValue(impl_->kid));
+        header["kid"] = impl_->kid;
     }
 
     for (const auto& param : impl_->headerParams)
     {
-        header.set(param.first, JsonValue(param.second));
+        header[param.first] = param.second;
     }
 
-    return header.serialize();
+    return header.dump();
 }
 
 }  // namespace jose

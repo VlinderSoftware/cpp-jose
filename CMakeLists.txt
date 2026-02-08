@@ -10,6 +10,15 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
 
+# Fetch nlohmann/json
+include(FetchContent)
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+    GIT_TAG v3.11.3
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # Find OpenSSL
 find_package(OpenSSL REQUIRED)
 
@@ -25,7 +34,6 @@ set(JOSE_SOURCES
     src/jwt.cpp
     src/jwk_thumbprint.cpp
     src/base64url.cpp
-    src/json_utils.cpp
 )
 
 # Create library
@@ -34,7 +42,10 @@ target_include_directories(jose PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(jose PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+target_link_libraries(jose 
+    PUBLIC OpenSSL::SSL OpenSSL::Crypto
+    PRIVATE nlohmann_json::nlohmann_json
+)
 
 # Enable testing
 if(BUILD_TESTS)
@@ -49,7 +60,6 @@ endif()
 
 # Installation
 install(TARGETS jose
-    EXPORT joseTargets
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
     RUNTIME DESTINATION bin
@@ -60,8 +70,9 @@ install(DIRECTORY include/jose
     DESTINATION include
 )
 
-install(EXPORT joseTargets
-    FILE joseTargets.cmake
-    NAMESPACE jose::
-    DESTINATION lib/cmake/jose
-)
+# Commented out export due to nlohmann_json dependency issue
+# install(EXPORT joseTargets
+#     FILE joseTargets.cmake
+#     NAMESPACE jose::
+#     DESTINATION lib/cmake/jose
+# )

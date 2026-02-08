@@ -16,7 +16,7 @@ namespace jose {
 namespace {
 
 // Maximum audience entries when parsing JWT audience arrays
-// This is a workaround for the limited JsonValue API which doesn't provide iteration
+// No longer needed with nlohmann::json proper iteration
 const size_t MAX_AUDIENCE_ENTRIES = 100;
 
 int64_t timePointToTimestamp(std::chrono::system_clock::time_point tp)
@@ -34,21 +34,21 @@ std::chrono::system_clock::time_point timestampToTimePoint(int64_t timestamp)
 
 struct JWT::Impl
 {
-    std::map<std::string, JsonValue> claims;
+    std::map<std::string, json> claims;
 
-    void setClaim(const std::string& name, const JsonValue& value)
+    void setClaim(const std::string& name, const json& value)
     {
         claims[name] = value;
     }
 
-    JsonValue getClaim(const std::string& name) const
+    json getClaim(const std::string& name) const
     {
         auto it = claims.find(name);
         if (it != claims.end())
         {
             return it->second;
         }
-        return JsonValue();
+        return json();
     }
 
     bool hasClaim(const std::string& name) const
@@ -81,17 +81,17 @@ JWT& JWT::operator=(JWT&& other) noexcept = default;
 
 void JWT::setIssuer(const std::string& iss)
 {
-    impl_->setClaim("iss", JsonValue(iss));
+    impl_->setClaim("iss", iss);
 }
 
 void JWT::setSubject(const std::string& sub)
 {
-    impl_->setClaim("sub", JsonValue(sub));
+    impl_->setClaim("sub", sub);
 }
 
 void JWT::setAudience(const std::string& aud)
 {
-    impl_->setClaim("aud", JsonValue(aud));
+    impl_->setClaim("aud", aud);
 }
 
 void JWT::setAudience(const std::vector<std::string>& aud)
@@ -103,15 +103,14 @@ void JWT::setAudience(const std::vector<std::string>& aud)
 
     if (aud.size() == 1)
     {
-        impl_->setClaim("aud", JsonValue(aud[0]));
+        impl_->setClaim("aud", aud[0]);
     }
     else
     {
-        JsonValue audArray;
-        audArray.setArray();
+        json audArray = json::array();
         for (const auto& a : aud)
         {
-            audArray.append(JsonValue(a));
+            audArray.push_back(a);
         }
         impl_->setClaim("aud", audArray);
     }
@@ -119,82 +118,66 @@ void JWT::setAudience(const std::vector<std::string>& aud)
 
 void JWT::setExpiration(std::chrono::system_clock::time_point exp)
 {
-    impl_->setClaim("exp", JsonValue(static_cast<int>(timePointToTimestamp(exp))));
+    impl_->setClaim("exp", static_cast<int>(timePointToTimestamp(exp)));
 }
 
 void JWT::setNotBefore(std::chrono::system_clock::time_point nbf)
 {
-    impl_->setClaim("nbf", JsonValue(static_cast<int>(timePointToTimestamp(nbf))));
+    impl_->setClaim("nbf", static_cast<int>(timePointToTimestamp(nbf)));
 }
 
 void JWT::setIssuedAt(std::chrono::system_clock::time_point iat)
 {
-    impl_->setClaim("iat", JsonValue(static_cast<int>(timePointToTimestamp(iat))));
+    impl_->setClaim("iat", static_cast<int>(timePointToTimestamp(iat)));
 }
 
 void JWT::setJwtId(const std::string& jti)
 {
-    impl_->setClaim("jti", JsonValue(jti));
+    impl_->setClaim("jti", jti);
 }
 
 void JWT::setClaim(const std::string& name, const std::string& value)
 {
-    impl_->setClaim(name, JsonValue(value));
+    impl_->setClaim(name, value);
 }
 
 std::string JWT::getIssuer() const
 {
-    JsonValue claim = impl_->getClaim("iss");
-    if (claim.isString())
+    json claim = impl_->getClaim("iss");
+    if (claim.is_string())
     {
-        return claim.asString();
+        return claim.get<std::string>();
     }
     return "";
 }
 
 std::string JWT::getSubject() const
 {
-    JsonValue claim = impl_->getClaim("sub");
-    if (claim.isString())
+    json claim = impl_->getClaim("sub");
+    if (claim.is_string())
     {
-        return claim.asString();
+        return claim.get<std::string>();
     }
     return "";
 }
 
 std::vector<std::string> JWT::getAudience() const
 {
-    JsonValue claim = impl_->getClaim("aud");
+    json claim = impl_->getClaim("aud");
     std::vector<std::string> result;
 
-    if (claim.isString())
+    if (claim.is_string())
     {
-        result.push_back(claim.asString());
+        result.push_back(claim.get<std::string>());
     }
-    else if (claim.isArray())
+    else if (claim.is_array())
     {
-        // Manual array iteration through JSON structure
-        std::string serialized = claim.serialize();
-        JsonValue reparsed = JsonValue::parse(serialized);
-
-        // Note: Limited by JsonValue API which doesn't provide proper iteration
-        for (size_t i = 0; i < MAX_AUDIENCE_ENTRIES; ++i)
+        // Proper array iteration with nlohmann::json
+        for (const auto& elem : claim)
         {
-            try
+            if (elem.is_string())
             {
-                JsonValue elem = reparsed[i];
-                if (elem.isNull())
-                {
-                    break;
-                }
-                if (elem.isString())
-                {
-                    result.push_back(elem.asString());
-                }
-            }
-            catch (...)
-            {
-                break;
+                result.push_back(elem.get<std::string>());
             }
         }
     }
@@ -204,50 +187,50 @@ std::vector<std::string> JWT::getAudience() const
 
 std::chrono::system_clock::time_point JWT::getExpiration() const
 {
-    JsonValue claim = impl_->getClaim("exp");
-    if (claim.isNumber())
+    json claim = impl_->getClaim("exp");
+    if (claim.is_number())
     {
-        return timestampToTimePoint(static_cast<int64_t>(claim.asNumber()));
+        return timestampToTimePoint(static_cast<int64_t>(claim.get<int>()));
     }
     return std::chrono::system_clock::time_point();
 }
 
 std::chrono::system_clock::time_point JWT::getNotBefore() const
 {
-    JsonValue claim = impl_->getClaim("nbf");
-    if (claim.isNumber())
+    json claim = impl_->getClaim("nbf");
+    if (claim.is_number())
     {
-        return timestampToTimePoint(static_cast<int64_t>(claim.asNumber()));
+        return timestampToTimePoint(static_cast<int64_t>(claim.get<int>()));
     }
     return std::chrono::system_clock::time_point();
 }
 
 std::chrono::system_clock::time_point JWT::getIssuedAt() const
 {
-    JsonValue claim = impl_->getClaim("iat");
-    if (claim.isNumber())
+    json claim = impl_->getClaim("iat");
+    if (claim.is_number())
     {
-        return timestampToTimePoint(static_cast<int64_t>(claim.asNumber()));
+        return timestampToTimePoint(static_cast<int64_t>(claim.get<int>()));
     }
     return std::chrono::system_clock::time_point();
 }
 
 std::string JWT::getJwtId() const
 {
-    JsonValue claim = impl_->getClaim("jti");
-    if (claim.isString())
+    json claim = impl_->getClaim("jti");
+    if (claim.is_string())
     {
-        return claim.asString();
+        return claim.get<std::string>();
     }
     return "";
 }
 
 std::string JWT::getClaim(const std::string& name) const
 {
-    JsonValue claim = impl_->getClaim(name);
-    if (claim.isString())
+    json claim = impl_->getClaim(name);
+    if (claim.is_string())
     {
-        return claim.asString();
+        return claim.get<std::string>();
     }
     return "";
 }
@@ -260,15 +243,14 @@ bool JWT::hasClaim(const std::string& name) const
 std::string JWT::sign(const JWK& key, const std::string& algorithm) const
 {
     // Build claims JSON
-    JsonValue claimsJson;
-    claimsJson.setObject();
+    json claimsJson = json::object();
 
     for (const auto& claim : impl_->claims)
     {
-        claimsJson.set(claim.first, claim.second);
+        claimsJson[claim.first] = claim.second;
     }
 
-    std::string payload = claimsJson.serialize();
+    std::string payload = claimsJson.dump();
 
     // Create JWS
     JWS jws;
@@ -305,92 +287,67 @@ JWT JWT::parse(const std::string& jwt)
 
     // Parse payload as JSON
     std::string payload = jws.getPayload();
-    JsonValue claimsJson = JsonValue::parse(payload);
+    json claimsJson = json::parse(payload);
 
-    if (!claimsJson.isObject())
+    if (!claimsJson.is_object())
     {
         throw std::runtime_error("JWT payload is not a JSON object");
     }
 
     JWT result;
 
-    // We need to manually extract all claims from the JSON object
-    // Since JsonValue doesn't provide iteration, we'll parse the serialized form
-    std::string serialized = claimsJson.serialize();
-    JsonValue reparsed = JsonValue::parse(serialized);
-
+    // Extract claims using nlohmann::json iteration
     // Standard claims
-    if (reparsed.has("iss") && reparsed["iss"].isString())
+    if (claimsJson.contains("iss") && claimsJson["iss"].is_string())
     {
-        result.setIssuer(reparsed["iss"].asString());
+        result.setIssuer(claimsJson["iss"].get<std::string>());
     }
-    if (reparsed.has("sub") && reparsed["sub"].isString())
+    if (claimsJson.contains("sub") && claimsJson["sub"].is_string())
     {
-        result.setSubject(reparsed["sub"].asString());
+        result.setSubject(claimsJson["sub"].get<std::string>());
     }
-    if (reparsed.has("aud"))
+    if (claimsJson.contains("aud"))
     {
-        if (reparsed["aud"].isString())
+        if (claimsJson["aud"].is_string())
         {
-            result.setAudience(reparsed["aud"].asString());
+            result.setAudience(claimsJson["aud"].get<std::string>());
         }
-        else if (reparsed["aud"].isArray())
+        else if (claimsJson["aud"].is_array())
         {
             std::vector<std::string> audiences;
-            for (size_t i = 0; i < MAX_AUDIENCE_ENTRIES; ++i)
+            for (const auto& elem : claimsJson["aud"])
             {
-                try
+                if (elem.is_string())
                 {
-                    JsonValue elem = reparsed["aud"][i];
-                    if (elem.isNull())
-                        break;
-                    if (elem.isString())
-                    {
-                        audiences.push_back(elem.asString());
-                    }
-                }
-                catch (...)
-                {
-                    break;
+                    audiences.push_back(elem.get<std::string>());
                 }
             }
             result.setAudience(audiences);
         }
     }
-    if (reparsed.has("exp") && reparsed["exp"].isNumber())
+    if (claimsJson.contains("exp") && claimsJson["exp"].is_number())
     {
         result.setExpiration(
-            timestampToTimePoint(static_cast<int64_t>(reparsed["exp"].asNumber())));
+            timestampToTimePoint(static_cast<int64_t>(claimsJson["exp"].get<int>())));
     }
-    if (reparsed.has("nbf") && reparsed["nbf"].isNumber())
+    if (claimsJson.contains("nbf") && claimsJson["nbf"].is_number())
     {
-        result.setNotBefore(timestampToTimePoint(static_cast<int64_t>(reparsed["nbf"].asNumber())));
+        result.setNotBefore(timestampToTimePoint(static_cast<int64_t>(claimsJson["nbf"].get<int>())));
     }
-    if (reparsed.has("iat") && reparsed["iat"].isNumber())
+    if (claimsJson.contains("iat") && claimsJson["iat"].is_number())
     {
-        result.setIssuedAt(timestampToTimePoint(static_cast<int64_t>(reparsed["iat"].asNumber())));
+        result.setIssuedAt(timestampToTimePoint(static_cast<int64_t>(claimsJson["iat"].get<int>())));
     }
-    if (reparsed.has("jti") && reparsed["jti"].isString())
+    if (claimsJson.contains("jti") && claimsJson["jti"].is_string())
     {
-        result.setJwtId(reparsed["jti"].asString());
+        result.setJwtId(claimsJson["jti"].get<std::string>());
     }
 
-    // Store claims we extracted
-    // Note: Full custom claim extraction would require a better JSON iteration API
-    if (reparsed.has("iss"))
-        result.impl_->claims["iss"] = reparsed["iss"];
-    if (reparsed.has("sub"))
-        result.impl_->claims["sub"] = reparsed["sub"];
-    if (reparsed.has("aud"))
-        result.impl_->claims["aud"] = reparsed["aud"];
-    if (reparsed.has("exp"))
-        result.impl_->claims["exp"] = reparsed["exp"];
-    if (reparsed.has("nbf"))
-        result.impl_->claims["nbf"] = reparsed["nbf"];
-    if (reparsed.has("iat"))
-        result.impl_->claims["iat"] = reparsed["iat"];
-    if (reparsed.has("jti"))
-        result.impl_->claims["jti"] = reparsed["jti"];
+    // Store all claims directly
+    for (auto it = claimsJson.begin(); it != claimsJson.end(); ++it)
+    {
+        result.impl_->claims[it.key()] = it.value();
+    }
 
     return result;
 }
