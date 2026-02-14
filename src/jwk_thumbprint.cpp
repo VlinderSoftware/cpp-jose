@@ -35,8 +35,12 @@ std::string getOpenSSLError()
 // Extract required JWK components in lexicographic order per RFC 7638
 std::string getCanonicalJWKJson(const JWK& key)
 {
+    // For symmetric (oct) keys, we need to include the private key material
+    // For asymmetric keys, we only need the public key
+    bool includePrivate = (key.getKeyType() == JWK::KeyType::oct);
+    
     // Parse the full JWK JSON
-    std::string fullJson = key.toJson(false);  // public key only
+    std::string fullJson = key.toJson(includePrivate);
     json jwkValue = json::parse(fullJson);
 
     if (!jwkValue.contains("kty"))

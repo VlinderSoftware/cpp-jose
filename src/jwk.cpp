@@ -691,10 +691,20 @@ JWKSet JWKSet::fromJson(const std::string& jsonStr)
         throw std::runtime_error("Missing keys array");
     }
 
-    // Note: Array access would need to be implemented in JsonValue
-    // For now, simplified implementation
+    if (!jwkSetJson["keys"].is_array())
+    {
+        throw std::runtime_error("keys field must be an array");
+    }
 
-    return std::move(set);
+    // Parse each key in the array
+    for (const auto& keyJson : jwkSetJson["keys"])
+    {
+        std::string keyJsonStr = keyJson.dump();
+        JWK key = JWK::fromJson(keyJsonStr);
+        set.addKey(key);
+    }
+
+    return set;
 }
 
 void JWKSet::addKey(const JWK& key)

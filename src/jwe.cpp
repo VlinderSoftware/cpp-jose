@@ -139,27 +139,75 @@ std::string JWE::encrypt(const JWK& key) const
         header[param.first] = param.second;
     }
 
-    std::string headerJson = header.dump();
-    std::string encodedHeader = Base64Url::encode(headerJson);
-
-    // Generate CEK (Content Encryption Key)
-    size_t cekSize = getKeySize(impl_->contentAlgorithm);
-    std::vector<unsigned char> cek(cekSize);
-    if (RAND_bytes(cek.data(), static_cast<int>(cekSize)) != 1)
-    {
-        throw std::runtime_error("Failed to generate random CEK");
-    }
-
-    // Encrypt CEK
+    // Generate or use CEK (Content Encryption Key)
+    std::vector<unsigned char> cek;
     std::vector<unsigned char> encryptedKey;
+    std::vector<unsigned char> kekIv;  // For GCM key wrap
+    std::vector<unsigned char> kekTag; // For GCM key wrap
+    
     if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::DIR)
     {
-        encryptedKey.clear();  // Direct encryption uses the key directly
+        // For direct encryption, use the provided key directly as the CEK
+        encryptedKey.clear();  // No encrypted key field
+        
+        // Extract the symmetric key material from the JWK
+        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+        if (!pkey)
+        {
+            throw std::runtime_error("Invalid key");
+        }
+        
+        size_t keyLen = 0;
+        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &keyLen) != 1)
+        {
+            throw std::runtime_error("Failed to get key length");
+        }
+        
+        cek.resize(keyLen);
+        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &keyLen) != 1)
+        {
+            throw std::runtime_error("Failed to get key data");
+        }
     }
     else
     {
-        encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek);
+        // Generate random CEK and encrypt it with the key
+        size_t cekSize = getKeySize(impl_->contentAlgorithm);
+        cek.resize(cekSize);
+        if (RAND_bytes(cek.data(), static_cast<int>(cekSize)) != 1)
+        {
+            throw std::runtime_error("Failed to generate random CEK");
+        }
+        
+        // Check if this is a GCM key wrap algorithm
+        bool isGcmKw = (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::A128GCMKW ||
+                        impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::A192GCMKW ||
+                        impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::A256GCMKW);
+        
+        if (isGcmKw)
+        {
+            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek, &kekIv, &kekTag);
+        }
+        else
+        {
+            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek);
+        }
     }
+    
+    // Add GCM key wrap IV and tag to header if present
+    if (!kekIv.empty())
+    {
+        header["iv"] = Base64Url::encode(kekIv);
+    }
+    if (!kekTag.empty())
+    {
+        header["tag"] = Base64Url::encode(kekTag);
+    }
+    
+    // Now encode the header with all fields
+    std::string headerJson = header.dump();
+    std::string encodedHeader = Base64Url::encode(headerJson);
+    
     std::string encodedEncryptedKey = Base64Url::encode(encryptedKey);
 
     // Generate IV
@@ -231,14 +279,51 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
     std::vector<unsigned char> cek;
     if (keyAlg == JWA::KeyEncryptionAlgorithm::DIR)
     {
-        // For direct encryption, derive CEK from the key
-        // This is a simplified implementation
-        throw std::runtime_error("DIR algorithm not yet fully implemented");
+        // For direct encryption, use the provided key directly as the CEK
+        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+        if (!pkey)
+        {
+            throw std::runtime_error("Invalid key");
+        }
+        
+        size_t keyLen = 0;
+        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &keyLen) != 1)
+        {
+            throw std::runtime_error("Failed to get key length");
+        }
+        
+        cek.resize(keyLen);
+        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &keyLen) != 1)
+        {
+            throw std::runtime_error("Failed to get key data");
+        }
     }
     else
     {
         std::vector<unsigned char> encryptedKey = Base64Url::decode(encodedEncryptedKey);
-        cek = JWA::decryptKey(keyAlg, key, encryptedKey);
+        
+        // Check for GCM key wrap IV and tag in header
+        std::vector<unsigned char> kekIv;
+        std::vector<unsigned char> kekTag;
+        
+        if (header.contains("iv"))
+        {
+            kekIv = Base64Url::decode(header["iv"].get<std::string>());
+        }
+        if (header.contains("tag"))
+        {
+            kekTag = Base64Url::decode(header["tag"].get<std::string>());
+        }
+        
+        // Pass IV and tag if present (for GCM key wrap)
+        if (!kekIv.empty() && !kekTag.empty())
+        {
+            cek = JWA::decryptKey(keyAlg, key, encryptedKey, &kekIv, &kekTag);
+        }
+        else
+        {
+            cek = JWA::decryptKey(keyAlg, key, encryptedKey);
+        }
     }
 
     // Decode other components

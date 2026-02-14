@@ -1,6 +1,7 @@
 #include "jose/jwa.hpp"
 
 #include <openssl/aes.h>
+#include <openssl/core_names.h>
 #include <openssl/ec.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -256,7 +257,56 @@ std::vector<unsigned char> ecdsaSign(const EVP_MD* md, const JWK& key,
     const BIGNUM* s;
     ECDSA_SIG_get0(ecdsaSig, &r, &s);
 
-    size_t keySize = EVP_MD_size(md);
+    // Get the field size from the EC key, not from the hash size
+    size_t keySize = 0;
+    int nid = 0;
+    if (EVP_PKEY_get_int_param(pkey, "group", &nid) == 1)
+    {
+        // Determine key size based on curve
+        if (nid == NID_X9_62_prime256v1)  // P-256
+        {
+            keySize = 32;
+        }
+        else if (nid == NID_secp384r1)  // P-384
+        {
+            keySize = 48;
+        }
+        else if (nid == NID_secp521r1)  // P-521
+        {
+            keySize = 66;  // ceil(521/8)
+        }
+    }
+    
+    if (keySize == 0)
+    {
+        // Fallback: try to get curve name as string
+        char curve_name[80];
+        size_t curve_name_len = sizeof(curve_name);
+        if (EVP_PKEY_get_utf8_string_param(pkey, OSSL_PKEY_PARAM_GROUP_NAME, 
+                                           curve_name, sizeof(curve_name), &curve_name_len))
+        {
+            std::string groupName(curve_name);
+            if (groupName == "prime256v1")
+            {
+                keySize = 32;
+            }
+            else if (groupName == "secp384r1")
+            {
+                keySize = 48;
+            }
+            else if (groupName == "secp521r1")
+            {
+                keySize = 66;
+            }
+        }
+    }
+    
+    if (keySize == 0)
+    {
+        ECDSA_SIG_free(ecdsaSig);
+        throw std::runtime_error("Unable to determine EC curve size");
+    }
+
     std::vector<unsigned char> signature(2 * keySize, 0);
 
     BN_bn2binpad(r, signature.data(), keySize);
@@ -1035,7 +1085,9 @@ bool JWA::verify(SignatureAlgorithm algorithm, const JWK& key,
 }
 
 std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                           const std::vector<unsigned char>& cek)
+                                           const std::vector<unsigned char>& cek,
+                                           std::vector<unsigned char>* outIv,
+                                           std::vector<unsigned char>* outTag)
 {
     switch (algorithm)
     {
@@ -1112,7 +1164,19 @@ std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, con
 
             std::vector<unsigned char> iv;
             std::vector<unsigned char> tag;
-            return aesGcmKeyWrap(kek, cek, iv, tag);
+            std::vector<unsigned char> result = aesGcmKeyWrap(kek, cek, iv, tag);
+            
+            // Store IV and tag in output parameters if provided
+            if (outIv)
+            {
+                *outIv = iv;
+            }
+            if (outTag)
+            {
+                *outTag = tag;
+            }
+            
+            return result;
         }
 
         case KeyEncryptionAlgorithm::ECDH_ES:
@@ -1124,7 +1188,9 @@ std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, con
 }
 
 std::vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                           const std::vector<unsigned char>& encryptedCek)
+                                           const std::vector<unsigned char>& encryptedCek,
+                                           const std::vector<unsigned char>* inIv,
+                                           const std::vector<unsigned char>* inTag)
 {
     switch (algorithm)
     {
@@ -1166,6 +1232,42 @@ std::vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, con
             delete[] kekData;
 
             return aesKeyUnwrap(kek, encryptedCek);
+        }
+
+        case KeyEncryptionAlgorithm::A128GCMKW:
+        case KeyEncryptionAlgorithm::A192GCMKW:
+        case KeyEncryptionAlgorithm::A256GCMKW:
+        {
+            if (!inIv || !inTag)
+            {
+                throw std::runtime_error("IV and tag required for AES-GCM key unwrap");
+            }
+            
+            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            if (!pkey)
+            {
+                throw std::runtime_error("Invalid key");
+            }
+
+            size_t kekLen = 0;
+            unsigned char* kekData = nullptr;
+
+            if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kekLen) != 1)
+            {
+                throw std::runtime_error("Failed to get key length");
+            }
+
+            kekData = new unsigned char[kekLen];
+            if (EVP_PKEY_get_raw_private_key(pkey, kekData, &kekLen) != 1)
+            {
+                delete[] kekData;
+                throw std::runtime_error("Failed to get key data");
+            }
+
+            std::vector<unsigned char> kek(kekData, kekData + kekLen);
+            delete[] kekData;
+
+            return aesGcmKeyUnwrap(kek, encryptedCek, *inIv, *inTag);
         }
 
         case KeyEncryptionAlgorithm::DIR:

@@ -256,7 +256,24 @@ std::string JWT::sign(const JWK& key, const std::string& algorithm) const
     JWS jws;
     jws.setPayload(payload);
     jws.setType("JWT");
-    jws.setAlgorithm(JWA::signatureAlgorithmFromString(algorithm));
+    
+    // Determine algorithm: if "RS256" default is used but key is not RSA, pick appropriate algorithm
+    std::string actualAlgorithm = algorithm;
+    if (algorithm == "RS256")  // This is the default
+    {
+        JWK::KeyType keyType = key.getKeyType();
+        if (keyType == JWK::KeyType::oct)
+        {
+            actualAlgorithm = "HS256";
+        }
+        else if (keyType == JWK::KeyType::EC)
+        {
+            actualAlgorithm = "ES256";
+        }
+        // Otherwise keep RS256 for RSA keys
+    }
+    
+    jws.setAlgorithm(JWA::signatureAlgorithmFromString(actualAlgorithm));
 
     // Copy key ID if present
     std::string kid = key.getKeyId();

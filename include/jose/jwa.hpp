@@ -95,20 +95,28 @@ public:
      * @param algorithm Key encryption algorithm
      * @param key Key encryption key
      * @param cek Content encryption key to encrypt
+     * @param iv Output parameter for IV (used by AES-GCM key wrap)
+     * @param tag Output parameter for authentication tag (used by AES-GCM key wrap)
      * @return Encrypted CEK
      */
     static std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                                 const std::vector<unsigned char>& cek);
+                                                 const std::vector<unsigned char>& cek,
+                                                 std::vector<unsigned char>* iv = nullptr,
+                                                 std::vector<unsigned char>* tag = nullptr);
 
     /**
      * @brief Decrypt content encryption key
      * @param algorithm Key encryption algorithm
      * @param key Key encryption key
      * @param encryptedCek Encrypted CEK
+     * @param iv Input parameter for IV (used by AES-GCM key wrap)
+     * @param tag Input parameter for authentication tag (used by AES-GCM key wrap)
      * @return Decrypted CEK
      */
     static std::vector<unsigned char> decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                                 const std::vector<unsigned char>& encryptedCek);
+                                                 const std::vector<unsigned char>& encryptedCek,
+                                                 const std::vector<unsigned char>* iv = nullptr,
+                                                 const std::vector<unsigned char>* tag = nullptr);
 
     /**
      * @brief Encrypt content
