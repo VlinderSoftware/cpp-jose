@@ -7,7 +7,7 @@
 #include "jwa.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 class JWK;
 
@@ -102,7 +102,7 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder
 
 #endif  // JOSE_JWE_HPP

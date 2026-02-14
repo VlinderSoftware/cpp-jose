@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 std::string Base64Url::encode(const std::vector<unsigned char>& data)
 {
@@ -114,5 +114,5 @@ std::string Base64Url::decodeToString(const std::string& encoded)
     return std::string(data.begin(), data.end());
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

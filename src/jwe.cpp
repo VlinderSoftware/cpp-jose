@@ -12,7 +12,7 @@
 #include "jose/jwk.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 namespace {
 
@@ -343,5 +343,5 @@ std::string JWE::getHeader() const
     return header.dump();
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

@@ -16,7 +16,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 void demonstrateAlgorithm(const std::string& algName, JWA::SignatureAlgorithm alg, const JWK& key)
 {

@@ -11,7 +11,7 @@
 #include "jose/jws.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 namespace {
 
@@ -415,5 +415,5 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
     return true;
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

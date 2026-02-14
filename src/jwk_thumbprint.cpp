@@ -16,7 +16,7 @@
 #include "jose/jwk.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 namespace {
 
@@ -195,5 +195,5 @@ std::vector<unsigned char> JWKThumbprint::computeRaw(const JWK& key, const std::
     return hash;
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

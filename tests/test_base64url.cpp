@@ -5,7 +5,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 // BDD-style tests for encoding
 SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd]")

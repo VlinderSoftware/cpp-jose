@@ -16,7 +16,7 @@
 #include "jose/json_utils.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 struct JWK::Impl
 {
@@ -554,5 +554,5 @@ std::string JWKSet::toJson() const
     return jsonObj.dump();
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

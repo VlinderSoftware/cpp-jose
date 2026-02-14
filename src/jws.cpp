@@ -10,7 +10,7 @@
 #include "jose/jwk.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 struct JWS::Impl
 {
@@ -248,5 +248,5 @@ JWA::SignatureAlgorithm JWS::getAlgorithm() const
     return impl_->algorithm;
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

@@ -4,7 +4,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 // RFC 7520 provides extensive examples for JWS, JWE, and JWK
 // These tests verify compliance with the RFC examples

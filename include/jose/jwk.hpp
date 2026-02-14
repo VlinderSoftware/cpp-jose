@@ -7,7 +7,7 @@
 #include <vector>
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 /**
  * @brief JSON Web Key (RFC 7517)
@@ -163,7 +163,7 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder
 
 #endif  // JOSE_JWK_HPP

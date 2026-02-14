@@ -16,7 +16,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 void printTimestamp(const std::string& label, std::chrono::system_clock::time_point tp)
 {

@@ -6,7 +6,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 
 // Basic JWT creation tests

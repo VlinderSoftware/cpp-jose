@@ -15,7 +15,7 @@
 #include "jose/jwk.hpp"
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 namespace {
 
@@ -1371,5 +1371,5 @@ JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const 
     throw std::runtime_error("Unknown content encryption algorithm: " + alg);
 }
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder

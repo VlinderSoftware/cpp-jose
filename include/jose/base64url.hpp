@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 /**
  * @brief Base64URL encoding/decoding utilities
@@ -42,7 +42,7 @@ public:
     static std::string decodeToString(const std::string& encoded);
 };
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder
 
 #endif  // JOSE_BASE64URL_HPP

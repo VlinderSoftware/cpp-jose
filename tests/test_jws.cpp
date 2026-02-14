@@ -4,7 +4,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 // Basic JWS creation tests
 TEST_CASE("JWS_CreateSimpleJWS", "[jws][createsimplejws]")

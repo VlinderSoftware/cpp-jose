@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 class JWK;
 
@@ -157,7 +157,7 @@ public:
     static ContentEncryptionAlgorithm contentEncryptionAlgorithmFromString(const std::string& alg);
 };
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder
 
 #endif  // JOSE_JWA_HPP

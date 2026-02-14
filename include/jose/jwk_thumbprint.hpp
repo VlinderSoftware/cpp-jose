@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace Vlinder {
-namespace jose {
+namespace JOSE {
 
 class JWK;
 
@@ -42,7 +42,7 @@ public:
                                                  const std::string& algorithm = "SHA-256");
 };
 
-}  // namespace jose
+}  // namespace JOSE
 }  // namespace Vlinder
 
 #endif  // JOSE_JWK_THUMBPRINT_HPP

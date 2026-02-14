@@ -4,7 +4,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 // BDD-style tests for RSA key generation
 SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][generation][bdd]")

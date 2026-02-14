@@ -5,7 +5,7 @@
 
 #include "jose/jose.hpp"
 
-using namespace Vlinder::jose;
+using namespace Vlinder::JOSE;
 
 // Algorithm string conversion tests
 TEST_CASE("SignatureAlgorithmToString", "[jwa][signaturealgorithmtostring]")
