@@ -97,12 +97,16 @@ public:
      * @param cek Content encryption key to encrypt
      * @param iv Output parameter for IV (used by AES-GCM key wrap)
      * @param tag Output parameter for authentication tag (used by AES-GCM key wrap)
+     * @param ephemeralKey Output parameter for ephemeral key (used by ECDH-ES)
+     * @param contentAlg Content encryption algorithm (for ECDH-ES key derivation)
      * @return Encrypted CEK
      */
     static std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
                                                  const std::vector<unsigned char>& cek,
                                                  std::vector<unsigned char>* iv = nullptr,
-                                                 std::vector<unsigned char>* tag = nullptr);
+                                                 std::vector<unsigned char>* tag = nullptr,
+                                                 JWK* ephemeralKey = nullptr,
+                                                 ContentEncryptionAlgorithm contentAlg = ContentEncryptionAlgorithm::A128GCM);
 
     /**
      * @brief Decrypt content encryption key
@@ -111,12 +115,16 @@ public:
      * @param encryptedCek Encrypted CEK
      * @param iv Input parameter for IV (used by AES-GCM key wrap)
      * @param tag Input parameter for authentication tag (used by AES-GCM key wrap)
+     * @param ephemeralKey Input parameter for ephemeral key (used by ECDH-ES)
+     * @param contentAlg Content encryption algorithm (for ECDH-ES key derivation)
      * @return Decrypted CEK
      */
     static std::vector<unsigned char> decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
                                                  const std::vector<unsigned char>& encryptedCek,
                                                  const std::vector<unsigned char>* iv = nullptr,
-                                                 const std::vector<unsigned char>* tag = nullptr);
+                                                 const std::vector<unsigned char>* tag = nullptr,
+                                                 const JWK* ephemeralKey = nullptr,
+                                                 ContentEncryptionAlgorithm contentAlg = ContentEncryptionAlgorithm::A128GCM);
 
     /**
      * @brief Encrypt content

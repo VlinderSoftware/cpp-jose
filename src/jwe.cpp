@@ -21,12 +21,15 @@ size_t getKeySize(JWA::ContentEncryptionAlgorithm algorithm)
     switch (algorithm)
     {
         case JWA::ContentEncryptionAlgorithm::A128GCM:
+            return 16;  // 128 bits for AES-128-GCM
         case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
             return 32;  // 256 bits for A128CBC_HS256 (128 for AES + 128 for HMAC)
         case JWA::ContentEncryptionAlgorithm::A192GCM:
+            return 24;  // 192 bits for AES-192-GCM
         case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
             return 48;  // 384 bits
         case JWA::ContentEncryptionAlgorithm::A256GCM:
+            return 32;  // 256 bits for AES-256-GCM
         case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
             return 64;  // 512 bits for A256CBC_HS512
         default:
@@ -144,6 +147,7 @@ std::string JWE::encrypt(const JWK& key) const
     std::vector<unsigned char> encryptedKey;
     std::vector<unsigned char> kekIv;  // For GCM key wrap
     std::vector<unsigned char> kekTag; // For GCM key wrap
+    JWK ephemeralKey; // For ECDH-ES
     
     if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::DIR)
     {
@@ -169,6 +173,17 @@ std::string JWE::encrypt(const JWK& key) const
             throw std::runtime_error("Failed to get key data");
         }
     }
+    else if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::ECDH_ES)
+    {
+        // For ECDH-ES, derive the CEK using key agreement
+        encryptedKey.clear();  // No encrypted key field
+        
+        // Call encryptKey which will generate ephemeral key, perform ECDH, and derive CEK
+        size_t cekSize = getKeySize(impl_->contentAlgorithm);
+        std::vector<unsigned char> dummyCek(cekSize); // Provide size hint
+        cek = JWA::encryptKey(impl_->keyAlgorithm, key, dummyCek, nullptr, nullptr, 
+                              &ephemeralKey, impl_->contentAlgorithm);
+    }
     else
     {
         // Generate random CEK and encrypt it with the key
@@ -186,12 +201,21 @@ std::string JWE::encrypt(const JWK& key) const
         
         if (isGcmKw)
         {
-            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek, &kekIv, &kekTag);
+            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek, &kekIv, &kekTag, 
+                                          nullptr, impl_->contentAlgorithm);
         }
         else
         {
-            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek);
+            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek, nullptr, nullptr, 
+                                          nullptr, impl_->contentAlgorithm);
         }
+    }
+    
+    // Add ephemeral public key to header if present (ECDH-ES)
+    if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::ECDH_ES)
+    {
+        // Include ephemeral public key in header as JWK
+        header["epk"] = json::parse(ephemeralKey.toJson(false));
     }
     
     // Add GCM key wrap IV and tag to header if present
@@ -298,6 +322,23 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
             throw std::runtime_error("Failed to get key data");
         }
     }
+    else if (keyAlg == JWA::KeyEncryptionAlgorithm::ECDH_ES)
+    {
+        // For ECDH-ES, extract ephemeral public key from header and derive CEK
+        if (!header.contains("epk"))
+        {
+            throw std::runtime_error("ECDH-ES requires ephemeral public key in header");
+        }
+        
+        // Parse ephemeral public key from header
+        json epkJson = header["epk"];
+        JWK ephemeralKey = JWK::fromJson(epkJson.dump());
+        
+        // Derive CEK using ECDH
+        std::vector<unsigned char> encryptedKey; // Empty for ECDH-ES
+        cek = JWA::decryptKey(keyAlg, key, encryptedKey, nullptr, nullptr, 
+                             &ephemeralKey, contentAlg);
+    }
     else
     {
         std::vector<unsigned char> encryptedKey = Base64Url::decode(encodedEncryptedKey);
@@ -318,11 +359,13 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
         // Pass IV and tag if present (for GCM key wrap)
         if (!kekIv.empty() && !kekTag.empty())
         {
-            cek = JWA::decryptKey(keyAlg, key, encryptedKey, &kekIv, &kekTag);
+            cek = JWA::decryptKey(keyAlg, key, encryptedKey, &kekIv, &kekTag, 
+                                 nullptr, contentAlg);
         }
         else
         {
-            cek = JWA::decryptKey(keyAlg, key, encryptedKey);
+            cek = JWA::decryptKey(keyAlg, key, encryptedKey, nullptr, nullptr, 
+                                 nullptr, contentAlg);
         }
     }
 

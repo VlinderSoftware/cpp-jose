@@ -1,5 +1,6 @@
 #include "jose/jwa.hpp"
 
+#include <arpa/inet.h>
 #include <openssl/aes.h>
 #include <openssl/core_names.h>
 #include <openssl/ec.h>
@@ -53,6 +54,179 @@ const EVP_MD* getMD(JWA::SignatureAlgorithm alg)
             return EVP_sha512();
         default:
             throw std::runtime_error("Unsupported signature algorithm");
+    }
+}
+
+// Concat KDF implementation per RFC 7518 Section 4.6.2
+std::vector<unsigned char> concatKDF(const std::vector<unsigned char>& sharedSecret,
+                                      size_t keyDataLen,
+                                      const std::string& algorithm,
+                                      const std::vector<unsigned char>& apu = {},
+                                      const std::vector<unsigned char>& apv = {})
+{
+    // OtherInfo = AlgorithmID || PartyUInfo || PartyVInfo || KeyDataLen
+    std::vector<unsigned char> otherInfo;
+    
+    // AlgorithmID - length prefixed algorithm string
+    uint32_t algLen = htonl(algorithm.length());
+    otherInfo.insert(otherInfo.end(), 
+                     reinterpret_cast<const unsigned char*>(&algLen), 
+                     reinterpret_cast<const unsigned char*>(&algLen) + 4);
+    otherInfo.insert(otherInfo.end(), algorithm.begin(), algorithm.end());
+    
+    // PartyUInfo (APU) - length prefixed
+    uint32_t apuLen = htonl(apu.size());
+    otherInfo.insert(otherInfo.end(), 
+                     reinterpret_cast<const unsigned char*>(&apuLen), 
+                     reinterpret_cast<const unsigned char*>(&apuLen) + 4);
+    if (!apu.empty())
+    {
+        otherInfo.insert(otherInfo.end(), apu.begin(), apu.end());
+    }
+    
+    // PartyVInfo (APV) - length prefixed
+    uint32_t apvLen = htonl(apv.size());
+    otherInfo.insert(otherInfo.end(), 
+                     reinterpret_cast<const unsigned char*>(&apvLen), 
+                     reinterpret_cast<const unsigned char*>(&apvLen) + 4);
+    if (!apv.empty())
+    {
+        otherInfo.insert(otherInfo.end(), apv.begin(), apv.end());
+    }
+    
+    // KeyDataLen in bits (big-endian)
+    uint32_t keyDataLenBits = htonl(keyDataLen * 8);
+    otherInfo.insert(otherInfo.end(), 
+                     reinterpret_cast<const unsigned char*>(&keyDataLenBits), 
+                     reinterpret_cast<const unsigned char*>(&keyDataLenBits) + 4);
+    
+    // Perform Concat KDF with SHA-256
+    std::vector<unsigned char> derivedKey;
+    uint32_t reps = (keyDataLen + 31) / 32; // ceil(keyDataLen / hashLen), SHA-256 = 32 bytes
+    
+    for (uint32_t i = 1; i <= reps; ++i)
+    {
+        EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+        if (!ctx)
+        {
+            throw std::runtime_error("Failed to create digest context");
+        }
+        
+        if (EVP_DigestInit_ex(ctx, EVP_sha256(), nullptr) != 1)
+        {
+            EVP_MD_CTX_free(ctx);
+            throw std::runtime_error("Failed to initialize digest");
+        }
+        
+        // Hash round number (big-endian)
+        uint32_t round = htonl(i);
+        if (EVP_DigestUpdate(ctx, &round, 4) != 1)
+        {
+            EVP_MD_CTX_free(ctx);
+            throw std::runtime_error("Failed to update digest");
+        }
+        
+        // Hash shared secret
+        if (EVP_DigestUpdate(ctx, sharedSecret.data(), sharedSecret.size()) != 1)
+        {
+            EVP_MD_CTX_free(ctx);
+            throw std::runtime_error("Failed to update digest");
+        }
+        
+        // Hash OtherInfo
+        if (EVP_DigestUpdate(ctx, otherInfo.data(), otherInfo.size()) != 1)
+        {
+            EVP_MD_CTX_free(ctx);
+            throw std::runtime_error("Failed to update digest");
+        }
+        
+        unsigned char hash[32];
+        unsigned int hashLen;
+        if (EVP_DigestFinal_ex(ctx, hash, &hashLen) != 1)
+        {
+            EVP_MD_CTX_free(ctx);
+            throw std::runtime_error("Failed to finalize digest");
+        }
+        
+        derivedKey.insert(derivedKey.end(), hash, hash + hashLen);
+        EVP_MD_CTX_free(ctx);
+    }
+    
+    derivedKey.resize(keyDataLen);
+    return derivedKey;
+}
+
+// Perform ECDH key agreement
+std::vector<unsigned char> performECDH(EVP_PKEY* privateKey, EVP_PKEY* publicKey)
+{
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(privateKey, nullptr);
+    if (!ctx)
+    {
+        throw std::runtime_error("Failed to create PKEY context");
+    }
+    
+    if (EVP_PKEY_derive_init(ctx) != 1)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("Failed to initialize key derivation");
+    }
+    
+    if (EVP_PKEY_derive_set_peer(ctx, publicKey) != 1)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("Failed to set peer key");
+    }
+    
+    size_t secretLen = 0;
+    if (EVP_PKEY_derive(ctx, nullptr, &secretLen) != 1)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("Failed to determine shared secret length");
+    }
+    
+    std::vector<unsigned char> sharedSecret(secretLen);
+    if (EVP_PKEY_derive(ctx, sharedSecret.data(), &secretLen) != 1)
+    {
+        EVP_PKEY_CTX_free(ctx);
+        throw std::runtime_error("Failed to derive shared secret");
+    }
+    
+    EVP_PKEY_CTX_free(ctx);
+    sharedSecret.resize(secretLen);
+    return sharedSecret;
+}
+
+// Get EC curve name from EVP_PKEY
+std::string getECCurveName(EVP_PKEY* pkey)
+{
+    char curveName[256] = {0};
+    size_t curveNameLen = sizeof(curveName);
+    
+    if (EVP_PKEY_get_utf8_string_param(pkey, OSSL_PKEY_PARAM_GROUP_NAME, 
+                                       curveName, sizeof(curveName), &curveNameLen) != 1)
+    {
+        throw std::runtime_error("Failed to get EC curve name");
+    }
+    
+    std::string opensslName(curveName);
+    
+    // Convert OpenSSL curve names to JWA curve names
+    if (opensslName == "prime256v1")
+    {
+        return "P-256";
+    }
+    else if (opensslName == "secp384r1")
+    {
+        return "P-384";
+    }
+    else if (opensslName == "secp521r1")
+    {
+        return "P-521";
+    }
+    else
+    {
+        // Return as-is if we don't recognize it
+        return opensslName;
     }
 }
 
@@ -1087,7 +1261,9 @@ bool JWA::verify(SignatureAlgorithm algorithm, const JWK& key,
 std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
                                            const std::vector<unsigned char>& cek,
                                            std::vector<unsigned char>* outIv,
-                                           std::vector<unsigned char>* outTag)
+                                           std::vector<unsigned char>* outTag,
+                                           JWK* ephemeralKey,
+                                           ContentEncryptionAlgorithm contentAlg)
 {
     switch (algorithm)
     {
@@ -1180,7 +1356,64 @@ std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, con
         }
 
         case KeyEncryptionAlgorithm::ECDH_ES:
-            throw std::runtime_error("ECDH-ES not yet implemented");
+        {
+            // ECDH-ES: Elliptic Curve Diffie-Hellman Ephemeral Static
+            // For ECDH-ES, we derive the CEK directly (not encrypt it)
+            
+            EVP_PKEY* recipientKey = static_cast<EVP_PKEY*>(key.getKey());
+            if (!recipientKey)
+            {
+                throw std::runtime_error("Invalid recipient key");
+            }
+            
+            // Get the curve name from recipient's key
+            std::string curveName = getECCurveName(recipientKey);
+            
+            // Generate ephemeral EC key pair on the same curve
+            JWK epk = JWK::generateEC(curveName);
+            EVP_PKEY* ephemeralPrivateKey = static_cast<EVP_PKEY*>(epk.getKey());
+            
+            // Perform ECDH to get shared secret
+            std::vector<unsigned char> sharedSecret = performECDH(ephemeralPrivateKey, recipientKey);
+            
+            // Determine key length needed based on content encryption algorithm
+            size_t keyLen = cek.size(); // Use the provided CEK size
+            if (keyLen == 0)
+            {
+                // If no CEK provided, determine size from content algorithm
+                switch (contentAlg)
+                {
+                    case ContentEncryptionAlgorithm::A128GCM:
+                    case ContentEncryptionAlgorithm::A128CBC_HS256:
+                        keyLen = 16;
+                        break;
+                    case ContentEncryptionAlgorithm::A192GCM:
+                    case ContentEncryptionAlgorithm::A192CBC_HS384:
+                        keyLen = 24;
+                        break;
+                    case ContentEncryptionAlgorithm::A256GCM:
+                    case ContentEncryptionAlgorithm::A256CBC_HS512:
+                        keyLen = 32;
+                        break;
+                    default:
+                        keyLen = 32;
+                }
+            }
+            
+            // Use Concat KDF to derive the CEK
+            std::string algorithm = toString(contentAlg);
+            std::vector<unsigned char> derivedCek = concatKDF(sharedSecret, keyLen, algorithm);
+            
+            // Store the ephemeral public key for inclusion in JWE header
+            if (ephemeralKey)
+            {
+                *ephemeralKey = epk;
+            }
+            
+            // For ECDH-ES, return the derived CEK (which caller will use as the CEK)
+            // The "encrypted key" field in JWE will be empty
+            return derivedCek;
+        }
 
         default:
             throw std::runtime_error("Unsupported key encryption algorithm");
@@ -1190,7 +1423,9 @@ std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, con
 std::vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
                                            const std::vector<unsigned char>& encryptedCek,
                                            const std::vector<unsigned char>* inIv,
-                                           const std::vector<unsigned char>* inTag)
+                                           const std::vector<unsigned char>* inTag,
+                                           const JWK* ephemeralKey,
+                                           ContentEncryptionAlgorithm contentAlg)
 {
     switch (algorithm)
     {
@@ -1274,7 +1509,54 @@ std::vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, con
             return encryptedCek;
 
         case KeyEncryptionAlgorithm::ECDH_ES:
-            throw std::runtime_error("ECDH-ES not yet implemented");
+        {
+            // ECDH-ES decryption: derive CEK from ephemeral public key and recipient's private key
+            if (!ephemeralKey)
+            {
+                throw std::runtime_error("Ephemeral key required for ECDH-ES");
+            }
+            
+            EVP_PKEY* recipientPrivateKey = static_cast<EVP_PKEY*>(key.getKey());
+            if (!recipientPrivateKey)
+            {
+                throw std::runtime_error("Invalid recipient key");
+            }
+            
+            EVP_PKEY* ephemeralPublicKey = static_cast<EVP_PKEY*>(ephemeralKey->getKey());
+            if (!ephemeralPublicKey)
+            {
+                throw std::runtime_error("Invalid ephemeral key");
+            }
+            
+            // Perform ECDH to get shared secret
+            std::vector<unsigned char> sharedSecret = performECDH(recipientPrivateKey, ephemeralPublicKey);
+            
+            // Determine key length from content encryption algorithm
+            size_t keyLen;
+            switch (contentAlg)
+            {
+                case ContentEncryptionAlgorithm::A128GCM:
+                case ContentEncryptionAlgorithm::A128CBC_HS256:
+                    keyLen = 16;
+                    break;
+                case ContentEncryptionAlgorithm::A192GCM:
+                case ContentEncryptionAlgorithm::A192CBC_HS384:
+                    keyLen = 24;
+                    break;
+                case ContentEncryptionAlgorithm::A256GCM:
+                case ContentEncryptionAlgorithm::A256CBC_HS512:
+                    keyLen = 32;
+                    break;
+                default:
+                    keyLen = 32;
+            }
+            
+            // Use Concat KDF to derive the CEK
+            std::string algorithm = toString(contentAlg);
+            std::vector<unsigned char> derivedCek = concatKDF(sharedSecret, keyLen, algorithm);
+            
+            return derivedCek;
+        }
 
         default:
             throw std::runtime_error("Unsupported key encryption algorithm");
