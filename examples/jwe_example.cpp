@@ -31,10 +31,8 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating 2048-bit RSA key for encryption..." << std::endl;
-        JWK rsa_key = JWK::generateRSA(2048);
-        rsa_key.setKeyID("rsa-enc-key-2024");
-        rsa_key.setUse(JWK::Use::encryption);
-        std::cout << "RSA key generated with ID: " << rsa_key.getKeyID() << std::endl;
+        JWK rsa_key = JWK::generateRSA(2048, "RSA-OAEP", JWK::Use::encryption);
+        std::cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
 
         std::string sensitive_data = "This is highly confidential information!";
         std::cout << "\nPlaintext: " << sensitive_data << std::endl;
@@ -92,8 +90,7 @@ int main()
 
         std::cout << "\nGenerating 256-bit symmetric key..." << std::endl;
         JWK kek_key = JWK::generateOct(256);  // Key Encryption Key
-        kek_key.setKeyID("kek-256");
-        std::cout << "Symmetric KEK generated" << std::endl;
+        std::cout << "Symmetric KEK generated with auto-generated ID: " << kek_key.getKeyID() << std::endl;
 
         std::string secret_message = "Secret message encrypted with AES Key Wrap";
         std::cout << "\nPlaintext: " << secret_message << std::endl;
@@ -128,7 +125,7 @@ int main()
         header_example.setPlaintext("Inspecting JWE headers");
         header_example.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep_256);
         header_example.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
-        header_example.setKeyID("header-test-key");
+        header_example.setKeyID(rsa_key.getKeyID());  // Use auto-generated key ID
         header_example.setType("JWE");
         header_example.setHeaderParam("cty", "application/json");
 

@@ -51,15 +51,12 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         JWK hmac_key_256 = JWK::generateOct(256);
-        hmac_key_256.setKeyID("hmac-key-256");
         demonstrateAlgorithm("HS256", JWA::SignatureAlgorithm::hs256, hmac_key_256);
 
         JWK hmac_key_384 = JWK::generateOct(384);
-        hmac_key_384.setKeyID("hmac-key-384");
         demonstrateAlgorithm("HS384", JWA::SignatureAlgorithm::hs384, hmac_key_384);
 
         JWK hmac_key_512 = JWK::generateOct(512);
-        hmac_key_512.setKeyID("hmac-key-512");
         demonstrateAlgorithm("HS512", JWA::SignatureAlgorithm::hs512, hmac_key_512);
 
         // Example 2: RSA Signatures
@@ -68,8 +65,7 @@ int main()
 
         std::cout << "\nGenerating 2048-bit RSA key..." << std::endl;
         JWK rsa_key = JWK::generateRSA(2048);
-        rsa_key.setKeyID("rsa-key-2048");
-        std::cout << "RSA key generated." << std::endl;
+        std::cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
 
         demonstrateAlgorithm("RS256", JWA::SignatureAlgorithm::rs256, rsa_key);
         demonstrateAlgorithm("PS256", JWA::SignatureAlgorithm::ps256, rsa_key);
@@ -80,8 +76,7 @@ int main()
 
         std::cout << "\nGenerating P-256 EC key..." << std::endl;
         JWK ec_key = JWK::generateEC("P-256");
-        ec_key.setKeyID("ec-key-p256");
-        std::cout << "EC key generated." << std::endl;
+        std::cout << "EC key generated with auto-generated ID: " << ec_key.getKeyID() << std::endl;
 
         demonstrateAlgorithm("ES256", JWA::SignatureAlgorithm::es256, ec_key);
 
@@ -92,7 +87,7 @@ int main()
         JWS custom_jws;
         custom_jws.setPayload("{\"userId\":\"12345\",\"action\":\"login\"}");
         custom_jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
-        custom_jws.setKeyID("custom-key-id");
+        custom_jws.setKeyID(hmac_key_256.getKeyID());  // Use auto-generated key ID
         custom_jws.setType("JWT");
         custom_jws.setHeaderParam("cty", "application/json");
         custom_jws.setHeaderParam("custom", "header-value");
@@ -133,7 +128,6 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         JWK wrong_key = JWK::generateOct(256);
-        wrong_key.setKeyID("wrong-key");
 
         std::cout << "\nAttempting verification with wrong key..." << std::endl;
         bool wrong_verification = JWS::verify(compact_jws, wrong_key);

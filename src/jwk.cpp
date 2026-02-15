@@ -14,6 +14,7 @@
 
 #include "jose/base64url.hpp"
 #include "jose/json_utils.hpp"
+#include "jose/jwk_thumbprint.hpp"
 
 namespace Vlinder {
 namespace JOSE {
@@ -72,7 +73,7 @@ JWK& JWK::operator=(const JWK& other)
 JWK::JWK(JWK&& other) noexcept = default;
 JWK& JWK::operator=(JWK&& other) noexcept = default;
 
-JWK JWK::generateRSA(int bits)
+JWK JWK::generateRSA(int bits, const std::string& alg, Use use)
 {
     JWK jwk;
     jwk.impl_->key_type_ = KeyType::rsa;
@@ -102,10 +103,22 @@ JWK JWK::generateRSA(int bits)
     }
 
     EVP_PKEY_CTX_free(ctx);
+    
+    // Automatically set key ID to SHA-512 thumbprint of the public key
+    jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
+    
+    // Set optional metadata if provided
+    if (!alg.empty())
+    {
+        jwk.impl_->alg_ = alg;
+        jwk.impl_->use_ = use;
+        jwk.impl_->has_use_ = true;
+    }
+    
     return jwk;
 }
 
-JWK JWK::generateEC(const std::string& curve)
+JWK JWK::generateEC(const std::string& curve, const std::string& alg, Use use)
 {
     JWK jwk;
     jwk.impl_->key_type_ = KeyType::ec;
@@ -153,10 +166,22 @@ JWK JWK::generateEC(const std::string& curve)
     }
 
     EVP_PKEY_CTX_free(ctx);
+    
+    // Automatically set key ID to SHA-512 thumbprint of the public key
+    jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
+    
+    // Set optional metadata if provided
+    if (!alg.empty())
+    {
+        jwk.impl_->alg_ = alg;
+        jwk.impl_->use_ = use;
+        jwk.impl_->has_use_ = true;
+    }
+    
     return jwk;
 }
 
-JWK JWK::generateOct(int bits)
+JWK JWK::generateOct(int bits, const std::string& alg, Use use)
 {
     JWK jwk;
     jwk.impl_->key_type_ = KeyType::oct;
@@ -171,6 +196,17 @@ JWK JWK::generateOct(int bits)
     if (!jwk.impl_->pkey_)
     {
         throw std::runtime_error("Failed to create symmetric key");
+    }
+
+    // Automatically set key ID to SHA-512 thumbprint
+    jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
+
+    // Set optional metadata if provided
+    if (!alg.empty())
+    {
+        jwk.impl_->alg_ = alg;
+        jwk.impl_->use_ = use;
+        jwk.impl_->has_use_ = true;
     }
 
     return jwk;
