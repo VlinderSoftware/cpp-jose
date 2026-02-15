@@ -66,8 +66,12 @@ CheckOptions:
   # Functions: camelCase (starting lowercase)
   - key:             readability-identifier-naming.FunctionCase
     value:           camelBack
+  - key:             readability-identifier-naming.FunctionIgnoredRegexp
+    value:           '^(TEST_CASE|TEST_F|DISABLED_TEST_F).*'
   - key:             readability-identifier-naming.MethodCase
     value:           camelBack
+  - key:             readability-identifier-naming.MethodIgnoredRegexp
+    value:           '^(SetUp|TearDown|TestBody)$'
   - key:             readability-identifier-naming.PrivateMethodCase
     value:           camelBack
   - key:             readability-identifier-naming.ProtectedMethodCase

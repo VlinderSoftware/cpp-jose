@@ -1631,7 +1631,7 @@ std::vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algori
 
 std::string JWA::toString(SignatureAlgorithm alg)
 {
-    static const std::map<SignatureAlgorithm, std::string> ALG_MAP = {
+    static const std::map<SignatureAlgorithm, std::string> alg_map = {
         {SignatureAlgorithm::hs256, "HS256"}, {SignatureAlgorithm::hs384, "HS384"},
         {SignatureAlgorithm::hs512, "HS512"}, {SignatureAlgorithm::rs256, "RS256"},
         {SignatureAlgorithm::rs384, "RS384"}, {SignatureAlgorithm::rs512, "RS512"},
@@ -1640,8 +1640,8 @@ std::string JWA::toString(SignatureAlgorithm alg)
         {SignatureAlgorithm::ps384, "PS384"}, {SignatureAlgorithm::ps512, "PS512"},
         {SignatureAlgorithm::none, "none"}};
 
-    auto it = ALG_MAP.find(alg);
-    if (it != ALG_MAP.end())
+    auto it = alg_map.find(alg);
+    if (it != alg_map.end())
     {
         return it->second;
     }
@@ -1651,7 +1651,7 @@ std::string JWA::toString(SignatureAlgorithm alg)
 
 std::string JWA::toString(KeyEncryptionAlgorithm alg)
 {
-    static const std::map<KeyEncryptionAlgorithm, std::string> ALG_MAP = {
+    static const std::map<KeyEncryptionAlgorithm, std::string> alg_map = {
         {KeyEncryptionAlgorithm::rsa1_5, "RSA1_5"},
         {KeyEncryptionAlgorithm::rsa_oaep, "RSA-OAEP"},
         {KeyEncryptionAlgorithm::rsa_oaep_256, "RSA-OAEP-256"},
@@ -1664,8 +1664,8 @@ std::string JWA::toString(KeyEncryptionAlgorithm alg)
         {KeyEncryptionAlgorithm::a192gcmkw, "A192GCMKW"},
         {KeyEncryptionAlgorithm::a256gcmkw, "A256GCMKW"}};
 
-    auto it = ALG_MAP.find(alg);
-    if (it != ALG_MAP.end())
+    auto it = alg_map.find(alg);
+    if (it != alg_map.end())
     {
         return it->second;
     }
@@ -1675,7 +1675,7 @@ std::string JWA::toString(KeyEncryptionAlgorithm alg)
 
 std::string JWA::toString(ContentEncryptionAlgorithm alg)
 {
-    static const std::map<ContentEncryptionAlgorithm, std::string> ALG_MAP = {
+    static const std::map<ContentEncryptionAlgorithm, std::string> alg_map = {
         {ContentEncryptionAlgorithm::a128cbc_hs256, "A128CBC-HS256"},
         {ContentEncryptionAlgorithm::a192cbc_hs384, "A192CBC-HS384"},
         {ContentEncryptionAlgorithm::a256cbc_hs512, "A256CBC-HS512"},
@@ -1683,8 +1683,8 @@ std::string JWA::toString(ContentEncryptionAlgorithm alg)
         {ContentEncryptionAlgorithm::a192gcm, "A192GCM"},
         {ContentEncryptionAlgorithm::a256gcm, "A256GCM"}};
 
-    auto it = ALG_MAP.find(alg);
-    if (it != ALG_MAP.end())
+    auto it = alg_map.find(alg);
+    if (it != alg_map.end())
     {
         return it->second;
     }
@@ -1694,7 +1694,7 @@ std::string JWA::toString(ContentEncryptionAlgorithm alg)
 
 JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const std::string& alg)
 {
-    static const std::map<std::string, SignatureAlgorithm> ALG_MAP = {
+    static const std::map<std::string, SignatureAlgorithm> alg_map = {
         {"HS256", SignatureAlgorithm::hs256}, {"HS384", SignatureAlgorithm::hs384},
         {"HS512", SignatureAlgorithm::hs512}, {"RS256", SignatureAlgorithm::rs256},
         {"RS384", SignatureAlgorithm::rs384}, {"RS512", SignatureAlgorithm::rs512},
@@ -1703,8 +1703,8 @@ JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const std::string& alg
         {"PS384", SignatureAlgorithm::ps384}, {"PS512", SignatureAlgorithm::ps512},
         {"none", SignatureAlgorithm::none}};
 
-    auto it = ALG_MAP.find(alg);
-    if (it != ALG_MAP.end())
+    auto it = alg_map.find(alg);
+    if (it != alg_map.end())
     {
         return it->second;
     }
@@ -1714,7 +1714,7 @@ JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const std::string& alg
 
 JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const std::string& alg)
 {
-    static const std::map<std::string, KeyEncryptionAlgorithm> ALG_MAP = {
+    static const std::map<std::string, KeyEncryptionAlgorithm> alg_map = {
         {"RSA1_5", KeyEncryptionAlgorithm::rsa1_5},
         {"RSA-OAEP", KeyEncryptionAlgorithm::rsa_oaep},
         {"RSA-OAEP-256", KeyEncryptionAlgorithm::rsa_oaep_256},
@@ -1727,8 +1727,8 @@ JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const std::str
         {"A192GCMKW", KeyEncryptionAlgorithm::a192gcmkw},
         {"A256GCMKW", KeyEncryptionAlgorithm::a256gcmkw}};
 
-    auto it = ALG_MAP.find(alg);
-    if (it != ALG_MAP.end())
+    auto it = alg_map.find(alg);
+    if (it != alg_map.end())
     {
         return it->second;
     }
@@ -1738,7 +1738,7 @@ JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const std::str
 
 JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const std::string& alg)
 {
-    static const std::map<std::string, ContentEncryptionAlgorithm> ALG_MAP = {
+    static const std::map<std::string, ContentEncryptionAlgorithm> alg_map = {
         {"A128CBC-HS256", ContentEncryptionAlgorithm::a128cbc_hs256},
         {"A192CBC-HS384", ContentEncryptionAlgorithm::a192cbc_hs384},
         {"A256CBC-HS512", ContentEncryptionAlgorithm::a256cbc_hs512},
@@ -1746,8 +1746,8 @@ JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const 
         {"A192GCM", ContentEncryptionAlgorithm::a192gcm},
         {"A256GCM", ContentEncryptionAlgorithm::a256gcm}};
 
-    auto it = ALG_MAP.find(alg);
-    if (it != ALG_MAP.end())
+    auto it = alg_map.find(alg);
+    if (it != alg_map.end())
     {
         return it->second;
     }

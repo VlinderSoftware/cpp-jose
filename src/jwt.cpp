@@ -15,10 +15,6 @@ namespace JOSE {
 
 namespace {
 
-// Maximum audience entries when parsing JWT audience arrays
-// No longer needed with nlohmann::json proper iteration
-const size_t MAX_AUDIENCE_ENTRIES = 100;
-
 int64_t timePointToTimestamp(std::chrono::system_clock::time_point tp)
 {
     auto duration = tp.time_since_epoch();
