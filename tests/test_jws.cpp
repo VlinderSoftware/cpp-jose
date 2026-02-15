@@ -13,7 +13,7 @@ TEST_CASE("JWS_CreateSimpleJWS", "[jws][createsimplejws]")
 
     JWS jws;
     jws.setPayload("test payload");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -28,18 +28,18 @@ TEST_CASE("JWS_CreateSimpleJWS", "[jws][createsimplejws]")
 TEST_CASE("JWS_CreateJWSWithAllAlgorithms", "[jws][createjwswithallalgorithms]")
 {
     std::vector<std::pair<JWA::SignatureAlgorithm, JWK>> testCases = {
-        {JWA::SignatureAlgorithm::HS256, JWK::generateOct(256)},
-        {JWA::SignatureAlgorithm::HS384, JWK::generateOct(384)},
-        {JWA::SignatureAlgorithm::HS512, JWK::generateOct(512)},
-        {JWA::SignatureAlgorithm::RS256, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::RS384, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::RS512, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::ES256, JWK::generateEC("P-256")},
-        {JWA::SignatureAlgorithm::ES384, JWK::generateEC("P-384")},
-        {JWA::SignatureAlgorithm::ES512, JWK::generateEC("P-521")},
-        {JWA::SignatureAlgorithm::PS256, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::PS384, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::PS512, JWK::generateRSA(2048)}};
+        {JWA::SignatureAlgorithm::hs256, JWK::generateOct(256)},
+        {JWA::SignatureAlgorithm::hs384, JWK::generateOct(384)},
+        {JWA::SignatureAlgorithm::hs512, JWK::generateOct(512)},
+        {JWA::SignatureAlgorithm::rs256, JWK::generateRSA(2048)},
+        {JWA::SignatureAlgorithm::rs384, JWK::generateRSA(2048)},
+        {JWA::SignatureAlgorithm::rs512, JWK::generateRSA(2048)},
+        {JWA::SignatureAlgorithm::es256, JWK::generateEC("P-256")},
+        {JWA::SignatureAlgorithm::es384, JWK::generateEC("P-384")},
+        {JWA::SignatureAlgorithm::es512, JWK::generateEC("P-521")},
+        {JWA::SignatureAlgorithm::ps256, JWK::generateRSA(2048)},
+        {JWA::SignatureAlgorithm::ps384, JWK::generateRSA(2048)},
+        {JWA::SignatureAlgorithm::ps512, JWK::generateRSA(2048)}};
 
     for (const auto& [alg, key] : testCases)
     {
@@ -58,7 +58,7 @@ TEST_CASE("JWS_SetPayload", "[jws][setpayload]")
     jws.setPayload("Hello, World!");
 
     JWK key = JWK::generateOct(256);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
     JWS parsed = JWS::parse(token);
@@ -70,8 +70,8 @@ TEST_CASE("JWS_SetKeyId", "[jws][setkeyid]")
 {
     JWS jws;
     jws.setPayload("test");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
-    jws.setKeyId("my-key-123");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
+    jws.setKeyID("my-key-123");
 
     JWK key = JWK::generateOct(256);
     std::string token = jws.sign(key);
@@ -86,7 +86,7 @@ TEST_CASE("JWS_SetType", "[jws][settype]")
 {
     JWS jws;
     jws.setPayload("test");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
     jws.setType("JWT");
 
     JWK key = JWK::generateOct(256);
@@ -102,7 +102,7 @@ TEST_CASE("JWS_SetCustomHeaderParam", "[jws][setcustomheaderparam]")
 {
     JWS jws;
     jws.setPayload("test");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
     jws.setHeaderParam("custom", "value");
 
     JWK key = JWK::generateOct(256);
@@ -119,8 +119,8 @@ TEST_CASE("JWS_GetHeader", "[jws][getheader]")
 {
     JWS jws;
     jws.setPayload("test");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
-    jws.setKeyId("key-1");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
+    jws.setKeyID("key-1");
     jws.setType("JWT");
 
     JWK key = JWK::generateOct(256);
@@ -138,13 +138,13 @@ TEST_CASE("JWS_GetAlgorithm", "[jws][getalgorithm]")
 {
     JWS jws;
     jws.setPayload("test");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::RS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
 
     JWK key = JWK::generateRSA(2048);
     std::string token = jws.sign(key);
 
     JWS parsed = JWS::parse(token);
-    REQUIRE(JWA::SignatureAlgorithm::RS256 == parsed.getAlgorithm());
+    REQUIRE(JWA::SignatureAlgorithm::rs256 == parsed.getAlgorithm());
 }
 
 // Verification tests
@@ -154,7 +154,7 @@ TEST_CASE("JWS_VerifyValidHS256", "[jws][verifyvalidhs256]")
 
     JWS jws;
     jws.setPayload("secure message");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
 
@@ -168,7 +168,7 @@ TEST_CASE("JWS_VerifyValidRS256", "[jws][verifyvalidrs256]")
 
     JWS jws;
     jws.setPayload("rsa signed message");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::RS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
 
     std::string token = jws.sign(key);
 
@@ -182,7 +182,7 @@ TEST_CASE("JWS_VerifyValidES256", "[jws][verifyvalides256]")
 
     JWS jws;
     jws.setPayload("ecdsa signed message");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::ES256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::es256);
 
     std::string token = jws.sign(key);
 
@@ -197,7 +197,7 @@ TEST_CASE("JWS_VerifyWithWrongKeyFails", "[jws][verifywithwrongkeyfails]")
 
     JWS jws;
     jws.setPayload("message");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key1);
 
@@ -211,7 +211,7 @@ TEST_CASE("JWS_VerifyTamperedPayloadFails", "[jws][verifytamperedpayloadfails]")
 
     JWS jws;
     jws.setPayload("original payload");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
 
@@ -233,7 +233,7 @@ TEST_CASE("JWS_VerifyTamperedSignatureFails", "[jws][verifytamperedsignaturefail
 
     JWS jws;
     jws.setPayload("payload");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
 
@@ -255,14 +255,14 @@ TEST_CASE("JWS_ParseJWS", "[jws][parsejws]")
 
     JWS original;
     original.setPayload("test payload");
-    original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
-    original.setKeyId("key-123");
+    original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
+    original.setKeyID("key-123");
 
     std::string token = original.sign(key);
 
     JWS parsed = JWS::parse(token);
     REQUIRE("test payload" == parsed.getPayload());
-    REQUIRE(JWA::SignatureAlgorithm::HS256 == parsed.getAlgorithm());
+    REQUIRE(JWA::SignatureAlgorithm::hs256 == parsed.getAlgorithm());
 }
 
 TEST_CASE("JWS_ParseAndGetPayload", "[jws][parseandgetpayload]")
@@ -271,7 +271,7 @@ TEST_CASE("JWS_ParseAndGetPayload", "[jws][parseandgetpayload]")
 
     JWS jws;
     jws.setPayload("This is the payload content");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::RS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
 
     std::string token = jws.sign(key);
 
@@ -284,7 +284,7 @@ TEST_CASE("JWS_CopyConstructor", "[jws][copyconstructor]")
 {
     JWS original;
     original.setPayload("test");
-    original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     JWS copy(original);
     REQUIRE(original.getPayload() == copy.getPayload());
@@ -295,7 +295,7 @@ TEST_CASE("JWS_CopyAssignment", "[jws][copyassignment]")
 {
     JWS original;
     original.setPayload("test");
-    original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     JWS copy = original;
     REQUIRE(original.getPayload() == copy.getPayload());
@@ -305,7 +305,7 @@ TEST_CASE("JWS_MoveConstructor", "[jws][moveconstructor]")
 {
     JWS original;
     original.setPayload("test payload");
-    original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     JWS moved(std::move(original));
     REQUIRE("test payload" == moved.getPayload());
@@ -315,7 +315,7 @@ TEST_CASE("JWS_MoveAssignment", "[jws][moveassignment]")
 {
     JWS original;
     original.setPayload("test payload");
-    original.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     JWS moved = std::move(original);
     REQUIRE("test payload" == moved.getPayload());
@@ -328,7 +328,7 @@ TEST_CASE("JWS_EmptyPayload", "[jws][emptypayload]")
 
     JWS jws;
     jws.setPayload("");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -345,7 +345,7 @@ TEST_CASE("JWS_LargePayload", "[jws][largepayload]")
 
     JWS jws;
     jws.setPayload(largePayload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -362,7 +362,7 @@ TEST_CASE("JWS_PayloadWithSpecialCharacters", "[jws][payloadwithspecialcharacter
 
     JWS jws;
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
 
@@ -378,7 +378,7 @@ TEST_CASE("JWS_JSONPayload", "[jws][jsonpayload]")
 
     JWS jws;
     jws.setPayload(jsonPayload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     std::string token = jws.sign(key);
 
@@ -392,8 +392,8 @@ TEST_CASE("JWS_MultipleHeaderParams", "[jws][multipleheaderparams]")
 
     JWS jws;
     jws.setPayload("test");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
-    jws.setKeyId("key-1");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
+    jws.setKeyID("key-1");
     jws.setType("JWT");
     jws.setHeaderParam("custom1", "value1");
     jws.setHeaderParam("custom2", "value2");
@@ -414,13 +414,13 @@ TEST_CASE("JWS_JWS_RSAPublicKeyVerification", "[jws][rsapublickeyverification]")
 
     JWS jws;
     jws.setPayload("message for public verification");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::RS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
 
     std::string token = jws.sign(privateKey);
 
     // Extract public key
-    std::string publicKeyJson = privateKey.toJson(false);
-    JWK publicKey = JWK::fromJson(publicKeyJson);
+    std::string publicKeyJson = privateKey.toJSON(false);
+    JWK publicKey = JWK::fromJSON(publicKeyJson);
 
     bool verified = JWS::verify(token, publicKey);
     REQUIRE(verified);
@@ -432,13 +432,13 @@ TEST_CASE("JWS_ECPublicKeyVerification", "[jws][ecpublickeyverification]")
 
     JWS jws;
     jws.setPayload("ec message");
-    jws.setAlgorithm(JWA::SignatureAlgorithm::ES256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::es256);
 
     std::string token = jws.sign(privateKey);
 
     // Extract public key
-    std::string publicKeyJson = privateKey.toJson(false);
-    JWK publicKey = JWK::fromJson(publicKeyJson);
+    std::string publicKeyJson = privateKey.toJSON(false);
+    JWK publicKey = JWK::fromJSON(publicKeyJson);
 
     bool verified = JWS::verify(token, publicKey);
     REQUIRE(verified);
@@ -452,7 +452,7 @@ TEST_CASE("JWS_CreateWithJWSVerifyWithJWT", "[jws][createwithjwsverifywithjwt]")
     JWS jws;
     std::string payload = R"({"sub":"1234567890","name":"John Doe","iat":1516239022})";
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
     jws.setType("JWT");
 
     std::string token = jws.sign(key);

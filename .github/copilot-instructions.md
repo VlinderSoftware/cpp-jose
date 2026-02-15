@@ -2,11 +2,26 @@
 
 - **Standards:** Use C++20 or C++23 standards.
 - **Formatting:** Use 4 spaces for indentation, braces on new lines (Allman style), and `clang-format` if available.
+  - **Exception:** Namespace braces should be on the same line as the namespace declaration.
 - **Naming:**
-    - Types/Classes: `PascalCase`
-    - Functions: `camelCase`
-    - Variables: `snake_case`
-    - Private members: `suffix_snake_case_`
+    - **Parameters and local variables:** `snake_case` (all lowercase with underscores)
+    - **Members:** `snake_case_` (all lowercase with underscores, ending with underscore)
+    - **Types (classes, structs, enums, typedefs, type aliases):** `PascalCase`
+      - Acronyms should be all uppercase (e.g., `JWK`, `JWT`, `JSON`, `HTTP`)
+    - **Namespaces:** `PascalCase`
+    - **Functions (both free and member):** `camelCase` (start lowercase, must begin with a verb)
+      - Acronyms stay uppercase within the name (e.g., `toJSON`, `fromJSON`, `generateRSA`)
+      - Where only a verb suffices, use only that verb (e.g., `validate` not `validateKey`)
+      - Examples: `generateRSA`, `fromJSON`, `toJSON`, `getKeyType`, `setKeyId`, `validate`
+    - **Enum constants:** `snake_case` (e.g., `rsa`, `ec`, `signature`, `encryption`)
+    - **Global/static constants:** `snake_case` (e.g., `default_timeout`, `max_size`)
+    - **Macros:** `UPPER_CASE` (e.g., `#define MAX_BUFFER_SIZE 1024`)
+    - **Do not abbreviate common words** (e.g., write `Manager`, `validate`, `implementation`)
+      - Exceptions: well-known acronyms like `JSON`, `JWT`, `JWK`, `JWS`, `JWE`, `HTTP`, `URL`
+- **Namespaces:**
+    - The outer namespace should be `Vlinder`
+    - Inner namespaces follow PascalCase naming
+    - Namespace braces stay on the same line (not Allman style)
 - **Modern C++:**
     - Use `auto` for type deduction when readable.
     - Use `nullptr` instead of `NULL` or `0`.
@@ -17,3 +32,4 @@
     - Use `#pragma once` for header guards.
     - Organize headers: C++ Standard Library, Third-party, Project headers.
 - **Comments:** Use `///` for documentation comments to enable Doxygen formatting.
+- **Linting:** This project uses `clang-tidy` to enforce naming conventions. Run before committing.

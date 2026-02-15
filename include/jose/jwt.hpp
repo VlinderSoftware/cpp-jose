@@ -66,7 +66,7 @@ public:
     /**
      * @brief Set JWT ID claim (jti)
      */
-    void setJwtId(const std::string& jti);
+    void setJWTID(const std::string& jti);
 
     /**
      * @brief Set a custom claim
@@ -106,7 +106,7 @@ public:
     /**
      * @brief Get JWT ID
      */
-    std::string getJwtId() const;
+    std::string getJWTID() const;
 
     /**
      * @brief Get custom claim

@@ -34,9 +34,9 @@ int main()
         // Generate a signing key (using HMAC with symmetric key)
         std::cout << "1. Generating symmetric key (HS256)..." << std::endl;
         JWK key = JWK::generateOct(256);
-        key.setKeyId("my-key-2024");
+        key.setKeyID("my-key-2024");
         key.setAlgorithm("HS256");
-        std::cout << "   Key generated with ID: " << key.getKeyId() << std::endl << std::endl;
+        std::cout << "   Key generated with ID: " << key.getKeyID() << std::endl << std::endl;
 
         // Create a JWT with standard claims
         std::cout << "2. Creating JWT with standard claims..." << std::endl;
@@ -49,7 +49,7 @@ int main()
         jwt.setIssuedAt(now);
         jwt.setNotBefore(now);
         jwt.setExpiration(now + std::chrono::hours(1));
-        jwt.setJwtId("unique-jwt-id-12345");
+        jwt.setJWTID("unique-jwt-id-12345");
 
         // Add custom claims
         jwt.setClaim("role", "admin");
@@ -73,37 +73,37 @@ int main()
         JWT verified = JWT::verify(token, key);
         std::cout << "   ✓ Signature verified successfully" << std::endl;
         std::cout << "   Subject: " << verified.getSubject() << std::endl;
-        std::cout << "   JWT ID: " << verified.getJwtId() << std::endl;
+        std::cout << "   JWT ID: " << verified.getJWTID() << std::endl;
         std::cout << "   Custom claim 'department': " << verified.getClaim("department")
                   << std::endl
                   << std::endl;
 
         // Validate claims
         std::cout << "5. Validating JWT claims..." << std::endl;
-        bool isValid = verified.validate("https://auth.example.com",  // Expected issuer
+        bool is_valid = verified.validate("https://auth.example.com",  // Expected issuer
                                          "https://api.example.com",   // Expected audience
                                          5  // 5 seconds leeway for time-based claims
         );
-        std::cout << "   Validation result: " << (isValid ? "✓ VALID" : "✗ INVALID") << std::endl
+        std::cout << "   Validation result: " << (is_valid ? "✓ VALID" : "✗ INVALID") << std::endl
                   << std::endl;
 
         // Try with RSA keys
         std::cout << "6. Creating JWT with RSA signature (RS256)..." << std::endl;
-        JWK rsaKey = JWK::generateRSA(2048);
-        rsaKey.setKeyId("rsa-key-2024");
+        JWK rsa_key = JWK::generateRSA(2048);
+        rsa_key.setKeyID("rsa-key-2024");
 
-        JWT jwtRsa;
-        jwtRsa.setIssuer("https://secure.example.com");
-        jwtRsa.setSubject("admin@example.com");
-        jwtRsa.setExpiration(now + std::chrono::hours(2));
+        JWT jwt_rsa;
+        jwt_rsa.setIssuer("https://secure.example.com");
+        jwt_rsa.setSubject("admin@example.com");
+        jwt_rsa.setExpiration(now + std::chrono::hours(2));
 
-        std::string rsaToken = jwtRsa.sign(rsaKey, "RS256");
+        std::string rsa_token = jwt_rsa.sign(rsa_key, "RS256");
         std::cout << "   Token created with RS256" << std::endl;
-        std::cout << "   Token length: " << rsaToken.length() << " characters" << std::endl;
+        std::cout << "   Token length: " << rsa_token.length() << " characters" << std::endl;
 
-        JWT verifiedRsa = JWT::verify(rsaToken, rsaKey);
+        JWT verified_rsa = JWT::verify(rsa_token, rsa_key);
         std::cout << "   ✓ RSA signature verified" << std::endl;
-        std::cout << "   Subject: " << verifiedRsa.getSubject() << std::endl << std::endl;
+        std::cout << "   Subject: " << verified_rsa.getSubject() << std::endl << std::endl;
 
         // Parse without verification (useful for inspecting tokens)
         std::cout << "7. Parsing JWT without verification..." << std::endl;
@@ -115,9 +115,9 @@ int main()
 
         // Demonstrate validation failure
         std::cout << "8. Testing validation with wrong issuer..." << std::endl;
-        bool invalidResult = verified.validate("https://wrong-issuer.com",  // Wrong issuer
+        bool invalid_result = verified.validate("https://wrong-issuer.com",  // Wrong issuer
                                                "https://api.example.com", 5);
-        std::cout << "   Validation result: " << (invalidResult ? "✓ VALID" : "✗ INVALID")
+        std::cout << "   Validation result: " << (invalid_result ? "✓ VALID" : "✗ INVALID")
                   << std::endl;
         std::cout << "   (Expected failure due to issuer mismatch)" << std::endl << std::endl;
 

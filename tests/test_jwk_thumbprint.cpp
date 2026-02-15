@@ -83,12 +83,12 @@ TEST_CASE("ThumbprintIsDeterministic", "[jwa][thumbprintisdeterministic]")
 TEST_CASE("SameKeyDifferentPropertiesSameThumbprint", "[jwa][samekeydifferentpropertiessamethumbprint]")
 {
     JWK key1 = JWK::generateRSA(2048);
-    std::string keyJson = key1.toJson(true);
+    std::string keyJson = key1.toJSON(true);
 
-    JWK key2 = JWK::fromJson(keyJson);
-    key2.setKeyId("different-id");
+    JWK key2 = JWK::fromJSON(keyJson);
+    key2.setKeyID("different-id");
     key2.setAlgorithm("RS512");
-    key2.setUse(JWK::Use::Signature);
+    key2.setUse(JWK::Use::signature);
 
     // Thumbprint should be the same because it's based on key material only
     std::string thumbprint1 = JWKThumbprint::compute(key1);
@@ -194,8 +194,8 @@ TEST_CASE("ThumbprintSurvivesSerializationRoundTrip", "[jwa][thumbprintsurvivess
     std::string originalThumbprint = JWKThumbprint::compute(original);
 
     // Serialize and deserialize
-    std::string json = original.toJson(true);
-    JWK deserialized = JWK::fromJson(json);
+    std::string json = original.toJSON(true);
+    JWK deserialized = JWK::fromJSON(json);
 
     std::string deserializedThumbprint = JWKThumbprint::compute(deserialized);
 
@@ -208,8 +208,8 @@ TEST_CASE("PublicKeyOnlyThumbprintMatchesFullKey", "[jwa][publickeyonlythumbprin
     std::string privateThumbprint = JWKThumbprint::compute(privateKey);
 
     // Export public key only
-    std::string publicKeyJson = privateKey.toJson(false);
-    JWK publicKey = JWK::fromJson(publicKeyJson);
+    std::string publicKeyJson = privateKey.toJSON(false);
+    JWK publicKey = JWK::fromJSON(publicKeyJson);
 
     std::string publicThumbprint = JWKThumbprint::compute(publicKey);
 
@@ -316,15 +316,15 @@ TEST_CASE("UseThumbprintAsKeyId", "[jwa][usethumbprintaskeyid]")
     JWK key = JWK::generateRSA(2048);
 
     std::string thumbprint = JWKThumbprint::compute(key);
-    key.setKeyId(thumbprint);
+    key.setKeyID(thumbprint);
 
-    REQUIRE(thumbprint == key.getKeyId());
+    REQUIRE(thumbprint == key.getKeyID());
 
     // Verify it survives serialization
-    std::string json = key.toJson(false);
-    JWK parsed = JWK::fromJson(json);
+    std::string json = key.toJSON(false);
+    JWK parsed = JWK::fromJSON(json);
 
-    REQUIRE(thumbprint == parsed.getKeyId());
+    REQUIRE(thumbprint == parsed.getKeyID());
 
     // Verify the thumbprint of the parsed key is still the same
     std::string parsedThumbprint = JWKThumbprint::compute(parsed);

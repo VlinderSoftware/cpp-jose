@@ -14,8 +14,8 @@ TEST_CASE("JWE_CreateSimpleJWE", "[jwe][createsimplejwe]")
 
     JWE jwe;
     jwe.setPlaintext("test plaintext");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -37,8 +37,8 @@ TEST_CASE("JWE_EncryptDecryptRSA_OAEP_A128GCM", "[jwe][encryptdecryptrsa-oaep-a1
     JWE jwe;
     std::string plaintext = "This is a secret message";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -53,8 +53,8 @@ TEST_CASE("JWE_EncryptDecryptRSA_OAEP_A256GCM", "[jwe][encryptdecryptrsa-oaep-a2
     JWE jwe;
     std::string plaintext = "Secret data with A256GCM";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A256GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -69,8 +69,8 @@ TEST_CASE("JWE_EncryptDecryptRSA_OAEP_256_A128GCM", "[jwe][encryptdecryptrsa-oae
     JWE jwe;
     std::string plaintext = "Testing RSA-OAEP-256";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP_256);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep_256);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -85,8 +85,8 @@ TEST_CASE("JWE_EncryptDecryptA128KW_A128GCM", "[jwe][encryptdecrypta128kw-a128gc
     JWE jwe;
     std::string plaintext = "AES Key Wrap test";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::A128KW);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128kw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -101,8 +101,8 @@ TEST_CASE("JWE_EncryptDecryptA256KW_A256GCM", "[jwe][encryptdecrypta256kw-a256gc
     JWE jwe;
     std::string plaintext = "A256KW with A256GCM";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::A256KW);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A256GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a256kw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -117,8 +117,8 @@ TEST_CASE("JWE_EncryptDecryptDIR_A128GCM", "[jwe][encryptdecryptdir-a128gcm]")
     JWE jwe;
     std::string plaintext = "Direct encryption test";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::DIR);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::dir);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -133,8 +133,8 @@ TEST_CASE("JWE_EncryptDecryptA128CBC_HS256", "[jwe][encryptdecrypta128cbc-hs256]
     JWE jwe;
     std::string plaintext = "Testing CBC mode";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128CBC_HS256);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
     std::string token = jwe.encrypt(key);
 
@@ -149,8 +149,8 @@ TEST_CASE("JWE_EncryptDecryptA256CBC_HS512", "[jwe][encryptdecrypta256cbc-hs512]
     JWE jwe;
     std::string plaintext = "Testing A256CBC-HS512";
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A256CBC_HS512);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256cbc_hs512);
 
     std::string token = jwe.encrypt(key);
 
@@ -165,9 +165,9 @@ TEST_CASE("JWE_SetKeyId", "[jwe][setkeyid]")
 
     JWE jwe;
     jwe.setPlaintext("test");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
-    jwe.setKeyId("my-key-id");
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+    jwe.setKeyID("my-key-id");
 
     std::string token = jwe.encrypt(key);
 
@@ -183,8 +183,8 @@ TEST_CASE("JWE_SetType", "[jwe][settype]")
 
     JWE jwe;
     jwe.setPlaintext("test");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
     jwe.setType("JWT");
 
     std::string token = jwe.encrypt(key);
@@ -201,8 +201,8 @@ TEST_CASE("JWE_SetCustomHeaderParam", "[jwe][setcustomheaderparam]")
 
     JWE jwe;
     jwe.setPlaintext("test");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
     jwe.setHeaderParam("custom", "value");
 
     std::string token = jwe.encrypt(key);
@@ -220,8 +220,8 @@ TEST_CASE("JWE_GetHeader", "[jwe][getheader]")
 
     JWE jwe;
     jwe.setPlaintext("test");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -240,9 +240,9 @@ TEST_CASE("JWE_ParseJWE", "[jwe][parsejwe]")
 
     JWE original;
     original.setPlaintext("test plaintext");
-    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
-    original.setKeyId("key-123");
+    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+    original.setKeyID("key-123");
 
     std::string token = original.encrypt(key);
 
@@ -260,8 +260,8 @@ TEST_CASE("JWE_DecryptWithWrongKeyFails", "[jwe][decryptwithwrongkeyfails]")
 
     JWE jwe;
     jwe.setPlaintext("secret");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key1);
 
@@ -275,8 +275,8 @@ TEST_CASE("JWE_SymmetricWrongKeyFails", "[jwe][symmetricwrongkeyfails]")
 
     JWE jwe;
     jwe.setPlaintext("secret");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::A256KW);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A256GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a256kw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
 
     std::string token = jwe.encrypt(key1);
 
@@ -290,8 +290,8 @@ TEST_CASE("JWE_TamperedCiphertextFails", "[jwe][tamperedciphertextfails]")
 
     JWE jwe;
     jwe.setPlaintext("original");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -314,8 +314,8 @@ TEST_CASE("JWE_CopyConstructor", "[jwe][copyconstructor]")
 {
     JWE original;
     original.setPlaintext("test");
-    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWE copy(original);
     REQUIRE(original.getPlaintext() == copy.getPlaintext());
@@ -325,8 +325,8 @@ TEST_CASE("JWE_CopyAssignment", "[jwe][copyassignment]")
 {
     JWE original;
     original.setPlaintext("test");
-    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWE copy = original;
     REQUIRE(original.getPlaintext() == copy.getPlaintext());
@@ -336,8 +336,8 @@ TEST_CASE("JWE_MoveConstructor", "[jwe][moveconstructor]")
 {
     JWE original;
     original.setPlaintext("test plaintext");
-    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWE moved(std::move(original));
     REQUIRE("test plaintext" == moved.getPlaintext());
@@ -347,8 +347,8 @@ TEST_CASE("JWE_MoveAssignment", "[jwe][moveassignment]")
 {
     JWE original;
     original.setPlaintext("test plaintext");
-    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWE moved = std::move(original);
     REQUIRE("test plaintext" == moved.getPlaintext());
@@ -361,8 +361,8 @@ TEST_CASE("JWE_EmptyPlaintext", "[jwe][emptyplaintext]")
 
     JWE jwe;
     jwe.setPlaintext("");
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -379,8 +379,8 @@ TEST_CASE("JWE_LargePlaintext", "[jwe][largeplaintext]")
 
     JWE jwe;
     jwe.setPlaintext(largePlaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -396,8 +396,8 @@ TEST_CASE("JWE_PlaintextWithSpecialCharacters", "[jwe][plaintextwithspecialchara
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -417,8 +417,8 @@ TEST_CASE("JWE_BinaryPlaintext", "[jwe][binaryplaintext]")
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -438,8 +438,8 @@ TEST_CASE("JWE_JSONPlaintext", "[jwe][jsonplaintext]")
 
     JWE jwe;
     jwe.setPlaintext(jsonPlaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token = jwe.encrypt(key);
 
@@ -454,13 +454,13 @@ TEST_CASE("JWE_MultipleEncryptionsSamePlaintext", "[jwe][multipleencryptionssame
 
     JWE jwe1;
     jwe1.setPlaintext(plaintext);
-    jwe1.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe1.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe1.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe1.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWE jwe2;
     jwe2.setPlaintext(plaintext);
-    jwe2.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe2.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe2.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe2.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     std::string token1 = jwe1.encrypt(key);
     std::string token2 = jwe2.encrypt(key);

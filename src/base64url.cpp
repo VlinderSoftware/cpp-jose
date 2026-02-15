@@ -26,10 +26,10 @@ std::string Base64Url::encode(const std::vector<unsigned char>& data)
     BIO_write(bio, data.data(), static_cast<int>(data.size()));
     BIO_flush(bio);
 
-    BUF_MEM* bufferPtr;
-    BIO_get_mem_ptr(bio, &bufferPtr);
+    BUF_MEM* buffer_ptr;
+    BIO_get_mem_ptr(bio, &buffer_ptr);
 
-    std::string result(bufferPtr->data, bufferPtr->length);
+    std::string result(buffer_ptr->data, buffer_ptr->length);
     BIO_free_all(bio);
 
     // Convert base64 to base64url
@@ -95,16 +95,16 @@ std::vector<unsigned char> Base64Url::decode(const std::string& encoded)
     BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
 
     std::vector<unsigned char> result(base64.length());
-    int decodedLength = BIO_read(bio, result.data(), static_cast<int>(result.size()));
+    int decoded_length = BIO_read(bio, result.data(), static_cast<int>(result.size()));
 
     BIO_free_all(bio);
 
-    if (decodedLength < 0)
+    if (decoded_length < 0)
     {
         throw std::runtime_error("Failed to decode base64url");
     }
 
-    result.resize(decodedLength);
+    result.resize(decoded_length);
     return result;
 }
 

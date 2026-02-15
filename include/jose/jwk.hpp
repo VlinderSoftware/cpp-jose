@@ -19,16 +19,16 @@ class JWK
 public:
     enum class KeyType
     {
-        RSA,
-        EC,
-        OKP,  // Octet Key Pair (for post-quantum)
+        rsa,
+        ec,
+        okp,  // Octet Key Pair (for post-quantum)
         oct   // Symmetric key
     };
 
     enum class Use
     {
-        Signature,
-        Encryption
+        signature,
+        encryption
     };
 
     JWK();
@@ -45,7 +45,7 @@ public:
      * @param json JSON string
      * @return JWK object
      */
-    static JWK fromJson(const std::string& json);
+    static JWK fromJSON(const std::string& json);
 
     /**
      * @brief Generate a new RSA key
@@ -70,10 +70,10 @@ public:
 
     /**
      * @brief Serialize to JSON
-     * @param includePrivate Include private key components
+     * @param include_private Include private key components
      * @return JSON string
      */
-    std::string toJson(bool includePrivate = false) const;
+    std::string toJSON(bool include_private = false) const;
 
     /**
      * @brief Get key type
@@ -83,12 +83,12 @@ public:
     /**
      * @brief Set key ID
      */
-    void setKeyId(const std::string& kid);
+    void setKeyID(const std::string& kid);
 
     /**
      * @brief Get key ID
      */
-    std::string getKeyId() const;
+    std::string getKeyID() const;
 
     /**
      * @brief Set key use
@@ -136,7 +136,7 @@ public:
     /**
      * @brief Parse JWK Set from JSON
      */
-    static JWKSet fromJson(const std::string& json);
+    static JWKSet fromJSON(const std::string& json);
 
     /**
      * @brief Add a key to the set
@@ -156,7 +156,7 @@ public:
     /**
      * @brief Serialize to JSON
      */
-    std::string toJson() const;
+    std::string toJSON() const;
 
 private:
     struct Impl;

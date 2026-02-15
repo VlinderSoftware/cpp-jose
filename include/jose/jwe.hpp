@@ -50,7 +50,7 @@ public:
      * @brief Set the key ID
      * @param kid Key ID
      */
-    void setKeyId(const std::string& kid);
+    void setKeyID(const std::string& kid);
 
     /**
      * @brief Set the type header

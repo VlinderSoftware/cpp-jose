@@ -18,14 +18,14 @@
 
 using namespace Vlinder::JOSE;
 
-void demonstrateAlgorithm(const std::string& algName, JWA::SignatureAlgorithm alg, const JWK& key)
+void demonstrateAlgorithm(const std::string& alg_name, JWA::SignatureAlgorithm alg, const JWK& key)
 {
-    std::cout << "\n--- " << algName << " ---" << std::endl;
+    std::cout << "\n--- " << alg_name << " ---" << std::endl;
 
     JWS jws;
-    jws.setPayload("This is a test message for " + algName);
+    jws.setPayload("This is a test message for " + alg_name);
     jws.setAlgorithm(alg);
-    jws.setKeyId(key.getKeyId());
+    jws.setKeyID(key.getKeyID());
     jws.setType("JWS");
 
     std::string signed_jws = jws.sign(key);
@@ -50,94 +50,94 @@ int main()
         std::cout << "\n\n1. HMAC Signatures (Symmetric Keys)" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWK hmacKey256 = JWK::generateOct(256);
-        hmacKey256.setKeyId("hmac-key-256");
-        demonstrateAlgorithm("HS256", JWA::SignatureAlgorithm::HS256, hmacKey256);
+        JWK hmac_key_256 = JWK::generateOct(256);
+        hmac_key_256.setKeyID("hmac-key-256");
+        demonstrateAlgorithm("HS256", JWA::SignatureAlgorithm::hs256, hmac_key_256);
 
-        JWK hmacKey384 = JWK::generateOct(384);
-        hmacKey384.setKeyId("hmac-key-384");
-        demonstrateAlgorithm("HS384", JWA::SignatureAlgorithm::HS384, hmacKey384);
+        JWK hmac_key_384 = JWK::generateOct(384);
+        hmac_key_384.setKeyID("hmac-key-384");
+        demonstrateAlgorithm("HS384", JWA::SignatureAlgorithm::hs384, hmac_key_384);
 
-        JWK hmacKey512 = JWK::generateOct(512);
-        hmacKey512.setKeyId("hmac-key-512");
-        demonstrateAlgorithm("HS512", JWA::SignatureAlgorithm::HS512, hmacKey512);
+        JWK hmac_key_512 = JWK::generateOct(512);
+        hmac_key_512.setKeyID("hmac-key-512");
+        demonstrateAlgorithm("HS512", JWA::SignatureAlgorithm::hs512, hmac_key_512);
 
         // Example 2: RSA Signatures
         std::cout << "\n\n2. RSA Signatures (Asymmetric Keys)" << std::endl;
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating 2048-bit RSA key..." << std::endl;
-        JWK rsaKey = JWK::generateRSA(2048);
-        rsaKey.setKeyId("rsa-key-2048");
+        JWK rsa_key = JWK::generateRSA(2048);
+        rsa_key.setKeyID("rsa-key-2048");
         std::cout << "RSA key generated." << std::endl;
 
-        demonstrateAlgorithm("RS256", JWA::SignatureAlgorithm::RS256, rsaKey);
-        demonstrateAlgorithm("PS256", JWA::SignatureAlgorithm::PS256, rsaKey);
+        demonstrateAlgorithm("RS256", JWA::SignatureAlgorithm::rs256, rsa_key);
+        demonstrateAlgorithm("PS256", JWA::SignatureAlgorithm::ps256, rsa_key);
 
         // Example 3: Elliptic Curve Signatures
         std::cout << "\n\n3. Elliptic Curve Signatures" << std::endl;
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating P-256 EC key..." << std::endl;
-        JWK ecKey = JWK::generateEC("P-256");
-        ecKey.setKeyId("ec-key-p256");
+        JWK ec_key = JWK::generateEC("P-256");
+        ec_key.setKeyID("ec-key-p256");
         std::cout << "EC key generated." << std::endl;
 
-        demonstrateAlgorithm("ES256", JWA::SignatureAlgorithm::ES256, ecKey);
+        demonstrateAlgorithm("ES256", JWA::SignatureAlgorithm::es256, ec_key);
 
         // Example 4: Working with Headers
         std::cout << "\n\n4. Custom Headers" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWS customJws;
-        customJws.setPayload("{\"userId\":\"12345\",\"action\":\"login\"}");
-        customJws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
-        customJws.setKeyId("custom-key-id");
-        customJws.setType("JWT");
-        customJws.setHeaderParam("cty", "application/json");
-        customJws.setHeaderParam("custom", "header-value");
+        JWS custom_jws;
+        custom_jws.setPayload("{\"userId\":\"12345\",\"action\":\"login\"}");
+        custom_jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
+        custom_jws.setKeyID("custom-key-id");
+        custom_jws.setType("JWT");
+        custom_jws.setHeaderParam("cty", "application/json");
+        custom_jws.setHeaderParam("custom", "header-value");
 
-        std::string customSigned = customJws.sign(hmacKey256);
+        std::string custom_signed = custom_jws.sign(hmac_key_256);
         std::cout << "\nSigned JWS with custom headers" << std::endl;
 
-        JWS customParsed = JWS::parse(customSigned);
-        std::cout << "Header: " << customParsed.getHeader() << std::endl;
-        std::cout << "Payload: " << customParsed.getPayload() << std::endl;
+        JWS custom_parsed = JWS::parse(custom_signed);
+        std::cout << "Header: " << custom_parsed.getHeader() << std::endl;
+        std::cout << "Payload: " << custom_parsed.getPayload() << std::endl;
 
-        bool customVerified = JWS::verify(customSigned, hmacKey256);
-        std::cout << "Verification: " << (customVerified ? "✓ SUCCESS" : "✗ FAILED") << std::endl;
+        bool custom_verified = JWS::verify(custom_signed, hmac_key_256);
+        std::cout << "Verification: " << (custom_verified ? "✓ SUCCESS" : "✗ FAILED") << std::endl;
 
         // Example 5: Compact Serialization Format
         std::cout << "\n\n5. JWS Compact Serialization" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWS formatExample;
-        formatExample.setPayload("Understanding JWS format");
-        formatExample.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+        JWS format_example;
+        format_example.setPayload("Understanding JWS format");
+        format_example.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
-        std::string compactJws = formatExample.sign(hmacKey256);
+        std::string compact_jws = format_example.sign(hmac_key_256);
         std::cout << "\nJWS Compact Format: Header.Payload.Signature" << std::endl;
-        std::cout << "Full JWS: " << compactJws << std::endl;
+        std::cout << "Full JWS: " << compact_jws << std::endl;
 
-        size_t firstDot = compactJws.find('.');
-        size_t secondDot = compactJws.find('.', firstDot + 1);
+        size_t first_dot = compact_jws.find('.');
+        size_t second_dot = compact_jws.find('.', first_dot + 1);
 
         std::cout << "\nComponents:" << std::endl;
-        std::cout << "  Header:    " << compactJws.substr(0, firstDot) << std::endl;
-        std::cout << "  Payload:   " << compactJws.substr(firstDot + 1, secondDot - firstDot - 1)
+        std::cout << "  Header:    " << compact_jws.substr(0, first_dot) << std::endl;
+        std::cout << "  Payload:   " << compact_jws.substr(first_dot + 1, second_dot - first_dot - 1)
                   << std::endl;
-        std::cout << "  Signature: " << compactJws.substr(secondDot + 1) << std::endl;
+        std::cout << "  Signature: " << compact_jws.substr(second_dot + 1) << std::endl;
 
         // Example 6: Error Handling
         std::cout << "\n\n6. Error Handling" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWK wrongKey = JWK::generateOct(256);
-        wrongKey.setKeyId("wrong-key");
+        JWK wrong_key = JWK::generateOct(256);
+        wrong_key.setKeyID("wrong-key");
 
         std::cout << "\nAttempting verification with wrong key..." << std::endl;
-        bool wrongVerification = JWS::verify(compactJws, wrongKey);
-        std::cout << "Verification: " << (wrongVerification ? "✓ SUCCESS" : "✗ FAILED")
+        bool wrong_verification = JWS::verify(compact_jws, wrong_key);
+        std::cout << "Verification: " << (wrong_verification ? "✓ SUCCESS" : "✗ FAILED")
                   << std::endl;
         std::cout << "(Expected failure - wrong key used)" << std::endl;
 

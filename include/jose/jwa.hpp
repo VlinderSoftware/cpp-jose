@@ -22,19 +22,19 @@ public:
      */
     enum class SignatureAlgorithm
     {
-        HS256,  // HMAC using SHA-256
-        HS384,  // HMAC using SHA-384
-        HS512,  // HMAC using SHA-512
-        RS256,  // RSASSA-PKCS1-v1_5 using SHA-256
-        RS384,  // RSASSA-PKCS1-v1_5 using SHA-384
-        RS512,  // RSASSA-PKCS1-v1_5 using SHA-512
-        ES256,  // ECDSA using P-256 and SHA-256
-        ES384,  // ECDSA using P-384 and SHA-384
-        ES512,  // ECDSA using P-521 and SHA-512
-        PS256,  // RSASSA-PSS using SHA-256
-        PS384,  // RSASSA-PSS using SHA-384
-        PS512,  // RSASSA-PSS using SHA-512
-        None    // No signature
+        hs256,  // HMAC using SHA-256
+        hs384,  // HMAC using SHA-384
+        hs512,  // HMAC using SHA-512
+        rs256,  // RSASSA-PKCS1-v1_5 using SHA-256
+        rs384,  // RSASSA-PKCS1-v1_5 using SHA-384
+        rs512,  // RSASSA-PKCS1-v1_5 using SHA-512
+        es256,  // ECDSA using P-256 and SHA-256
+        es384,  // ECDSA using P-384 and SHA-384
+        es512,  // ECDSA using P-521 and SHA-512
+        ps256,  // RSASSA-PSS using SHA-256
+        ps384,  // RSASSA-PSS using SHA-384
+        ps512,  // RSASSA-PSS using SHA-512
+        none    // No signature
     };
 
     /**
@@ -42,17 +42,17 @@ public:
      */
     enum class KeyEncryptionAlgorithm
     {
-        RSA1_5,        // RSAES-PKCS1-v1_5
-        RSA_OAEP,      // RSAES OAEP using default parameters
-        RSA_OAEP_256,  // RSAES OAEP using SHA-256 and MGF1 with SHA-256
-        A128KW,        // AES Key Wrap with default initial value using 128-bit key
-        A192KW,        // AES Key Wrap with default initial value using 192-bit key
-        A256KW,        // AES Key Wrap with default initial value using 256-bit key
-        DIR,           // Direct use of a shared symmetric key
-        ECDH_ES,       // Elliptic Curve Diffie-Hellman Ephemeral Static key agreement
-        A128GCMKW,     // Key wrapping with AES GCM using 128-bit key
-        A192GCMKW,     // Key wrapping with AES GCM using 192-bit key
-        A256GCMKW      // Key wrapping with AES GCM using 256-bit key
+        rsa1_5,        // RSAES-PKCS1-v1_5
+        rsa_oaep,      // RSAES OAEP using default parameters
+        rsa_oaep_256,  // RSAES OAEP using SHA-256 and MGF1 with SHA-256
+        a128kw,        // AES Key Wrap with default initial value using 128-bit key
+        a192kw,        // AES Key Wrap with default initial value using 192-bit key
+        a256kw,        // AES Key Wrap with default initial value using 256-bit key
+        dir,           // Direct use of a shared symmetric key
+        ecdh_es,       // Elliptic Curve Diffie-Hellman Ephemeral Static key agreement
+        a128gcmkw,     // Key wrapping with AES GCM using 128-bit key
+        a192gcmkw,     // Key wrapping with AES GCM using 192-bit key
+        a256gcmkw      // Key wrapping with AES GCM using 256-bit key
     };
 
     /**
@@ -60,12 +60,12 @@ public:
      */
     enum class ContentEncryptionAlgorithm
     {
-        A128CBC_HS256,  // AES_128_CBC_HMAC_SHA_256
-        A192CBC_HS384,  // AES_192_CBC_HMAC_SHA_384
-        A256CBC_HS512,  // AES_256_CBC_HMAC_SHA_512
-        A128GCM,        // AES GCM using 128-bit key
-        A192GCM,        // AES GCM using 192-bit key
-        A256GCM         // AES GCM using 256-bit key
+        a128cbc_hs256,  // AES_128_CBC_HMAC_SHA_256
+        a192cbc_hs384,  // AES_192_CBC_HMAC_SHA_384
+        a256cbc_hs512,  // AES_256_CBC_HMAC_SHA_512
+        a128gcm,        // AES GCM using 128-bit key
+        a192gcm,        // AES GCM using 192-bit key
+        a256gcm         // AES GCM using 256-bit key
     };
 
     /**
@@ -105,8 +105,8 @@ public:
                                                  const std::vector<unsigned char>& cek,
                                                  std::vector<unsigned char>* iv = nullptr,
                                                  std::vector<unsigned char>* tag = nullptr,
-                                                 JWK* ephemeralKey = nullptr,
-                                                 ContentEncryptionAlgorithm contentAlg = ContentEncryptionAlgorithm::A128GCM);
+                                                 JWK* ephemeral_key = nullptr,
+                                                 ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm);
 
     /**
      * @brief Decrypt content encryption key
@@ -120,11 +120,11 @@ public:
      * @return Decrypted CEK
      */
     static std::vector<unsigned char> decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                                 const std::vector<unsigned char>& encryptedCek,
+                                                 const std::vector<unsigned char>& encrypted_cek,
                                                  const std::vector<unsigned char>* iv = nullptr,
                                                  const std::vector<unsigned char>* tag = nullptr,
-                                                 const JWK* ephemeralKey = nullptr,
-                                                 ContentEncryptionAlgorithm contentAlg = ContentEncryptionAlgorithm::A128GCM);
+                                                 const JWK* ephemeral_key = nullptr,
+                                                 ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm);
 
     /**
      * @brief Encrypt content

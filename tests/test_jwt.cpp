@@ -136,13 +136,13 @@ TEST_CASE("JWT_SetAndGetIssuedAt", "[jwt][setandgetissuedat]")
 TEST_CASE("JWT_SetAndGetJwtId", "[jwt][setandgetjwtid]")
 {
     JWT jwt;
-    jwt.setJwtId("unique-jwt-id-12345");
+    jwt.setJWTID("unique-jwt-id-12345");
 
     JWK key = JWK::generateOct(256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
-    REQUIRE("unique-jwt-id-12345" == verified.getJwtId());
+    REQUIRE("unique-jwt-id-12345" == verified.getJWTID());
 }
 
 TEST_CASE("JWT_SetAndGetCustomClaim", "[jwt][setandgetcustomclaim]")
@@ -539,7 +539,7 @@ TEST_CASE("JWT_AllStandardClaims", "[jwt][allstandardclaims]")
     jwt.setExpiration(now + std::chrono::hours(1));
     jwt.setNotBefore(now);
     jwt.setIssuedAt(now);
-    jwt.setJwtId("jwt-id-123");
+    jwt.setJWTID("jwt-id-123");
 
     JWK key = JWK::generateOct(256);
     std::string token = jwt.sign(key);
@@ -548,7 +548,7 @@ TEST_CASE("JWT_AllStandardClaims", "[jwt][allstandardclaims]")
     REQUIRE("issuer" == verified.getIssuer());
     REQUIRE("subject" == verified.getSubject());
     REQUIRE(1 == verified.getAudience().size());
-    REQUIRE("jwt-id-123" == verified.getJwtId());
+    REQUIRE("jwt-id-123" == verified.getJWTID());
 }
 
 TEST_CASE("JWT_ComplexCustomClaims", "[jwt][complexcustomclaims]")
@@ -577,8 +577,8 @@ TEST_CASE("JWT_RSAPublicKeyVerification", "[jwt][rsapublickeyverification]")
     std::string token = jwt.sign(privateKey, "RS256");
 
     // Extract public key
-    std::string publicKeyJson = privateKey.toJson(false);
-    JWK publicKey = JWK::fromJson(publicKeyJson);
+    std::string publicKeyJson = privateKey.toJSON(false);
+    JWK publicKey = JWK::fromJSON(publicKeyJson);
 
     JWT verified = JWT::verify(token, publicKey);
     REQUIRE("issuer" == verified.getIssuer());
@@ -593,8 +593,8 @@ TEST_CASE("JWT_ECPublicKeyVerification", "[jwt][ecpublickeyverification]")
     JWK privateKey = JWK::generateEC("P-256");
     std::string token = jwt.sign(privateKey, "ES256");
 
-    std::string publicKeyJson = privateKey.toJson(false);
-    JWK publicKey = JWK::fromJson(publicKeyJson);
+    std::string publicKeyJson = privateKey.toJSON(false);
+    JWK publicKey = JWK::fromJSON(publicKeyJson);
 
     JWT verified = JWT::verify(token, publicKey);
     REQUIRE("ec-subject" == verified.getSubject());

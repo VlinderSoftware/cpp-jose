@@ -34,17 +34,17 @@ std::chrono::system_clock::time_point timestampToTimePoint(int64_t timestamp)
 
 struct JWT::Impl
 {
-    std::map<std::string, json> claims;
+    std::map<std::string, json> claims_;
 
     void setClaim(const std::string& name, const json& value)
     {
-        claims[name] = value;
+        claims_[name] = value;
     }
 
     json getClaim(const std::string& name) const
     {
-        auto it = claims.find(name);
-        if (it != claims.end())
+        auto it = claims_.find(name);
+        if (it != claims_.end())
         {
             return it->second;
         }
@@ -53,7 +53,7 @@ struct JWT::Impl
 
     bool hasClaim(const std::string& name) const
     {
-        return claims.find(name) != claims.end();
+        return claims_.find(name) != claims_.end();
     }
 };
 
@@ -107,12 +107,12 @@ void JWT::setAudience(const std::vector<std::string>& aud)
     }
     else
     {
-        json audArray = json::array();
+        json aud_array = json::array();
         for (const auto& a : aud)
         {
-            audArray.push_back(a);
+            aud_array.push_back(a);
         }
-        impl_->setClaim("aud", audArray);
+        impl_->setClaim("aud", aud_array);
     }
 }
 
@@ -131,7 +131,7 @@ void JWT::setIssuedAt(std::chrono::system_clock::time_point iat)
     impl_->setClaim("iat", static_cast<int>(timePointToTimestamp(iat)));
 }
 
-void JWT::setJwtId(const std::string& jti)
+void JWT::setJWTID(const std::string& jti)
 {
     impl_->setClaim("jti", jti);
 }
@@ -215,7 +215,7 @@ std::chrono::system_clock::time_point JWT::getIssuedAt() const
     return std::chrono::system_clock::time_point();
 }
 
-std::string JWT::getJwtId() const
+std::string JWT::getJWTID() const
 {
     json claim = impl_->getClaim("jti");
     if (claim.is_string())
@@ -243,14 +243,14 @@ bool JWT::hasClaim(const std::string& name) const
 std::string JWT::sign(const JWK& key, const std::string& algorithm) const
 {
     // Build claims JSON
-    json claimsJson = json::object();
+    json claims_json = json::object();
 
-    for (const auto& claim : impl_->claims)
+    for (const auto& claim : impl_->claims_)
     {
-        claimsJson[claim.first] = claim.second;
+        claims_json[claim.first] = claim.second;
     }
 
-    std::string payload = claimsJson.dump();
+    std::string payload = claims_json.dump();
 
     // Create JWS
     JWS jws;
@@ -258,28 +258,28 @@ std::string JWT::sign(const JWK& key, const std::string& algorithm) const
     jws.setType("JWT");
     
     // Determine algorithm: if "RS256" default is used but key is not RSA, pick appropriate algorithm
-    std::string actualAlgorithm = algorithm;
+    std::string actual_algorithm = algorithm;
     if (algorithm == "RS256")  // This is the default
     {
-        JWK::KeyType keyType = key.getKeyType();
-        if (keyType == JWK::KeyType::oct)
+        JWK::KeyType key_type = key.getKeyType();
+        if (key_type == JWK::KeyType::oct)
         {
-            actualAlgorithm = "HS256";
+            actual_algorithm = "HS256";
         }
-        else if (keyType == JWK::KeyType::EC)
+        else if (key_type == JWK::KeyType::ec)
         {
-            actualAlgorithm = "ES256";
+            actual_algorithm = "ES256";
         }
         // Otherwise keep RS256 for RSA keys
     }
     
-    jws.setAlgorithm(JWA::signatureAlgorithmFromString(actualAlgorithm));
+    jws.setAlgorithm(JWA::signatureAlgorithmFromString(actual_algorithm));
 
     // Copy key ID if present
-    std::string kid = key.getKeyId();
+    std::string kid = key.getKeyID();
     if (!kid.empty())
     {
-        jws.setKeyId(kid);
+        jws.setKeyID(kid);
     }
 
     return jws.sign(key);
@@ -304,9 +304,9 @@ JWT JWT::parse(const std::string& jwt)
 
     // Parse payload as JSON
     std::string payload = jws.getPayload();
-    json claimsJson = json::parse(payload);
+    json claims_json = json::parse(payload);
 
-    if (!claimsJson.is_object())
+    if (!claims_json.is_object())
     {
         throw std::runtime_error("JWT payload is not a JSON object");
     }
@@ -315,24 +315,24 @@ JWT JWT::parse(const std::string& jwt)
 
     // Extract claims using nlohmann::json iteration
     // Standard claims
-    if (claimsJson.contains("iss") && claimsJson["iss"].is_string())
+    if (claims_json.contains("iss") && claims_json["iss"].is_string())
     {
-        result.setIssuer(claimsJson["iss"].get<std::string>());
+        result.setIssuer(claims_json["iss"].get<std::string>());
     }
-    if (claimsJson.contains("sub") && claimsJson["sub"].is_string())
+    if (claims_json.contains("sub") && claims_json["sub"].is_string())
     {
-        result.setSubject(claimsJson["sub"].get<std::string>());
+        result.setSubject(claims_json["sub"].get<std::string>());
     }
-    if (claimsJson.contains("aud"))
+    if (claims_json.contains("aud"))
     {
-        if (claimsJson["aud"].is_string())
+        if (claims_json["aud"].is_string())
         {
-            result.setAudience(claimsJson["aud"].get<std::string>());
+            result.setAudience(claims_json["aud"].get<std::string>());
         }
-        else if (claimsJson["aud"].is_array())
+        else if (claims_json["aud"].is_array())
         {
             std::vector<std::string> audiences;
-            for (const auto& elem : claimsJson["aud"])
+            for (const auto& elem : claims_json["aud"])
             {
                 if (elem.is_string())
                 {
@@ -342,28 +342,28 @@ JWT JWT::parse(const std::string& jwt)
             result.setAudience(audiences);
         }
     }
-    if (claimsJson.contains("exp") && claimsJson["exp"].is_number())
+    if (claims_json.contains("exp") && claims_json["exp"].is_number())
     {
         result.setExpiration(
-            timestampToTimePoint(static_cast<int64_t>(claimsJson["exp"].get<int>())));
+            timestampToTimePoint(static_cast<int64_t>(claims_json["exp"].get<int>())));
     }
-    if (claimsJson.contains("nbf") && claimsJson["nbf"].is_number())
+    if (claims_json.contains("nbf") && claims_json["nbf"].is_number())
     {
-        result.setNotBefore(timestampToTimePoint(static_cast<int64_t>(claimsJson["nbf"].get<int>())));
+        result.setNotBefore(timestampToTimePoint(static_cast<int64_t>(claims_json["nbf"].get<int>())));
     }
-    if (claimsJson.contains("iat") && claimsJson["iat"].is_number())
+    if (claims_json.contains("iat") && claims_json["iat"].is_number())
     {
-        result.setIssuedAt(timestampToTimePoint(static_cast<int64_t>(claimsJson["iat"].get<int>())));
+        result.setIssuedAt(timestampToTimePoint(static_cast<int64_t>(claims_json["iat"].get<int>())));
     }
-    if (claimsJson.contains("jti") && claimsJson["jti"].is_string())
+    if (claims_json.contains("jti") && claims_json["jti"].is_string())
     {
-        result.setJwtId(claimsJson["jti"].get<std::string>());
+        result.setJWTID(claims_json["jti"].get<std::string>());
     }
 
     // Store all claims directly
-    for (auto it = claimsJson.begin(); it != claimsJson.end(); ++it)
+    for (auto it = claims_json.begin(); it != claims_json.end(); ++it)
     {
-        result.impl_->claims[it.key()] = it.value();
+        result.impl_->claims_[it.key()] = it.value();
     }
 
     return result;
@@ -411,8 +411,8 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
     auto exp = getExpiration();
     if (exp != std::chrono::system_clock::time_point())
     {
-        auto expWithLeeway = exp + std::chrono::seconds(leeway);
-        if (now > expWithLeeway)
+        auto exp_with_leeway = exp + std::chrono::seconds(leeway);
+        if (now > exp_with_leeway)
         {
             return false;
         }
@@ -422,8 +422,8 @@ bool JWT::validate(const std::string& issuer, const std::string& audience, int l
     auto nbf = getNotBefore();
     if (nbf != std::chrono::system_clock::time_point())
     {
-        auto nbfWithLeeway = nbf - std::chrono::seconds(leeway);
-        if (now < nbfWithLeeway)
+        auto nbf_with_leeway = nbf - std::chrono::seconds(leeway);
+        if (now < nbf_with_leeway)
         {
             return false;
         }

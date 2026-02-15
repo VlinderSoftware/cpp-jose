@@ -20,17 +20,17 @@ size_t getKeySize(JWA::ContentEncryptionAlgorithm algorithm)
 {
     switch (algorithm)
     {
-        case JWA::ContentEncryptionAlgorithm::A128GCM:
+        case JWA::ContentEncryptionAlgorithm::a128gcm:
             return 16;  // 128 bits for AES-128-GCM
-        case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
+        case JWA::ContentEncryptionAlgorithm::a128cbc_hs256:
             return 32;  // 256 bits for A128CBC_HS256 (128 for AES + 128 for HMAC)
-        case JWA::ContentEncryptionAlgorithm::A192GCM:
+        case JWA::ContentEncryptionAlgorithm::a192gcm:
             return 24;  // 192 bits for AES-192-GCM
-        case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
+        case JWA::ContentEncryptionAlgorithm::a192cbc_hs384:
             return 48;  // 384 bits
-        case JWA::ContentEncryptionAlgorithm::A256GCM:
+        case JWA::ContentEncryptionAlgorithm::a256gcm:
             return 32;  // 256 bits for AES-256-GCM
-        case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
+        case JWA::ContentEncryptionAlgorithm::a256cbc_hs512:
             return 64;  // 512 bits for A256CBC_HS512
         default:
             throw std::runtime_error("Unsupported content encryption algorithm");
@@ -41,13 +41,13 @@ size_t getIVSize(JWA::ContentEncryptionAlgorithm algorithm)
 {
     switch (algorithm)
     {
-        case JWA::ContentEncryptionAlgorithm::A128GCM:
-        case JWA::ContentEncryptionAlgorithm::A192GCM:
-        case JWA::ContentEncryptionAlgorithm::A256GCM:
+        case JWA::ContentEncryptionAlgorithm::a128gcm:
+        case JWA::ContentEncryptionAlgorithm::a192gcm:
+        case JWA::ContentEncryptionAlgorithm::a256gcm:
             return 12;  // 96 bits for GCM
-        case JWA::ContentEncryptionAlgorithm::A128CBC_HS256:
-        case JWA::ContentEncryptionAlgorithm::A192CBC_HS384:
-        case JWA::ContentEncryptionAlgorithm::A256CBC_HS512:
+        case JWA::ContentEncryptionAlgorithm::a128cbc_hs256:
+        case JWA::ContentEncryptionAlgorithm::a192cbc_hs384:
+        case JWA::ContentEncryptionAlgorithm::a256cbc_hs512:
             return 16;  // 128 bits for CBC
         default:
             throw std::runtime_error("Unsupported content encryption algorithm");
@@ -58,13 +58,13 @@ size_t getIVSize(JWA::ContentEncryptionAlgorithm algorithm)
 
 struct JWE::Impl
 {
-    std::string plaintext;
-    JWA::KeyEncryptionAlgorithm keyAlgorithm = JWA::KeyEncryptionAlgorithm::RSA_OAEP;
-    JWA::ContentEncryptionAlgorithm contentAlgorithm = JWA::ContentEncryptionAlgorithm::A256GCM;
-    std::string kid;
-    std::string typ;
-    std::map<std::string, std::string> headerParams;
-    std::string headerJson;
+    std::string plaintext_;
+    JWA::KeyEncryptionAlgorithm key_algorithm_ = JWA::KeyEncryptionAlgorithm::rsa_oaep;
+    JWA::ContentEncryptionAlgorithm content_algorithm_ = JWA::ContentEncryptionAlgorithm::a256gcm;
+    std::string kid_;
+    std::string typ_;
+    std::map<std::string, std::string> header_params_;
+    std::string header_json_;
 };
 
 JWE::JWE() : impl_(std::make_unique<Impl>())
@@ -91,68 +91,68 @@ JWE& JWE::operator=(JWE&& other) noexcept = default;
 
 void JWE::setPlaintext(const std::string& plaintext)
 {
-    impl_->plaintext = plaintext;
+    impl_->plaintext_ = plaintext;
 }
 
 void JWE::setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm algorithm)
 {
-    impl_->keyAlgorithm = algorithm;
+    impl_->key_algorithm_ = algorithm;
 }
 
 void JWE::setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm algorithm)
 {
-    impl_->contentAlgorithm = algorithm;
+    impl_->content_algorithm_ = algorithm;
 }
 
-void JWE::setKeyId(const std::string& kid)
+void JWE::setKeyID(const std::string& kid)
 {
-    impl_->kid = kid;
+    impl_->kid_ = kid;
 }
 
 void JWE::setType(const std::string& typ)
 {
-    impl_->typ = typ;
+    impl_->typ_ = typ;
 }
 
 void JWE::setHeaderParam(const std::string& name, const std::string& value)
 {
-    impl_->headerParams[name] = value;
+    impl_->header_params_[name] = value;
 }
 
 std::string JWE::encrypt(const JWK& key) const
 {
     // Build JOSE header
     json header = json::object();
-    header["alg"] = JWA::toString(impl_->keyAlgorithm);
-    header["enc"] = JWA::toString(impl_->contentAlgorithm);
+    header["alg"] = JWA::toString(impl_->key_algorithm_);
+    header["enc"] = JWA::toString(impl_->content_algorithm_);
 
-    if (!impl_->typ.empty())
+    if (!impl_->typ_.empty())
     {
-        header["typ"] = impl_->typ;
+        header["typ"] = impl_->typ_;
     }
 
-    if (!impl_->kid.empty())
+    if (!impl_->kid_.empty())
     {
-        header["kid"] = impl_->kid;
+        header["kid"] = impl_->kid_;
     }
 
     // Add custom header parameters
-    for (const auto& param : impl_->headerParams)
+    for (const auto& param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }
 
     // Generate or use CEK (Content Encryption Key)
     std::vector<unsigned char> cek;
-    std::vector<unsigned char> encryptedKey;
-    std::vector<unsigned char> kekIv;  // For GCM key wrap
-    std::vector<unsigned char> kekTag; // For GCM key wrap
-    JWK ephemeralKey; // For ECDH-ES
+    std::vector<unsigned char> encrypted_key;
+    std::vector<unsigned char> kek_iv;  // For GCM key wrap
+    std::vector<unsigned char> kek_tag; // For GCM key wrap
+    JWK ephemeral_key; // For ECDH-ES
     
-    if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::DIR)
+    if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::dir)
     {
         // For direct encryption, use the provided key directly as the CEK
-        encryptedKey.clear();  // No encrypted key field
+        encrypted_key.clear();  // No encrypted key field
         
         // Extract the symmetric key material from the JWK
         EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
@@ -161,102 +161,102 @@ std::string JWE::encrypt(const JWK& key) const
             throw std::runtime_error("Invalid key");
         }
         
-        size_t keyLen = 0;
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &keyLen) != 1)
+        size_t key_len = 0;
+        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &key_len) != 1)
         {
             throw std::runtime_error("Failed to get key length");
         }
         
-        cek.resize(keyLen);
-        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &keyLen) != 1)
+        cek.resize(key_len);
+        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &key_len) != 1)
         {
             throw std::runtime_error("Failed to get key data");
         }
     }
-    else if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::ECDH_ES)
+    else if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::ecdh_es)
     {
         // For ECDH-ES, derive the CEK using key agreement
-        encryptedKey.clear();  // No encrypted key field
+        encrypted_key.clear();  // No encrypted key field
         
         // Call encryptKey which will generate ephemeral key, perform ECDH, and derive CEK
-        size_t cekSize = getKeySize(impl_->contentAlgorithm);
-        std::vector<unsigned char> dummyCek(cekSize); // Provide size hint
-        cek = JWA::encryptKey(impl_->keyAlgorithm, key, dummyCek, nullptr, nullptr, 
-                              &ephemeralKey, impl_->contentAlgorithm);
+        size_t cek_size = getKeySize(impl_->content_algorithm_);
+        std::vector<unsigned char> dummy_cek(cek_size); // Provide size hint
+        cek = JWA::encryptKey(impl_->key_algorithm_, key, dummy_cek, nullptr, nullptr, 
+                              &ephemeral_key, impl_->content_algorithm_);
     }
     else
     {
         // Generate random CEK and encrypt it with the key
-        size_t cekSize = getKeySize(impl_->contentAlgorithm);
-        cek.resize(cekSize);
-        if (RAND_bytes(cek.data(), static_cast<int>(cekSize)) != 1)
+        size_t cek_size = getKeySize(impl_->content_algorithm_);
+        cek.resize(cek_size);
+        if (RAND_bytes(cek.data(), static_cast<int>(cek_size)) != 1)
         {
             throw std::runtime_error("Failed to generate random CEK");
         }
         
         // Check if this is a GCM key wrap algorithm
-        bool isGcmKw = (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::A128GCMKW ||
-                        impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::A192GCMKW ||
-                        impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::A256GCMKW);
+        bool is_gcm_kw = (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::a128gcmkw ||
+                        impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::a192gcmkw ||
+                        impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::a256gcmkw);
         
-        if (isGcmKw)
+        if (is_gcm_kw)
         {
-            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek, &kekIv, &kekTag, 
-                                          nullptr, impl_->contentAlgorithm);
+            encrypted_key = JWA::encryptKey(impl_->key_algorithm_, key, cek, &kek_iv, &kek_tag, 
+                                          nullptr, impl_->content_algorithm_);
         }
         else
         {
-            encryptedKey = JWA::encryptKey(impl_->keyAlgorithm, key, cek, nullptr, nullptr, 
-                                          nullptr, impl_->contentAlgorithm);
+            encrypted_key = JWA::encryptKey(impl_->key_algorithm_, key, cek, nullptr, nullptr, 
+                                          nullptr, impl_->content_algorithm_);
         }
     }
     
     // Add ephemeral public key to header if present (ECDH-ES)
-    if (impl_->keyAlgorithm == JWA::KeyEncryptionAlgorithm::ECDH_ES)
+    if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::ecdh_es)
     {
         // Include ephemeral public key in header as JWK
-        header["epk"] = json::parse(ephemeralKey.toJson(false));
+        header["epk"] = json::parse(ephemeral_key.toJSON(false));
     }
     
     // Add GCM key wrap IV and tag to header if present
-    if (!kekIv.empty())
+    if (!kek_iv.empty())
     {
-        header["iv"] = Base64Url::encode(kekIv);
+        header["iv"] = Base64Url::encode(kek_iv);
     }
-    if (!kekTag.empty())
+    if (!kek_tag.empty())
     {
-        header["tag"] = Base64Url::encode(kekTag);
+        header["tag"] = Base64Url::encode(kek_tag);
     }
     
     // Now encode the header with all fields
-    std::string headerJson = header.dump();
-    std::string encodedHeader = Base64Url::encode(headerJson);
+    std::string header_json = header.dump();
+    std::string encoded_header = Base64Url::encode(header_json);
     
-    std::string encodedEncryptedKey = Base64Url::encode(encryptedKey);
+    std::string encoded_encrypted_key = Base64Url::encode(encrypted_key);
 
     // Generate IV
-    size_t ivSize = getIVSize(impl_->contentAlgorithm);
-    std::vector<unsigned char> iv(ivSize);
-    if (RAND_bytes(iv.data(), static_cast<int>(ivSize)) != 1)
+    size_t iv_size = getIVSize(impl_->content_algorithm_);
+    std::vector<unsigned char> iv(iv_size);
+    if (RAND_bytes(iv.data(), static_cast<int>(iv_size)) != 1)
     {
         throw std::runtime_error("Failed to generate random IV");
     }
-    std::string encodedIV = Base64Url::encode(iv);
+    std::string encoded_iv = Base64Url::encode(iv);
 
     // Prepare AAD (Additional Authenticated Data) - the encoded header
-    std::vector<unsigned char> aad(encodedHeader.begin(), encodedHeader.end());
+    std::vector<unsigned char> aad(encoded_header.begin(), encoded_header.end());
 
     // Encrypt content
-    std::vector<unsigned char> plaintextBytes(impl_->plaintext.begin(), impl_->plaintext.end());
-    auto [ciphertext, authTag] =
-        JWA::encryptContent(impl_->contentAlgorithm, cek, iv, plaintextBytes, aad);
+    std::vector<unsigned char> plaintext_bytes(impl_->plaintext_.begin(), impl_->plaintext_.end());
+    auto [ciphertext, auth_tag] =
+        JWA::encryptContent(impl_->content_algorithm_, cek, iv, plaintext_bytes, aad);
 
-    std::string encodedCiphertext = Base64Url::encode(ciphertext);
-    std::string encodedAuthTag = Base64Url::encode(authTag);
+    std::string encoded_ciphertext = Base64Url::encode(ciphertext);
+    std::string encoded_auth_tag = Base64Url::encode(auth_tag);
 
-    // Return compact serialization: header.encryptedKey.iv.ciphertext.authTag
-    return encodedHeader + "." + encodedEncryptedKey + "." + encodedIV + "." + encodedCiphertext +
-           "." + encodedAuthTag;
+    // Return compact serialization: header.encrypted_key.iv.ciphertext.auth_tag
+    return encoded_header + "." + encoded_encrypted_key + "." + encoded_iv + "." + encoded_ciphertext +
+           "." + encoded_auth_tag;
 }
 
 std::string JWE::decrypt(const std::string& jwe, const JWK& key)
@@ -278,30 +278,30 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
         throw std::runtime_error("Invalid JWE format: expected 5 parts");
     }
 
-    std::string encodedHeader = parts[0];
-    std::string encodedEncryptedKey = parts[1];
-    std::string encodedIV = parts[2];
-    std::string encodedCiphertext = parts[3];
-    std::string encodedAuthTag = parts[4];
+    std::string encoded_header = parts[0];
+    std::string encoded_encrypted_key = parts[1];
+    std::string encoded_iv = parts[2];
+    std::string encoded_ciphertext = parts[3];
+    std::string encoded_auth_tag = parts[4];
 
     // Decode header to get algorithms
-    std::string headerJson = Base64Url::decodeToString(encodedHeader);
-    json header = json::parse(headerJson);
+    std::string header_json = Base64Url::decodeToString(encoded_header);
+    json header = json::parse(header_json);
 
     if (!header.contains("alg") || !header.contains("enc"))
     {
         throw std::runtime_error("JWE header missing required algorithm fields");
     }
 
-    std::string algStr = header["alg"].get<std::string>();
-    std::string encStr = header["enc"].get<std::string>();
+    std::string alg_str = header["alg"].get<std::string>();
+    std::string enc_str = header["enc"].get<std::string>();
 
-    JWA::KeyEncryptionAlgorithm keyAlg = JWA::keyEncryptionAlgorithmFromString(algStr);
-    JWA::ContentEncryptionAlgorithm contentAlg = JWA::contentEncryptionAlgorithmFromString(encStr);
+    JWA::KeyEncryptionAlgorithm key_alg = JWA::keyEncryptionAlgorithmFromString(alg_str);
+    JWA::ContentEncryptionAlgorithm content_alg = JWA::contentEncryptionAlgorithmFromString(enc_str);
 
     // Decrypt CEK
     std::vector<unsigned char> cek;
-    if (keyAlg == JWA::KeyEncryptionAlgorithm::DIR)
+    if (key_alg == JWA::KeyEncryptionAlgorithm::dir)
     {
         // For direct encryption, use the provided key directly as the CEK
         EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
@@ -310,19 +310,19 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
             throw std::runtime_error("Invalid key");
         }
         
-        size_t keyLen = 0;
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &keyLen) != 1)
+        size_t key_len = 0;
+        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &key_len) != 1)
         {
             throw std::runtime_error("Failed to get key length");
         }
         
-        cek.resize(keyLen);
-        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &keyLen) != 1)
+        cek.resize(key_len);
+        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &key_len) != 1)
         {
             throw std::runtime_error("Failed to get key data");
         }
     }
-    else if (keyAlg == JWA::KeyEncryptionAlgorithm::ECDH_ES)
+    else if (key_alg == JWA::KeyEncryptionAlgorithm::ecdh_es)
     {
         // For ECDH-ES, extract ephemeral public key from header and derive CEK
         if (!header.contains("epk"))
@@ -331,55 +331,55 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
         }
         
         // Parse ephemeral public key from header
-        json epkJson = header["epk"];
-        JWK ephemeralKey = JWK::fromJson(epkJson.dump());
+        json epk_json = header["epk"];
+        JWK ephemeral_key = JWK::fromJSON(epk_json.dump());
         
         // Derive CEK using ECDH
-        std::vector<unsigned char> encryptedKey; // Empty for ECDH-ES
-        cek = JWA::decryptKey(keyAlg, key, encryptedKey, nullptr, nullptr, 
-                             &ephemeralKey, contentAlg);
+        std::vector<unsigned char> encrypted_key; // Empty for ECDH-ES
+        cek = JWA::decryptKey(key_alg, key, encrypted_key, nullptr, nullptr, 
+                             &ephemeral_key, content_alg);
     }
     else
     {
-        std::vector<unsigned char> encryptedKey = Base64Url::decode(encodedEncryptedKey);
+        std::vector<unsigned char> encrypted_key = Base64Url::decode(encoded_encrypted_key);
         
         // Check for GCM key wrap IV and tag in header
-        std::vector<unsigned char> kekIv;
-        std::vector<unsigned char> kekTag;
+        std::vector<unsigned char> kek_iv;
+        std::vector<unsigned char> kek_tag;
         
         if (header.contains("iv"))
         {
-            kekIv = Base64Url::decode(header["iv"].get<std::string>());
+            kek_iv = Base64Url::decode(header["iv"].get<std::string>());
         }
         if (header.contains("tag"))
         {
-            kekTag = Base64Url::decode(header["tag"].get<std::string>());
+            kek_tag = Base64Url::decode(header["tag"].get<std::string>());
         }
         
         // Pass IV and tag if present (for GCM key wrap)
-        if (!kekIv.empty() && !kekTag.empty())
+        if (!kek_iv.empty() && !kek_tag.empty())
         {
-            cek = JWA::decryptKey(keyAlg, key, encryptedKey, &kekIv, &kekTag, 
-                                 nullptr, contentAlg);
+            cek = JWA::decryptKey(key_alg, key, encrypted_key, &kek_iv, &kek_tag, 
+                                 nullptr, content_alg);
         }
         else
         {
-            cek = JWA::decryptKey(keyAlg, key, encryptedKey, nullptr, nullptr, 
-                                 nullptr, contentAlg);
+            cek = JWA::decryptKey(key_alg, key, encrypted_key, nullptr, nullptr, 
+                                 nullptr, content_alg);
         }
     }
 
     // Decode other components
-    std::vector<unsigned char> iv = Base64Url::decode(encodedIV);
-    std::vector<unsigned char> ciphertext = Base64Url::decode(encodedCiphertext);
-    std::vector<unsigned char> authTag = Base64Url::decode(encodedAuthTag);
+    std::vector<unsigned char> iv = Base64Url::decode(encoded_iv);
+    std::vector<unsigned char> ciphertext = Base64Url::decode(encoded_ciphertext);
+    std::vector<unsigned char> auth_tag = Base64Url::decode(encoded_auth_tag);
 
     // Prepare AAD
-    std::vector<unsigned char> aad(encodedHeader.begin(), encodedHeader.end());
+    std::vector<unsigned char> aad(encoded_header.begin(), encoded_header.end());
 
     // Decrypt content
     std::vector<unsigned char> plaintext =
-        JWA::decryptContent(contentAlg, cek, iv, ciphertext, aad, authTag);
+        JWA::decryptContent(content_alg, cek, iv, ciphertext, aad, auth_tag);
 
     return std::string(plaintext.begin(), plaintext.end());
 }
@@ -403,35 +403,35 @@ JWE JWE::parse(const std::string& jwe)
         throw std::runtime_error("Invalid JWE format: expected 5 parts");
     }
 
-    std::string encodedHeader = parts[0];
+    std::string encoded_header = parts[0];
 
     // Decode header
-    std::string headerJson = Base64Url::decodeToString(encodedHeader);
-    json header = json::parse(headerJson);
+    std::string header_json = Base64Url::decodeToString(encoded_header);
+    json header = json::parse(header_json);
 
     JWE result;
-    result.impl_->headerJson = headerJson;
+    result.impl_->header_json_ = header_json;
 
     if (header.contains("alg"))
     {
-        std::string algStr = header["alg"].get<std::string>();
-        result.impl_->keyAlgorithm = JWA::keyEncryptionAlgorithmFromString(algStr);
+        std::string alg_str = header["alg"].get<std::string>();
+        result.impl_->key_algorithm_ = JWA::keyEncryptionAlgorithmFromString(alg_str);
     }
 
     if (header.contains("enc"))
     {
-        std::string encStr = header["enc"].get<std::string>();
-        result.impl_->contentAlgorithm = JWA::contentEncryptionAlgorithmFromString(encStr);
+        std::string enc_str = header["enc"].get<std::string>();
+        result.impl_->content_algorithm_ = JWA::contentEncryptionAlgorithmFromString(enc_str);
     }
 
     if (header.contains("kid"))
     {
-        result.impl_->kid = header["kid"].get<std::string>();
+        result.impl_->kid_ = header["kid"].get<std::string>();
     }
 
     if (header.contains("typ"))
     {
-        result.impl_->typ = header["typ"].get<std::string>();
+        result.impl_->typ_ = header["typ"].get<std::string>();
     }
 
     return result;
@@ -439,31 +439,31 @@ JWE JWE::parse(const std::string& jwe)
 
 std::string JWE::getPlaintext() const
 {
-    return impl_->plaintext;
+    return impl_->plaintext_;
 }
 
 std::string JWE::getHeader() const
 {
-    if (!impl_->headerJson.empty())
+    if (!impl_->header_json_.empty())
     {
-        return impl_->headerJson;
+        return impl_->header_json_;
     }
 
     json header = json::object();
-    header["alg"] = JWA::toString(impl_->keyAlgorithm);
-    header["enc"] = JWA::toString(impl_->contentAlgorithm);
+    header["alg"] = JWA::toString(impl_->key_algorithm_);
+    header["enc"] = JWA::toString(impl_->content_algorithm_);
 
-    if (!impl_->typ.empty())
+    if (!impl_->typ_.empty())
     {
-        header["typ"] = impl_->typ;
+        header["typ"] = impl_->typ_;
     }
 
-    if (!impl_->kid.empty())
+    if (!impl_->kid_.empty())
     {
-        header["kid"] = impl_->kid;
+        header["kid"] = impl_->kid_;
     }
 
-    for (const auto& param : impl_->headerParams)
+    for (const auto& param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }

@@ -22,9 +22,9 @@ TEST_CASE("Section3_1_ECPublicKey", "[jwa][section3-1-ecpublickey]")
         "y": "AdymlHvOiLxXkEhayXQnNCvDX4h9htZaCJN34kfmC6pV5OhQHiraVySsUdaQkAgDPrwQrJmbnX9cwlGfP-HqHZR1"
     })";
 
-    JWK key = JWK::fromJson(jwkJson);
-    REQUIRE(JWK::KeyType::EC == key.getKeyType());
-    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
+    JWK key = JWK::fromJSON(jwkJson);
+    REQUIRE(JWK::KeyType::ec == key.getKeyType());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyID());
 }
 
 TEST_CASE("Section3_2_ECPrivateKey", "[jwa][section3-2-ecprivatekey]")
@@ -40,10 +40,10 @@ TEST_CASE("Section3_2_ECPrivateKey", "[jwa][section3-2-ecprivatekey]")
         "d": "AAhRON2r9cqXX1hg-RoI6R1tX5p2rUAYdmpHZoC1XNM56KtscrX6zbKipQrCW9CGZH3T4ubpnoTKLDYJ_fF3_rJt"
     })";
 
-    JWK key = JWK::fromJson(jwkJson);
-    REQUIRE(JWK::KeyType::EC == key.getKeyType());
+    JWK key = JWK::fromJSON(jwkJson);
+    REQUIRE(JWK::KeyType::ec == key.getKeyType());
     REQUIRE(key.hasPrivateKey());
-    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyID());
 }
 
 TEST_CASE("Section3_3_RSAPublicKey", "[jwa][section3-3-rsapublickey]")
@@ -57,10 +57,10 @@ TEST_CASE("Section3_3_RSAPublicKey", "[jwa][section3-3-rsapublickey]")
         "e": "AQAB"
     })";
 
-    JWK key = JWK::fromJson(jwkJson);
-    REQUIRE(JWK::KeyType::RSA == key.getKeyType());
+    JWK key = JWK::fromJSON(jwkJson);
+    REQUIRE(JWK::KeyType::rsa == key.getKeyType());
     REQUIRE_FALSE(key.hasPrivateKey());
-    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyID());
 }
 
 TEST_CASE("Section3_4_RSAPrivateKey", "[jwa][section3-4-rsaprivatekey]")
@@ -80,10 +80,10 @@ TEST_CASE("Section3_4_RSAPrivateKey", "[jwa][section3-4-rsaprivatekey]")
         "qi": "3PiqvXQN0zwMeE-sBvZgi289XP9XCQF3VWqPzMKnIgQp7_Tugo6-NZBKCQsMf3HaEGBjTVJs_jcK8-TRXvaKe-7ZMaQj8VfBdYkssbu0NKDDhjJ-GtiseaDVWt7dcH0cfwxgFUHpQh7FoCrjFJ6h6ZEpMF6xmujs4qMpPz8aaI4"
     })";
 
-    JWK key = JWK::fromJson(jwkJson);
-    REQUIRE(JWK::KeyType::RSA == key.getKeyType());
+    JWK key = JWK::fromJSON(jwkJson);
+    REQUIRE(JWK::KeyType::rsa == key.getKeyType());
     REQUIRE(key.hasPrivateKey());
-    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyId());
+    REQUIRE("bilbo.baggins@hobbiton.example" == key.getKeyID());
 }
 
 TEST_CASE("Section3_5_SymmetricKey", "[jwa][section3-5-symmetrickey]")
@@ -97,9 +97,9 @@ TEST_CASE("Section3_5_SymmetricKey", "[jwa][section3-5-symmetrickey]")
         "k": "hJtXIZ2uSN5kbQfbtTNWbpdmhkV8FJG-Onbc6mxCcYg"
     })";
 
-    JWK key = JWK::fromJson(jwkJson);
+    JWK key = JWK::fromJSON(jwkJson);
     REQUIRE(JWK::KeyType::oct == key.getKeyType());
-    REQUIRE("018c0ae5-4d9b-471b-bfd6-eef314bc7037" == key.getKeyId());
+    REQUIRE("018c0ae5-4d9b-471b-bfd6-eef314bc7037" == key.getKeyID());
     REQUIRE("HS256" == key.getAlgorithm());
 }
 
@@ -114,7 +114,7 @@ TEST_CASE("Section4_1_RSA_v15_Signature", "[jwa][section4-1-rsa-v15-signature]")
     // Create JWS
     JWS jws;
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::RS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
 
     // Generate a key for testing (we don't have the exact RFC key)
     JWK key = JWK::generateRSA(2048);
@@ -140,7 +140,7 @@ TEST_CASE("Section4_2_RSA_PSS_Signature", "[jwa][section4-2-rsa-pss-signature]")
 
     JWS jws;
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::PS384);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::ps384);
 
     JWK key = JWK::generateRSA(2048);
 
@@ -160,7 +160,7 @@ TEST_CASE("Section4_3_ECDSA_Signature", "[jwa][section4-3-ecdsa-signature]")
 
     JWS jws;
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::ES512);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::es512);
 
     JWK key = JWK::generateEC("P-521");
 
@@ -180,7 +180,7 @@ TEST_CASE("Section4_4_HMAC_SHA2_Signature", "[jwa][section4-4-hmac-sha2-signatur
 
     JWS jws;
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     JWK key = JWK::generateOct(256);
 
@@ -200,7 +200,7 @@ TEST_CASE("Section4_5_DetachedSignature", "[jwa][section4-5-detachedsignature]")
 
     JWS jws;
     jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::HS256);
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
     JWK key = JWK::generateOct(256);
 
@@ -224,8 +224,8 @@ TEST_CASE("Section5_1_RSA_v15_KeyEncryption", "[jwa][section5-1-rsa-v15-keyencry
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA1_5);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128CBC_HS256);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa1_5);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
     JWK key = JWK::generateRSA(2048);
 
@@ -247,8 +247,8 @@ TEST_CASE("Section5_2_RSA_OAEP_KeyEncryption", "[jwa][section5-2-rsa-oaep-keyenc
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::RSA_OAEP);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A256GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
 
     JWK key = JWK::generateRSA(2048);
 
@@ -270,8 +270,8 @@ TEST_CASE("Section5_3_AES_KeyWrap", "[jwa][section5-3-aes-keywrap]")
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::A128KW);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128CBC_HS256);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128kw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
     JWK key = JWK::generateOct(128);
 
@@ -293,8 +293,8 @@ TEST_CASE("Section5_4_DirectEncryption", "[jwa][section5-4-directencryption]")
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::DIR);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::dir);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWK key = JWK::generateOct(128);
 
@@ -316,8 +316,8 @@ TEST_CASE("Section5_5_DirectKeyAgreement", "[jwa][section5-5-directkeyagreement]
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ECDH_ES);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128GCM);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
     JWK key = JWK::generateEC("P-256");
 
@@ -339,8 +339,8 @@ TEST_CASE("Section5_6_AES_GCM_KeyWrap", "[jwa][section5-6-aes-gcm-keywrap]")
 
     JWE jwe;
     jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::A128GCMKW);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::A128CBC_HS256);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
     JWK key = JWK::generateOct(128);
 
@@ -364,7 +364,7 @@ TEST_CASE("JWTWithAllClaims", "[jwa][jwtwithallclaims]")
     jwt.setIssuedAt(now);
     jwt.setNotBefore(now);
     jwt.setExpiration(now + std::chrono::hours(1));
-    jwt.setJwtId("unique-jwt-id");
+    jwt.setJWTID("unique-jwt-id");
 
     jwt.setClaim("role", "admin");
     jwt.setClaim("permissions", "read,write,delete");
@@ -387,10 +387,10 @@ TEST_CASE("RoundTripWithDifferentAlgorithms", "[jwa][roundtripwithdifferentalgor
 
     // Test with multiple algorithms
     std::vector<std::tuple<JWA::SignatureAlgorithm, JWK>> testCases = {
-        {JWA::SignatureAlgorithm::HS256, JWK::generateOct(256)},
-        {JWA::SignatureAlgorithm::RS256, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::ES256, JWK::generateEC("P-256")},
-        {JWA::SignatureAlgorithm::PS256, JWK::generateRSA(2048)}};
+        {JWA::SignatureAlgorithm::hs256, JWK::generateOct(256)},
+        {JWA::SignatureAlgorithm::rs256, JWK::generateRSA(2048)},
+        {JWA::SignatureAlgorithm::es256, JWK::generateEC("P-256")},
+        {JWA::SignatureAlgorithm::ps256, JWK::generateRSA(2048)}};
 
     for (const auto& [alg, key] : testCases)
     {

@@ -17,7 +17,7 @@ SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][gener
             
             THEN("it should be an RSA key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::RSA);
+                REQUIRE(key.getKeyType() == JWK::KeyType::rsa);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -31,7 +31,7 @@ SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][gener
             
             THEN("it should be an RSA key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::RSA);
+                REQUIRE(key.getKeyType() == JWK::KeyType::rsa);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -45,7 +45,7 @@ SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][gener
             
             THEN("it should be an RSA key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::RSA);
+                REQUIRE(key.getKeyType() == JWK::KeyType::rsa);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -59,7 +59,7 @@ SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][gener
             
             THEN("it should be an RSA key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::RSA);
+                REQUIRE(key.getKeyType() == JWK::KeyType::rsa);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -77,7 +77,7 @@ SCENARIO("Elliptic curve keys can be generated with different curves", "[jwk][ec
             
             THEN("it should be an EC key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::EC);
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -91,7 +91,7 @@ SCENARIO("Elliptic curve keys can be generated with different curves", "[jwk][ec
             
             THEN("it should be an EC key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::EC);
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -105,7 +105,7 @@ SCENARIO("Elliptic curve keys can be generated with different curves", "[jwk][ec
             
             THEN("it should be an EC key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::EC);
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -119,7 +119,7 @@ SCENARIO("Elliptic curve keys can be generated with different curves", "[jwk][ec
             
             THEN("it should be an EC key with a private component")
             {
-                REQUIRE(key.getKeyType() == JWK::KeyType::EC);
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
                 REQUIRE(key.hasPrivateKey());
             }
         }
@@ -195,21 +195,21 @@ SCENARIO("JWK properties can be set and retrieved", "[jwk][properties][bdd]")
         
         WHEN("setting a key ID")
         {
-            key.setKeyId("my-key-id");
+            key.setKeyID("my-key-id");
             
             THEN("the key ID can be retrieved")
             {
-                REQUIRE(key.getKeyId() == "my-key-id");
+                REQUIRE(key.getKeyID() == "my-key-id");
             }
         }
         
         WHEN("setting a key ID with special characters")
         {
-            key.setKeyId("key-2024-01-01-v1.0");
+            key.setKeyID("key-2024-01-01-v1.0");
             
             THEN("the special characters are preserved")
             {
-                REQUIRE(key.getKeyId() == "key-2024-01-01-v1.0");
+                REQUIRE(key.getKeyID() == "key-2024-01-01-v1.0");
             }
         }
         
@@ -227,7 +227,7 @@ SCENARIO("JWK properties can be set and retrieved", "[jwk][properties][bdd]")
         {
             THEN("it should not throw")
             {
-                REQUIRE_NOTHROW(key.setUse(JWK::Use::Signature));
+                REQUIRE_NOTHROW(key.setUse(JWK::Use::signature));
             }
         }
         
@@ -235,7 +235,7 @@ SCENARIO("JWK properties can be set and retrieved", "[jwk][properties][bdd]")
         {
             THEN("it should not throw")
             {
-                REQUIRE_NOTHROW(key.setUse(JWK::Use::Encryption));
+                REQUIRE_NOTHROW(key.setUse(JWK::Use::encryption));
             }
         }
     }
@@ -262,12 +262,12 @@ SCENARIO("JWKs can be serialized to JSON", "[jwk][serialization][bdd]")
     GIVEN("an RSA key with metadata")
     {
         JWK key = JWK::generateRSA(2048);
-        key.setKeyId("rsa-key-1");
+        key.setKeyID("rsa-key-1");
         key.setAlgorithm("RS256");
         
         WHEN("serializing with private key")
         {
-            std::string json = key.toJson(true);
+            std::string json = key.toJSON(true);
             
             THEN("the JSON should contain all key components")
             {
@@ -282,8 +282,8 @@ SCENARIO("JWKs can be serialized to JSON", "[jwk][serialization][bdd]")
         
         WHEN("serializing without private key")
         {
-            key.setKeyId("rsa-public-key");
-            std::string json = key.toJson(false);
+            key.setKeyID("rsa-public-key");
+            std::string json = key.toJSON(false);
             
             THEN("the JSON should contain only public components")
             {
@@ -297,12 +297,12 @@ SCENARIO("JWKs can be serialized to JSON", "[jwk][serialization][bdd]")
     GIVEN("an EC key with metadata")
     {
         JWK key = JWK::generateEC("P-256");
-        key.setKeyId("ec-key-1");
+        key.setKeyID("ec-key-1");
         key.setAlgorithm("ES256");
         
         WHEN("serializing with private key")
         {
-            std::string json = key.toJson(true);
+            std::string json = key.toJSON(true);
             
             THEN("the JSON should contain curve information")
             {
@@ -317,12 +317,12 @@ SCENARIO("JWKs can be serialized to JSON", "[jwk][serialization][bdd]")
     GIVEN("a symmetric key")
     {
         JWK key = JWK::generateOct(256);
-        key.setKeyId("symmetric-key");
+        key.setKeyID("symmetric-key");
         key.setAlgorithm("HS256");
         
         WHEN("serializing the key")
         {
-            std::string json = key.toJson(true);
+            std::string json = key.toJSON(true);
             
             THEN("the JSON should contain the key material")
             {
@@ -340,17 +340,17 @@ SCENARIO("JWKs can be parsed from JSON", "[jwk][parsing][bdd]")
     GIVEN("a serialized RSA key")
     {
         JWK original = JWK::generateRSA(2048);
-        original.setKeyId("test-rsa");
-        std::string json = original.toJson(true);
+        original.setKeyID("test-rsa");
+        std::string json = original.toJSON(true);
         
         WHEN("parsing the JSON")
         {
-            JWK parsed = JWK::fromJson(json);
+            JWK parsed = JWK::fromJSON(json);
             
             THEN("the key should be reconstructed correctly")
             {
-                REQUIRE(parsed.getKeyType() == JWK::KeyType::RSA);
-                REQUIRE(parsed.getKeyId() == "test-rsa");
+                REQUIRE(parsed.getKeyType() == JWK::KeyType::rsa);
+                REQUIRE(parsed.getKeyID() == "test-rsa");
                 REQUIRE(parsed.hasPrivateKey());
             }
         }
@@ -359,18 +359,18 @@ SCENARIO("JWKs can be parsed from JSON", "[jwk][parsing][bdd]")
     GIVEN("a serialized EC key")
     {
         JWK original = JWK::generateEC("P-384");
-        original.setKeyId("test-ec");
+        original.setKeyID("test-ec");
         original.setAlgorithm("ES384");
-        std::string json = original.toJson(true);
+        std::string json = original.toJSON(true);
         
         WHEN("parsing the JSON")
         {
-            JWK parsed = JWK::fromJson(json);
+            JWK parsed = JWK::fromJSON(json);
             
             THEN("the key should be reconstructed with all metadata")
             {
-                REQUIRE(parsed.getKeyType() == JWK::KeyType::EC);
-                REQUIRE(parsed.getKeyId() == "test-ec");
+                REQUIRE(parsed.getKeyType() == JWK::KeyType::ec);
+                REQUIRE(parsed.getKeyID() == "test-ec");
                 REQUIRE(parsed.getAlgorithm() == "ES384");
             }
         }
@@ -379,17 +379,17 @@ SCENARIO("JWKs can be parsed from JSON", "[jwk][parsing][bdd]")
     GIVEN("a serialized symmetric key")
     {
         JWK original = JWK::generateOct(256);
-        original.setKeyId("test-oct");
-        std::string json = original.toJson(true);
+        original.setKeyID("test-oct");
+        std::string json = original.toJSON(true);
         
         WHEN("parsing the JSON")
         {
-            JWK parsed = JWK::fromJson(json);
+            JWK parsed = JWK::fromJSON(json);
             
             THEN("the key should be reconstructed")
             {
                 REQUIRE(parsed.getKeyType() == JWK::KeyType::oct);
-                REQUIRE(parsed.getKeyId() == "test-oct");
+                REQUIRE(parsed.getKeyID() == "test-oct");
             }
         }
     }
@@ -397,17 +397,17 @@ SCENARIO("JWKs can be parsed from JSON", "[jwk][parsing][bdd]")
     GIVEN("a public key only JSON")
     {
         JWK original = JWK::generateRSA(2048);
-        original.setKeyId("public-only");
-        std::string publicJson = original.toJson(false);
+        original.setKeyID("public-only");
+        std::string publicJson = original.toJSON(false);
         
         WHEN("parsing the public key JSON")
         {
-            JWK parsed = JWK::fromJson(publicJson);
+            JWK parsed = JWK::fromJSON(publicJson);
             
             THEN("the key should not have a private component")
             {
-                REQUIRE(parsed.getKeyType() == JWK::KeyType::RSA);
-                REQUIRE(parsed.getKeyId() == "public-only");
+                REQUIRE(parsed.getKeyType() == JWK::KeyType::rsa);
+                REQUIRE(parsed.getKeyID() == "public-only");
                 REQUIRE_FALSE(parsed.hasPrivateKey());
             }
         }
@@ -418,15 +418,15 @@ SCENARIO("JWKs can be parsed from JSON", "[jwk][parsing][bdd]")
 TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
 {
     JWK original = JWK::generateRSA(2048);
-    original.setKeyId("rsa-round-trip");
+    original.setKeyID("rsa-round-trip");
     original.setAlgorithm("RS256");
-    original.setUse(JWK::Use::Signature);
+    original.setUse(JWK::Use::signature);
 
-    std::string json = original.toJson(true);
-    JWK parsed = JWK::fromJson(json);
+    std::string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json);
 
     REQUIRE(original.getKeyType() == parsed.getKeyType());
-    REQUIRE(original.getKeyId() == parsed.getKeyId());
+    REQUIRE(original.getKeyID() == parsed.getKeyID());
     REQUIRE(original.getAlgorithm() == parsed.getAlgorithm());
     REQUIRE(original.hasPrivateKey() == parsed.hasPrivateKey());
 }
@@ -434,28 +434,28 @@ TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
 TEST_CASE("JWK EC round-trip preserves all properties", "[jwk][round-trip]")
 {
     JWK original = JWK::generateEC("P-521");
-    original.setKeyId("ec-round-trip");
+    original.setKeyID("ec-round-trip");
     original.setAlgorithm("ES512");
 
-    std::string json = original.toJson(true);
-    JWK parsed = JWK::fromJson(json);
+    std::string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json);
 
     REQUIRE(original.getKeyType() == parsed.getKeyType());
-    REQUIRE(original.getKeyId() == parsed.getKeyId());
+    REQUIRE(original.getKeyID() == parsed.getKeyID());
     REQUIRE(original.getAlgorithm() == parsed.getAlgorithm());
 }
 
 TEST_CASE("JWK Oct round-trip preserves all properties", "[jwk][round-trip]")
 {
     JWK original = JWK::generateOct(256);
-    original.setKeyId("oct-round-trip");
+    original.setKeyID("oct-round-trip");
     original.setAlgorithm("HS256");
 
-    std::string json = original.toJson(true);
-    JWK parsed = JWK::fromJson(json);
+    std::string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json);
 
     REQUIRE(original.getKeyType() == parsed.getKeyType());
-    REQUIRE(original.getKeyId() == parsed.getKeyId());
+    REQUIRE(original.getKeyID() == parsed.getKeyID());
     REQUIRE(original.getAlgorithm() == parsed.getAlgorithm());
 }
 
@@ -463,41 +463,41 @@ TEST_CASE("JWK Oct round-trip preserves all properties", "[jwk][round-trip]")
 TEST_CASE("JWK copy constructor works correctly", "[jwk][copy]")
 {
     JWK original = JWK::generateRSA(2048);
-    original.setKeyId("original");
+    original.setKeyID("original");
 
     JWK copy(original);
-    REQUIRE(original.getKeyId() == copy.getKeyId());
+    REQUIRE(original.getKeyID() == copy.getKeyID());
     REQUIRE(original.getKeyType() == copy.getKeyType());
 }
 
 TEST_CASE("JWK copy assignment works correctly", "[jwk][copy]")
 {
     JWK original = JWK::generateRSA(2048);
-    original.setKeyId("original");
+    original.setKeyID("original");
 
     JWK copy = original;
-    REQUIRE(original.getKeyId() == copy.getKeyId());
+    REQUIRE(original.getKeyID() == copy.getKeyID());
     REQUIRE(original.getKeyType() == copy.getKeyType());
 }
 
 TEST_CASE("JWK move constructor works correctly", "[jwk][move]")
 {
     JWK original = JWK::generateRSA(2048);
-    original.setKeyId("original");
-    std::string expectedId = original.getKeyId();
+    original.setKeyID("original");
+    std::string expectedId = original.getKeyID();
 
     JWK moved(std::move(original));
-    REQUIRE(expectedId == moved.getKeyId());
+    REQUIRE(expectedId == moved.getKeyID());
 }
 
 TEST_CASE("JWK move assignment works correctly", "[jwk][move]")
 {
     JWK original = JWK::generateRSA(2048);
-    original.setKeyId("original");
-    std::string expectedId = original.getKeyId();
+    original.setKeyID("original");
+    std::string expectedId = original.getKeyID();
 
     JWK moved = std::move(original);
-    REQUIRE(expectedId == moved.getKeyId());
+    REQUIRE(expectedId == moved.getKeyID());
 }
 
 // BDD-style JWKSet tests
@@ -509,7 +509,7 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
         
         WHEN("serializing the empty set")
         {
-            std::string json = jwkSet.toJson();
+            std::string json = jwkSet.toJSON();
             
             THEN("it should contain a keys array")
             {
@@ -520,16 +520,16 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
         WHEN("adding multiple keys")
         {
             JWK key1 = JWK::generateRSA(2048);
-            key1.setKeyId("key1");
+            key1.setKeyID("key1");
             jwkSet.addKey(key1);
 
             JWK key2 = JWK::generateEC("P-256");
-            key2.setKeyId("key2");
+            key2.setKeyID("key2");
             jwkSet.addKey(key2);
             
             THEN("both keys should be in the serialized JSON")
             {
-                std::string json = jwkSet.toJson();
+                std::string json = jwkSet.toJSON();
                 REQUIRE(json.find("\"key1\"") != std::string::npos);
                 REQUIRE(json.find("\"key2\"") != std::string::npos);
             }
@@ -537,12 +537,12 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
             AND_THEN("keys can be retrieved by ID")
             {
                 JWK retrieved = jwkSet.getKey("key1");
-                REQUIRE(retrieved.getKeyId() == "key1");
-                REQUIRE(retrieved.getKeyType() == JWK::KeyType::RSA);
+                REQUIRE(retrieved.getKeyID() == "key1");
+                REQUIRE(retrieved.getKeyType() == JWK::KeyType::rsa);
 
                 JWK retrieved2 = jwkSet.getKey("key2");
-                REQUIRE(retrieved2.getKeyId() == "key2");
-                REQUIRE(retrieved2.getKeyType() == JWK::KeyType::EC);
+                REQUIRE(retrieved2.getKeyID() == "key2");
+                REQUIRE(retrieved2.getKeyType() == JWK::KeyType::ec);
             }
             
             AND_THEN("all keys can be retrieved as a vector")
@@ -562,7 +562,7 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
             for (int i = 0; i < 5; i++)
             {
                 JWK key = JWK::generateRSA(2048);
-                key.setKeyId("rsa-key-" + std::to_string(i));
+                key.setKeyID("rsa-key-" + std::to_string(i));
                 jwkSet.addKey(key);
             }
             
@@ -575,7 +575,7 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
             AND_THEN("a specific key can be retrieved")
             {
                 JWK retrieved = jwkSet.getKey("rsa-key-3");
-                REQUIRE(retrieved.getKeyId() == "rsa-key-3");
+                REQUIRE(retrieved.getKeyID() == "rsa-key-3");
             }
         }
     }
@@ -586,24 +586,24 @@ TEST_CASE("JWKSet round-trip preserves all keys", "[jwk][jwkset][round-trip]")
     JWKSet original;
 
     JWK key1 = JWK::generateRSA(2048);
-    key1.setKeyId("key1");
+    key1.setKeyID("key1");
     key1.setAlgorithm("RS256");
     original.addKey(key1);
 
     JWK key2 = JWK::generateEC("P-256");
-    key2.setKeyId("key2");
+    key2.setKeyID("key2");
     key2.setAlgorithm("ES256");
     original.addKey(key2);
 
-    std::string json = original.toJson();
-    JWKSet parsed = JWKSet::fromJson(json);
+    std::string json = original.toJSON();
+    JWKSet parsed = JWKSet::fromJSON(json);
 
     JWK retrievedKey1 = parsed.getKey("key1");
-    REQUIRE(retrievedKey1.getKeyId() == "key1");
+    REQUIRE(retrievedKey1.getKeyID() == "key1");
     REQUIRE(retrievedKey1.getAlgorithm() == "RS256");
 
     JWK retrievedKey2 = parsed.getKey("key2");
-    REQUIRE(retrievedKey2.getKeyId() == "key2");
+    REQUIRE(retrievedKey2.getKeyID() == "key2");
     REQUIRE(retrievedKey2.getAlgorithm() == "ES256");
 }
 
@@ -623,36 +623,36 @@ TEST_CASE("JWKSet can contain three keys", "[jwk][jwkset]")
 TEST_CASE("JWK handles empty key ID", "[jwk][edge-cases]")
 {
     JWK key = JWK::generateRSA(2048);
-    key.setKeyId("");
-    REQUIRE(key.getKeyId() == "");
+    key.setKeyID("");
+    REQUIRE(key.getKeyID() == "");
 }
 
 TEST_CASE("JWK handles very long key ID", "[jwk][edge-cases]")
 {
     JWK key = JWK::generateEC("P-256");
     std::string longId(1000, 'a');
-    key.setKeyId(longId);
-    REQUIRE(key.getKeyId() == longId);
+    key.setKeyID(longId);
+    REQUIRE(key.getKeyID() == longId);
 }
 
 TEST_CASE("JWK handles special characters in key ID", "[jwk][edge-cases]")
 {
     JWK key = JWK::generateOct(256);
-    key.setKeyId("key-with-dashes_and_underscores.and.dots");
-    REQUIRE(key.getKeyId() == "key-with-dashes_and_underscores.and.dots");
+    key.setKeyID("key-with-dashes_and_underscores.and.dots");
+    REQUIRE(key.getKeyID() == "key-with-dashes_and_underscores.and.dots");
 }
 
 TEST_CASE("JWK handles multiple properties set together", "[jwk][edge-cases]")
 {
     JWK key = JWK::generateRSA(2048);
-    key.setKeyId("multi-prop-key");
+    key.setKeyID("multi-prop-key");
     key.setAlgorithm("RS384");
-    key.setUse(JWK::Use::Signature);
+    key.setUse(JWK::Use::signature);
 
-    REQUIRE(key.getKeyId() == "multi-prop-key");
+    REQUIRE(key.getKeyID() == "multi-prop-key");
     REQUIRE(key.getAlgorithm() == "RS384");
 
-    std::string json = key.toJson(true);
+    std::string json = key.toJSON(true);
     REQUIRE(json.find("\"multi-prop-key\"") != std::string::npos);
     REQUIRE(json.find("\"RS384\"") != std::string::npos);
 }

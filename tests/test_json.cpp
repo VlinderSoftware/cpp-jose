@@ -27,14 +27,14 @@ TEST_F(JsonValueTest, DefaultConstructor)
 
 TEST_F(JsonValueTest, BooleanConstructor)
 {
-    JsonValue trueValue(true);
-    EXPECT_TRUE(trueValue.isBoolean());
-    EXPECT_EQ(JsonValue::Type::Boolean, trueValue.getType());
-    EXPECT_TRUE(trueValue.asBoolean());
+    JsonValue true_value(true);
+    EXPECT_TRUE(true_value.isBoolean());
+    EXPECT_EQ(JsonValue::Type::Boolean, true_value.getType());
+    EXPECT_TRUE(true_value.asBoolean());
 
-    JsonValue falseValue(false);
-    EXPECT_TRUE(falseValue.isBoolean());
-    EXPECT_FALSE(falseValue.asBoolean());
+    JsonValue false_value(false);
+    EXPECT_TRUE(false_value.isBoolean());
+    EXPECT_FALSE(false_value.asBoolean());
 }
 
 TEST_F(JsonValueTest, IntegerConstructor)
@@ -71,27 +71,27 @@ TEST_F(JsonValueTest, StringConstructorFromStdString)
 // Type checking
 TEST_F(JsonValueTest, TypeChecking)
 {
-    JsonValue nullValue;
-    EXPECT_TRUE(nullValue.isNull());
-    EXPECT_FALSE(nullValue.isBoolean());
-    EXPECT_FALSE(nullValue.isNumber());
-    EXPECT_FALSE(nullValue.isString());
-    EXPECT_FALSE(nullValue.isArray());
-    EXPECT_FALSE(nullValue.isObject());
+    JsonValue null_value;
+    EXPECT_TRUE(null_value.isNull());
+    EXPECT_FALSE(null_value.isBoolean());
+    EXPECT_FALSE(null_value.isNumber());
+    EXPECT_FALSE(null_value.isString());
+    EXPECT_FALSE(null_value.isArray());
+    EXPECT_FALSE(null_value.isObject());
 
-    JsonValue boolValue(true);
-    EXPECT_FALSE(boolValue.isNull());
-    EXPECT_TRUE(boolValue.isBoolean());
-    EXPECT_FALSE(boolValue.isNumber());
+    JsonValue bool_value(true);
+    EXPECT_FALSE(bool_value.isNull());
+    EXPECT_TRUE(bool_value.isBoolean());
+    EXPECT_FALSE(bool_value.isNumber());
 
-    JsonValue numValue(42);
-    EXPECT_FALSE(numValue.isNull());
-    EXPECT_FALSE(numValue.isBoolean());
-    EXPECT_TRUE(numValue.isNumber());
+    JsonValue num_value(42);
+    EXPECT_FALSE(num_value.isNull());
+    EXPECT_FALSE(num_value.isBoolean());
+    EXPECT_TRUE(num_value.isNumber());
 
-    JsonValue strValue("test");
-    EXPECT_FALSE(strValue.isNull());
-    EXPECT_TRUE(strValue.isString());
+    JsonValue str_value("test");
+    EXPECT_FALSE(str_value.isNull());
+    EXPECT_TRUE(str_value.isString());
 }
 
 // Array operations
@@ -279,21 +279,21 @@ TEST_F(JsonValueTest, SerializeNull)
 
 TEST_F(JsonValueTest, SerializeBoolean)
 {
-    JsonValue trueVal(true);
-    EXPECT_EQ("true", trueVal.serialize());
+    JsonValue true_val(true);
+    EXPECT_EQ("true", true_val.serialize());
 
-    JsonValue falseVal(false);
-    EXPECT_EQ("false", falseVal.serialize());
+    JsonValue false_val(false);
+    EXPECT_EQ("false", false_val.serialize());
 }
 
 TEST_F(JsonValueTest, SerializeNumber)
 {
-    JsonValue intVal(42);
-    std::string json = intVal.serialize();
+    JsonValue int_val(42);
+    std::string json = int_val.serialize();
     EXPECT_NE(std::string::npos, json.find("42"));
 
-    JsonValue doubleVal(3.14);
-    json = doubleVal.serialize();
+    JsonValue double_val(3.14);
+    json = double_val.serialize();
     EXPECT_NE(std::string::npos, json.find("3.14"));
 }
 
@@ -353,24 +353,24 @@ TEST_F(JsonValueTest, ParseNull)
 
 TEST_F(JsonValueTest, ParseBoolean)
 {
-    JsonValue trueVal = JsonValue::parse("true");
-    EXPECT_TRUE(trueVal.isBoolean());
-    EXPECT_TRUE(trueVal.asBoolean());
+    JsonValue true_val = JsonValue::parse("true");
+    EXPECT_TRUE(true_val.isBoolean());
+    EXPECT_TRUE(true_val.asBoolean());
 
-    JsonValue falseVal = JsonValue::parse("false");
-    EXPECT_TRUE(falseVal.isBoolean());
-    EXPECT_FALSE(falseVal.asBoolean());
+    JsonValue false_val = JsonValue::parse("false");
+    EXPECT_TRUE(false_val.isBoolean());
+    EXPECT_FALSE(false_val.asBoolean());
 }
 
 TEST_F(JsonValueTest, ParseNumber)
 {
-    JsonValue intVal = JsonValue::parse("42");
-    EXPECT_TRUE(intVal.isNumber());
-    EXPECT_DOUBLE_EQ(42.0, intVal.asNumber());
+    JsonValue int_val = JsonValue::parse("42");
+    EXPECT_TRUE(int_val.isNumber());
+    EXPECT_DOUBLE_EQ(42.0, int_val.asNumber());
 
-    JsonValue doubleVal = JsonValue::parse("3.14159");
-    EXPECT_TRUE(doubleVal.isNumber());
-    EXPECT_NEAR(3.14159, doubleVal.asNumber(), 0.00001);
+    JsonValue double_val = JsonValue::parse("3.14159");
+    EXPECT_TRUE(double_val.isNumber());
+    EXPECT_NEAR(3.14159, double_val.asNumber(), 0.00001);
 }
 
 TEST_F(JsonValueTest, ParseString)
