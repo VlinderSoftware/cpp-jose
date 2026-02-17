@@ -11,6 +11,7 @@
 
 #include <cstring>
 #include <stdexcept>
+#include <set>
 
 #include "jose/base64url.hpp"
 #include "jose/json_utils.hpp"
@@ -18,6 +19,95 @@
 
 namespace Vlinder {
 namespace JOSE {
+
+namespace {
+
+// Default algorithms for key type + use combinations
+std::string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const std::string& curve = "")
+{
+    if (key_type == JWK::KeyType::rsa)
+    {
+        return (use == JWK::Use::signature) ? "RS256" : "RSA-OAEP-256";
+    }
+    else if (key_type == JWK::KeyType::ec)
+    {
+        if (use == JWK::Use::encryption)
+        {
+            return "ECDH-ES";  // Default ECDH key agreement algorithm
+        }
+        
+        // Default based on curve for signature
+        if (curve == "P-256") return "ES256";
+        if (curve == "P-384") return "ES384";
+        if (curve == "P-521") return "ES512";
+        return "ES256"; // fallback
+    }
+    else if (key_type == JWK::KeyType::oct)
+    {
+        return (use == JWK::Use::signature) ? "HS256" : "A256KW";
+    }
+    
+    throw std::runtime_error("Unsupported key type for default algorithm");
+}
+
+// Validate algorithm for key type + use combination
+void validateAlgorithm(const std::string& alg, JWK::KeyType key_type, JWK::Use use)
+{
+    static const std::set<std::string> rsa_sig_algs = {
+        "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"
+    };
+    static const std::set<std::string> rsa_enc_algs = {
+        "RSA-OAEP", "RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512", "RSA1_5"
+    };
+    static const std::set<std::string> ec_sig_algs = {
+        "ES256", "ES384", "ES512", "ES256K"
+    };
+    static const std::set<std::string> ec_enc_algs = {
+        "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW"
+    };
+    static const std::set<std::string> oct_sig_algs = {
+        "HS256", "HS384", "HS512"
+    };
+    static const std::set<std::string> oct_enc_algs = {
+        "A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"
+    };
+    
+    if (key_type == JWK::KeyType::rsa)
+    {
+        if (use == JWK::Use::signature && rsa_sig_algs.find(alg) == rsa_sig_algs.end())
+        {
+            throw std::runtime_error("Algorithm '" + alg + "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, PS256, PS384, or PS512");
+        }
+        if (use == JWK::Use::encryption && rsa_enc_algs.find(alg) == rsa_enc_algs.end())
+        {
+            throw std::runtime_error("Algorithm '" + alg + "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.");
+        }
+    }
+    else if (key_type == JWK::KeyType::ec)
+    {
+        if (use == JWK::Use::signature && ec_sig_algs.find(alg) == ec_sig_algs.end())
+        {
+            throw std::runtime_error("Algorithm '" + alg + "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K");
+        }
+        if (use == JWK::Use::encryption && ec_enc_algs.find(alg) == ec_enc_algs.end())
+        {
+            throw std::runtime_error("Algorithm '" + alg + "' is not valid for EC encryption keys. Use: ECDH-ES, ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW");
+        }
+    }
+    else if (key_type == JWK::KeyType::oct)
+    {
+        if (use == JWK::Use::signature && oct_sig_algs.find(alg) == oct_sig_algs.end())
+        {
+            throw std::runtime_error("Algorithm '" + alg + "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512");
+        }
+        if (use == JWK::Use::encryption && oct_enc_algs.find(alg) == oct_enc_algs.end())
+        {
+            throw std::runtime_error("Algorithm '" + alg + "' is not valid for symmetric encryption keys. Use: A128KW, A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
+        }
+    }
+}
+
+}  // anonymous namespace
 
 struct JWK::Impl
 {
@@ -73,7 +163,7 @@ JWK& JWK::operator=(const JWK& other)
 JWK::JWK(JWK&& other) noexcept = default;
 JWK& JWK::operator=(JWK&& other) noexcept = default;
 
-JWK JWK::generateRSA(int bits, const std::string& alg, Use use)
+JWK JWK::generateRSA(Use use, int bits, const std::string& alg)
 {
     JWK jwk;
     jwk.impl_->key_type_ = KeyType::rsa;
@@ -107,18 +197,21 @@ JWK JWK::generateRSA(int bits, const std::string& alg, Use use)
     // Automatically set key ID to SHA-512 thumbprint of the public key
     jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
     
-    // Set optional metadata if provided
-    if (!alg.empty())
-    {
-        jwk.impl_->alg_ = alg;
-        jwk.impl_->use_ = use;
-        jwk.impl_->has_use_ = true;
-    }
+    // Determine algorithm: use provided or default
+    std::string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::rsa, use) : alg;
+    
+    // Validate algorithm matches key type and use
+    validateAlgorithm(final_alg, KeyType::rsa, use);
+    
+    // Set metadata
+    jwk.impl_->alg_ = final_alg;
+    jwk.impl_->use_ = use;
+    jwk.impl_->has_use_ = true;
     
     return jwk;
 }
 
-JWK JWK::generateEC(const std::string& curve, const std::string& alg, Use use)
+JWK JWK::generateEC(Use use, const std::string& curve, const std::string& alg)
 {
     JWK jwk;
     jwk.impl_->key_type_ = KeyType::ec;
@@ -170,18 +263,21 @@ JWK JWK::generateEC(const std::string& curve, const std::string& alg, Use use)
     // Automatically set key ID to SHA-512 thumbprint of the public key
     jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
     
-    // Set optional metadata if provided
-    if (!alg.empty())
-    {
-        jwk.impl_->alg_ = alg;
-        jwk.impl_->use_ = use;
-        jwk.impl_->has_use_ = true;
-    }
+    // Determine algorithm: use provided or default based on curve
+    std::string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::ec, use, curve) : alg;
+    
+    // Validate algorithm matches key type and use
+    validateAlgorithm(final_alg, KeyType::ec, use);
+    
+    // Set metadata
+    jwk.impl_->alg_ = final_alg;
+    jwk.impl_->use_ = use;
+    jwk.impl_->has_use_ = true;
     
     return jwk;
 }
 
-JWK JWK::generateOct(int bits, const std::string& alg, Use use)
+JWK JWK::generateOct(Use use, int bits, const std::string& alg)
 {
     JWK jwk;
     jwk.impl_->key_type_ = KeyType::oct;
@@ -201,13 +297,16 @@ JWK JWK::generateOct(int bits, const std::string& alg, Use use)
     // Automatically set key ID to SHA-512 thumbprint
     jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
 
-    // Set optional metadata if provided
-    if (!alg.empty())
-    {
-        jwk.impl_->alg_ = alg;
-        jwk.impl_->use_ = use;
-        jwk.impl_->has_use_ = true;
-    }
+    // Determine algorithm: use provided or default
+    std::string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::oct, use) : alg;
+    
+    // Validate algorithm matches key type and use
+    validateAlgorithm(final_alg, KeyType::oct, use);
+    
+    // Set metadata
+    jwk.impl_->alg_ = final_alg;
+    jwk.impl_->use_ = use;
+    jwk.impl_->has_use_ = true;
 
     return jwk;
 }

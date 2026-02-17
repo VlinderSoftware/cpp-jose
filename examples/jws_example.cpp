@@ -50,13 +50,13 @@ int main()
         std::cout << "\n\n1. HMAC Signatures (Symmetric Keys)" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWK hmac_key_256 = JWK::generateOct(256);
+        JWK hmac_key_256 = JWK::generateOct(JWK::Use::signature);
         demonstrateAlgorithm("HS256", JWA::SignatureAlgorithm::hs256, hmac_key_256);
 
-        JWK hmac_key_384 = JWK::generateOct(384);
+        JWK hmac_key_384 = JWK::generateOct(JWK::Use::signature, 384, "HS384");
         demonstrateAlgorithm("HS384", JWA::SignatureAlgorithm::hs384, hmac_key_384);
 
-        JWK hmac_key_512 = JWK::generateOct(512);
+        JWK hmac_key_512 = JWK::generateOct(JWK::Use::signature, 512, "HS512");
         demonstrateAlgorithm("HS512", JWA::SignatureAlgorithm::hs512, hmac_key_512);
 
         // Example 2: RSA Signatures
@@ -64,8 +64,9 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating 2048-bit RSA key..." << std::endl;
-        JWK rsa_key = JWK::generateRSA(2048);
+        JWK rsa_key = JWK::generateRSA(JWK::Use::signature);
         std::cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
+        std::cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << std::endl;
 
         demonstrateAlgorithm("RS256", JWA::SignatureAlgorithm::rs256, rsa_key);
         demonstrateAlgorithm("PS256", JWA::SignatureAlgorithm::ps256, rsa_key);
@@ -75,8 +76,9 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating P-256 EC key..." << std::endl;
-        JWK ec_key = JWK::generateEC("P-256");
+        JWK ec_key = JWK::generateEC(JWK::Use::signature);
         std::cout << "EC key generated with auto-generated ID: " << ec_key.getKeyID() << std::endl;
+        std::cout << "Algorithm (auto-selected): " << ec_key.getAlgorithm() << std::endl;
 
         demonstrateAlgorithm("ES256", JWA::SignatureAlgorithm::es256, ec_key);
 
@@ -127,7 +129,7 @@ int main()
         std::cout << "\n\n6. Error Handling" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWK wrong_key = JWK::generateOct(256);
+        JWK wrong_key = JWK::generateOct(JWK::Use::signature);
 
         std::cout << "\nAttempting verification with wrong key..." << std::endl;
         bool wrong_verification = JWS::verify(compact_jws, wrong_key);

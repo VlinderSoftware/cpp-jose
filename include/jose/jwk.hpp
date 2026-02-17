@@ -49,30 +49,30 @@ public:
 
     /**
      * @brief Generate a new RSA key
+     * @param use Key use (signature or encryption) - REQUIRED
      * @param bits Key size in bits (2048, 3072, 4096)
-     * @param alg Optional algorithm (e.g., "RS256", "PS256"). Leave empty to omit.
-     * @param use Optional key use (signature or encryption). Use signature by default if alg is set.
+     * @param alg Optional algorithm. If empty, defaults to RS256 (sig) or RSA-OAEP-256 (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateRSA(int bits = 2048, const std::string& alg = "", Use use = Use::signature);
+    static JWK generateRSA(Use use, int bits = 2048, const std::string& alg = "");
 
     /**
      * @brief Generate a new EC key
+     * @param use Key use (signature or encryption) - REQUIRED
      * @param curve Curve name (P-256, P-384, P-521)
-     * @param alg Optional algorithm (e.g., "ES256", "ES384"). Leave empty to omit.
-     * @param use Optional key use (signature or encryption). Use signature by default if alg is set.
+     * @param alg Optional algorithm. If empty, defaults based on curve (ES256/ES384/ES512)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateEC(const std::string& curve = "P-256", const std::string& alg = "", Use use = Use::signature);
+    static JWK generateEC(Use use, const std::string& curve = "P-256", const std::string& alg = "");
 
     /**
      * @brief Generate a new symmetric key
+     * @param use Key use (signature or encryption) - REQUIRED
      * @param bits Key size in bits
-     * @param alg Optional algorithm (e.g., "HS256", "HS512"). Leave empty to omit.
-     * @param use Optional key use (signature or encryption). Use signature by default if alg is set.
+     * @param alg Optional algorithm. If empty, defaults to HS256 (sig) or A256KW (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateOct(int bits = 256, const std::string& alg = "", Use use = Use::signature);
+    static JWK generateOct(Use use, int bits = 256, const std::string& alg = "");
 
     /**
      * @brief Serialize to JSON

@@ -117,7 +117,7 @@ TEST_CASE("Section4_1_RSA_v15_Signature", "[jwa][section4-1-rsa-v15-signature]")
     jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
 
     // Generate a key for testing (we don't have the exact RFC key)
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -142,7 +142,7 @@ TEST_CASE("Section4_2_RSA_PSS_Signature", "[jwa][section4-2-rsa-pss-signature]")
     jws.setPayload(payload);
     jws.setAlgorithm(JWA::SignatureAlgorithm::ps384);
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -162,7 +162,7 @@ TEST_CASE("Section4_3_ECDSA_Signature", "[jwa][section4-3-ecdsa-signature]")
     jws.setPayload(payload);
     jws.setAlgorithm(JWA::SignatureAlgorithm::es512);
 
-    JWK key = JWK::generateEC("P-521");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-521");
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -182,7 +182,7 @@ TEST_CASE("Section4_4_HMAC_SHA2_Signature", "[jwa][section4-4-hmac-sha2-signatur
     jws.setPayload(payload);
     jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
 
     std::string token = jws.sign(key);
     REQUIRE_FALSE(token.empty());
@@ -202,7 +202,7 @@ TEST_CASE("Section4_5_DetachedSignature", "[jwa][section4-5-detachedsignature]")
     jws.setPayload(payload);
     jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
 
     std::string token = jws.sign(key);
 
@@ -218,7 +218,7 @@ TEST_CASE("Section5_1_RSA_v15_KeyEncryption", "[jwa][section5-1-rsa-v15-keyencry
     // RFC 7520 Section 5.1 - RSA v1.5 Key Encryption
     std::string plaintext =
         "You can trust us to stick with you through thick and thin\xe2\x80\x93to the bitter end. "
-        "And you can trust us to keep any secret of yours\xe2\x80\x93closer than you keep it "
+        "And you can trust us to keep any secret of yours\xe2\x80\x93" "closer than you keep it "
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
@@ -227,7 +227,7 @@ TEST_CASE("Section5_1_RSA_v15_KeyEncryption", "[jwa][section5-1-rsa-v15-keyencry
     jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa1_5);
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -241,7 +241,7 @@ TEST_CASE("Section5_2_RSA_OAEP_KeyEncryption", "[jwa][section5-2-rsa-oaep-keyenc
     // RFC 7520 Section 5.2 - RSA-OAEP Key Encryption
     std::string plaintext =
         "You can trust us to stick with you through thick and thin\xe2\x80\x93to the bitter end. "
-        "And you can trust us to keep any secret of yours\xe2\x80\x93closer than you keep it "
+        "And you can trust us to keep any secret of yours\xe2\x80\x93" "closer than you keep it "
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
@@ -250,7 +250,7 @@ TEST_CASE("Section5_2_RSA_OAEP_KeyEncryption", "[jwa][section5-2-rsa-oaep-keyenc
     jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -264,7 +264,7 @@ TEST_CASE("Section5_3_AES_KeyWrap", "[jwa][section5-3-aes-keywrap]")
     // RFC 7520 Section 5.3 - AES Key Wrap
     std::string plaintext =
         "You can trust us to stick with you through thick and thin\xe2\x80\x93to the bitter end. "
-        "And you can trust us to keep any secret of yours\xe2\x80\x93closer than you keep it "
+        "And you can trust us to keep any secret of yours\xe2\x80\x93" "closer than you keep it "
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
@@ -273,7 +273,7 @@ TEST_CASE("Section5_3_AES_KeyWrap", "[jwa][section5-3-aes-keywrap]")
     jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128kw);
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
-    JWK key = JWK::generateOct(128);
+    JWK key = JWK::generateOct(JWK::Use::signature, 128);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -287,7 +287,7 @@ TEST_CASE("Section5_4_DirectEncryption", "[jwa][section5-4-directencryption]")
     // RFC 7520 Section 5.4 - Direct Encryption
     std::string plaintext =
         "You can trust us to stick with you through thick and thin\xe2\x80\x93to the bitter end. "
-        "And you can trust us to keep any secret of yours\xe2\x80\x93closer than you keep it "
+        "And you can trust us to keep any secret of yours\xe2\x80\x93" "closer than you keep it "
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
@@ -296,7 +296,7 @@ TEST_CASE("Section5_4_DirectEncryption", "[jwa][section5-4-directencryption]")
     jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::dir);
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
-    JWK key = JWK::generateOct(128);
+    JWK key = JWK::generateOct(JWK::Use::signature, 128);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -310,7 +310,7 @@ TEST_CASE("Section5_5_DirectKeyAgreement", "[jwa][section5-5-directkeyagreement]
     // RFC 7520 Section 5.5 - Direct Key Agreement (ECDH-ES)
     std::string plaintext =
         "You can trust us to stick with you through thick and thin\xe2\x80\x93to the bitter end. "
-        "And you can trust us to keep any secret of yours\xe2\x80\x93closer than you keep it "
+        "And you can trust us to keep any secret of yours\xe2\x80\x93" "closer than you keep it "
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
@@ -319,7 +319,7 @@ TEST_CASE("Section5_5_DirectKeyAgreement", "[jwa][section5-5-directkeyagreement]
     jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
-    JWK key = JWK::generateEC("P-256");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -333,7 +333,7 @@ TEST_CASE("Section5_6_AES_GCM_KeyWrap", "[jwa][section5-6-aes-gcm-keywrap]")
     // RFC 7520 Section 5.6 - AES-GCM Key Wrap
     std::string plaintext =
         "You can trust us to stick with you through thick and thin\xe2\x80\x93to the bitter end. "
-        "And you can trust us to keep any secret of yours\xe2\x80\x93closer than you keep it "
+        "And you can trust us to keep any secret of yours\xe2\x80\x93" "closer than you keep it "
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
@@ -342,7 +342,7 @@ TEST_CASE("Section5_6_AES_GCM_KeyWrap", "[jwa][section5-6-aes-gcm-keywrap]")
     jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128gcmkw);
     jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
 
-    JWK key = JWK::generateOct(128);
+    JWK key = JWK::generateOct(JWK::Use::signature, 128);
 
     std::string token = jwe.encrypt(key);
     REQUIRE_FALSE(token.empty());
@@ -369,7 +369,7 @@ TEST_CASE("JWTWithAllClaims", "[jwa][jwtwithallclaims]")
     jwt.setClaim("role", "admin");
     jwt.setClaim("permissions", "read,write,delete");
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string token = jwt.sign(key, "RS256");
 
     JWT verified = JWT::verify(token, key);
@@ -387,10 +387,10 @@ TEST_CASE("RoundTripWithDifferentAlgorithms", "[jwa][roundtripwithdifferentalgor
 
     // Test with multiple algorithms
     std::vector<std::tuple<JWA::SignatureAlgorithm, JWK>> testCases = {
-        {JWA::SignatureAlgorithm::hs256, JWK::generateOct(256)},
-        {JWA::SignatureAlgorithm::rs256, JWK::generateRSA(2048)},
-        {JWA::SignatureAlgorithm::es256, JWK::generateEC("P-256")},
-        {JWA::SignatureAlgorithm::ps256, JWK::generateRSA(2048)}};
+        {JWA::SignatureAlgorithm::hs256, JWK::generateOct(JWK::Use::signature, 256)},
+        {JWA::SignatureAlgorithm::rs256, JWK::generateRSA(JWK::Use::signature, 2048)},
+        {JWA::SignatureAlgorithm::es256, JWK::generateEC(JWK::Use::signature, "P-256")},
+        {JWA::SignatureAlgorithm::ps256, JWK::generateRSA(JWK::Use::signature, 2048)}};
 
     for (const auto& [alg, key] : testCases)
     {

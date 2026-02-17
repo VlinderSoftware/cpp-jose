@@ -1370,7 +1370,8 @@ std::vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, con
             std::string curve_name = getECCurveName(recipient_key);
             
             // Generate ephemeral EC key pair on the same curve
-            JWK epk = JWK::generateEC(curve_name);
+            // Use signature as the use parameter (ephemeral keys for ECDH don't use the 'use' field)
+            JWK epk = JWK::generateEC(JWK::Use::signature, curve_name);
             EVP_PKEY* ephemeral_private_key = static_cast<EVP_PKEY*>(epk.getKey());
             
             // Perform ECDH to get shared secret

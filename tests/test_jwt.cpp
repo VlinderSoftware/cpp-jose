@@ -16,7 +16,7 @@ TEST_CASE("JWT_CreateSimpleJWT", "[jwt][createsimplejwt]")
     jwt.setIssuer("test-issuer");
     jwt.setSubject("user123");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key, "HS256");
 
     REQUIRE_FALSE(token.empty());
@@ -33,7 +33,7 @@ TEST_CASE("JWT_SetAndGetIssuer", "[jwt][setandgetissuer]")
     JWT jwt;
     jwt.setIssuer("https://example.com");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -45,7 +45,7 @@ TEST_CASE("JWT_SetAndGetSubject", "[jwt][setandgetsubject]")
     JWT jwt;
     jwt.setSubject("user@example.com");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -57,7 +57,7 @@ TEST_CASE("JWT_SetAndGetAudienceSingle", "[jwt][setandgetaudiencesingle]")
     JWT jwt;
     jwt.setAudience("https://api.example.com");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -72,7 +72,7 @@ TEST_CASE("JWT_SetAndGetAudienceMultiple", "[jwt][setandgetaudiencemultiple]")
     std::vector<std::string> audiences = {"audience1", "audience2", "audience3"};
     jwt.setAudience(audiences);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -90,7 +90,7 @@ TEST_CASE("JWT_SetAndGetExpiration", "[jwt][setandgetexpiration]")
     auto expiration = now + std::chrono::hours(1);
     jwt.setExpiration(expiration);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -107,7 +107,7 @@ TEST_CASE("JWT_SetAndGetNotBefore", "[jwt][setandgetnotbefore]")
     auto now = std::chrono::system_clock::now();
     jwt.setNotBefore(now);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -123,7 +123,7 @@ TEST_CASE("JWT_SetAndGetIssuedAt", "[jwt][setandgetissuedat]")
     auto now = std::chrono::system_clock::now();
     jwt.setIssuedAt(now);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -138,7 +138,7 @@ TEST_CASE("JWT_SetAndGetJwtId", "[jwt][setandgetjwtid]")
     JWT jwt;
     jwt.setJWTID("unique-jwt-id-12345");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -150,7 +150,7 @@ TEST_CASE("JWT_SetAndGetCustomClaim", "[jwt][setandgetcustomclaim]")
     JWT jwt;
     jwt.setClaim("custom_claim", "custom_value");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -165,7 +165,7 @@ TEST_CASE("JWT_MultipleCustomClaims", "[jwt][multiplecustomclaims]")
     jwt.setClaim("claim2", "value2");
     jwt.setClaim("claim3", "value3");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -182,7 +182,7 @@ TEST_CASE("JWT_HasClaimReturnsFalseForNonexistent", "[jwt][hasclaimreturnsfalsef
     JWT jwt;
     jwt.setClaim("existing_claim", "value");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -196,7 +196,7 @@ TEST_CASE("JWT_SignWithHS256", "[jwt][signwithhs256]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key, "HS256");
 
     JWT verified = JWT::verify(token, key);
@@ -208,7 +208,7 @@ TEST_CASE("JWT_SignWithHS512", "[jwt][signwithhs512]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateOct(512);
+    JWK key = JWK::generateOct(JWK::Use::signature, 512);
     std::string token = jwt.sign(key, "HS512");
 
     JWT verified = JWT::verify(token, key);
@@ -220,7 +220,7 @@ TEST_CASE("JWT_SignWithRS256", "[jwt][signwithrs256]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string token = jwt.sign(key, "RS256");
 
     JWT verified = JWT::verify(token, key);
@@ -232,7 +232,7 @@ TEST_CASE("JWT_SignWithRS512", "[jwt][signwithrs512]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string token = jwt.sign(key, "RS512");
 
     JWT verified = JWT::verify(token, key);
@@ -244,7 +244,7 @@ TEST_CASE("JWT_SignWithES256", "[jwt][signwithes256]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateEC("P-256");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
     std::string token = jwt.sign(key, "ES256");
 
     JWT verified = JWT::verify(token, key);
@@ -256,7 +256,7 @@ TEST_CASE("JWT_SignWithES384", "[jwt][signwithes384]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateEC("P-384");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-384");
     std::string token = jwt.sign(key, "ES384");
 
     JWT verified = JWT::verify(token, key);
@@ -268,7 +268,7 @@ TEST_CASE("JWT_SignWithPS256", "[jwt][signwithps256]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string token = jwt.sign(key, "PS256");
 
     JWT verified = JWT::verify(token, key);
@@ -280,7 +280,7 @@ TEST_CASE("JWT_DefaultAlgorithmIsRS256", "[jwt][defaultalgorithmisrs256]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string token = jwt.sign(key);  // No algorithm specified
 
     JWT verified = JWT::verify(token, key);
@@ -294,7 +294,7 @@ TEST_CASE("JWT_VerifyValidToken", "[jwt][verifyvalidtoken]")
     jwt.setIssuer("issuer");
     jwt.setSubject("subject");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -307,8 +307,8 @@ TEST_CASE("JWT_VerifyWithWrongKeyFails", "[jwt][verifywithwrongkeyfails]")
     JWT jwt;
     jwt.setSubject("test");
 
-    JWK key1 = JWK::generateOct(256);
-    JWK key2 = JWK::generateOct(256);
+    JWK key1 = JWK::generateOct(JWK::Use::signature, 256);
+    JWK key2 = JWK::generateOct(JWK::Use::signature, 256);
 
     std::string token = jwt.sign(key1);
 
@@ -320,7 +320,7 @@ TEST_CASE("JWT_VerifyTamperedTokenFails", "[jwt][verifytamperedtokenfails]")
     JWT jwt;
     jwt.setSubject("original");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     // Tamper with payload
@@ -340,7 +340,7 @@ TEST_CASE("JWT_ParseWithoutVerification", "[jwt][parsewithoutverification]")
     jwt.setSubject("subject");
     jwt.setClaim("custom", "value");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     // Parse without verification
@@ -357,7 +357,7 @@ TEST_CASE("JWT_ValidateWithCorrectIssuer", "[jwt][validatewithcorrectissuer]")
     jwt.setIssuer("https://auth.example.com");
     jwt.setSubject("user123");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -370,7 +370,7 @@ TEST_CASE("JWT_ValidateWithWrongIssuerFails", "[jwt][validatewithwrongissuerfail
     JWT jwt;
     jwt.setIssuer("https://auth.example.com");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -383,7 +383,7 @@ TEST_CASE("JWT_ValidateWithCorrectAudience", "[jwt][validatewithcorrectaudience]
     JWT jwt;
     jwt.setAudience("https://api.example.com");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -396,7 +396,7 @@ TEST_CASE("JWT_ValidateWithWrongAudienceFails", "[jwt][validatewithwrongaudience
     JWT jwt;
     jwt.setAudience("https://api.example.com");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -410,7 +410,7 @@ TEST_CASE("JWT_ValidateExpiredTokenFails", "[jwt][validateexpiredtokenfails]")
     auto pastTime = std::chrono::system_clock::now() - std::chrono::hours(1);
     jwt.setExpiration(pastTime);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -424,7 +424,7 @@ TEST_CASE("JWT_ValidateNotYetValidTokenFails", "[jwt][validatenotyetvalidtokenfa
     auto futureTime = std::chrono::system_clock::now() + std::chrono::hours(1);
     jwt.setNotBefore(futureTime);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -439,7 +439,7 @@ TEST_CASE("JWT_ValidateWithLeeway", "[jwt][validatewithleeway]")
     auto expiration = std::chrono::system_clock::now() - std::chrono::seconds(30);
     jwt.setExpiration(expiration);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -463,7 +463,7 @@ TEST_CASE("JWT_ValidateAllClaims", "[jwt][validateallclaims]")
     jwt.setNotBefore(now - std::chrono::seconds(10));
     jwt.setIssuedAt(now);
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -519,7 +519,7 @@ TEST_CASE("JWT_EmptyClaimsJWT", "[jwt][emptyclaimsjwt]")
 {
     JWT jwt;
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     REQUIRE_FALSE(token.empty());
@@ -541,7 +541,7 @@ TEST_CASE("JWT_AllStandardClaims", "[jwt][allstandardclaims]")
     jwt.setIssuedAt(now);
     jwt.setJWTID("jwt-id-123");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -558,7 +558,7 @@ TEST_CASE("JWT_ComplexCustomClaims", "[jwt][complexcustomclaims]")
     jwt.setClaim("permissions", "read,write,delete");
     jwt.setClaim("department", "engineering");
 
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string token = jwt.sign(key);
 
     JWT verified = JWT::verify(token, key);
@@ -573,7 +573,7 @@ TEST_CASE("JWT_RSAPublicKeyVerification", "[jwt][rsapublickeyverification]")
     jwt.setIssuer("issuer");
     jwt.setSubject("subject");
 
-    JWK privateKey = JWK::generateRSA(2048);
+    JWK privateKey = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string token = jwt.sign(privateKey, "RS256");
 
     // Extract public key
@@ -590,7 +590,7 @@ TEST_CASE("JWT_ECPublicKeyVerification", "[jwt][ecpublickeyverification]")
     JWT jwt;
     jwt.setSubject("ec-subject");
 
-    JWK privateKey = JWK::generateEC("P-256");
+    JWK privateKey = JWK::generateEC(JWK::Use::signature, "P-256");
     std::string token = jwt.sign(privateKey, "ES256");
 
     std::string publicKeyJson = privateKey.toJSON(false);

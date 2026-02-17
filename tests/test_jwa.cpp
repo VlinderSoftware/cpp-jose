@@ -70,7 +70,7 @@ TEST_CASE("SignatureAlgorithmFromString", "[jwa][signaturealgorithmfromstring]")
 // HMAC signature tests (HS256, HS384, HS512)
 TEST_CASE("HS256SignAndVerify", "[jwa][hs256signandverify]")
 {
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string data = "test message";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -85,7 +85,7 @@ TEST_CASE("HS256SignAndVerify", "[jwa][hs256signandverify]")
 
 TEST_CASE("HS384SignAndVerify", "[jwa][hs384signandverify]")
 {
-    JWK key = JWK::generateOct(384);
+    JWK key = JWK::generateOct(JWK::Use::signature, 384);
     std::string data = "test message for HS384";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -97,7 +97,7 @@ TEST_CASE("HS384SignAndVerify", "[jwa][hs384signandverify]")
 
 TEST_CASE("HS512SignAndVerify", "[jwa][hs512signandverify]")
 {
-    JWK key = JWK::generateOct(512);
+    JWK key = JWK::generateOct(JWK::Use::signature, 512);
     std::string data = "test message for HS512";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -109,8 +109,8 @@ TEST_CASE("HS512SignAndVerify", "[jwa][hs512signandverify]")
 
 TEST_CASE("HMACWrongKeyFails", "[jwa][hmacwrongkeyfails]")
 {
-    JWK key1 = JWK::generateOct(256);
-    JWK key2 = JWK::generateOct(256);
+    JWK key1 = JWK::generateOct(JWK::Use::signature, 256);
+    JWK key2 = JWK::generateOct(JWK::Use::signature, 256);
     std::string data = "test message";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -124,7 +124,7 @@ TEST_CASE("HMACWrongKeyFails", "[jwa][hmacwrongkeyfails]")
 // RSA signature tests (RS256, RS384, RS512)
 TEST_CASE("RS256SignAndVerify", "[jwa][rs256signandverify]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message for RSA";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -136,7 +136,7 @@ TEST_CASE("RS256SignAndVerify", "[jwa][rs256signandverify]")
 
 TEST_CASE("RS384SignAndVerify", "[jwa][rs384signandverify]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message for RS384";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -148,7 +148,7 @@ TEST_CASE("RS384SignAndVerify", "[jwa][rs384signandverify]")
 
 TEST_CASE("RS512SignAndVerify", "[jwa][rs512signandverify]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message for RS512";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -160,7 +160,7 @@ TEST_CASE("RS512SignAndVerify", "[jwa][rs512signandverify]")
 
 TEST_CASE("RSAPublicKeyVerification", "[jwa][rsapublickeyverification]")
 {
-    JWK privateKey = JWK::generateRSA(2048);
+    JWK privateKey = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -180,7 +180,7 @@ TEST_CASE("RSAPublicKeyVerification", "[jwa][rsapublickeyverification]")
 // ECDSA signature tests (ES256, ES384, ES512)
 TEST_CASE("ES256SignAndVerify", "[jwa][es256signandverify]")
 {
-    JWK key = JWK::generateEC("P-256");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
     std::string data = "test message for ECDSA";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -192,7 +192,7 @@ TEST_CASE("ES256SignAndVerify", "[jwa][es256signandverify]")
 
 TEST_CASE("ES384SignAndVerify", "[jwa][es384signandverify]")
 {
-    JWK key = JWK::generateEC("P-384");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-384");
     std::string data = "test message for ES384";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -204,7 +204,7 @@ TEST_CASE("ES384SignAndVerify", "[jwa][es384signandverify]")
 
 TEST_CASE("ES512SignAndVerify", "[jwa][es512signandverify]")
 {
-    JWK key = JWK::generateEC("P-521");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-521");
     std::string data = "test message for ES512";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -217,7 +217,7 @@ TEST_CASE("ES512SignAndVerify", "[jwa][es512signandverify]")
 // RSA-PSS signature tests (PS256, PS384, PS512)
 TEST_CASE("PS256SignAndVerify", "[jwa][ps256signandverify]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message for PSS";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -229,7 +229,7 @@ TEST_CASE("PS256SignAndVerify", "[jwa][ps256signandverify]")
 
 TEST_CASE("PS384SignAndVerify", "[jwa][ps384signandverify]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message for PS384";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -241,7 +241,7 @@ TEST_CASE("PS384SignAndVerify", "[jwa][ps384signandverify]")
 
 TEST_CASE("PS512SignAndVerify", "[jwa][ps512signandverify]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "test message for PS512";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -254,7 +254,7 @@ TEST_CASE("PS512SignAndVerify", "[jwa][ps512signandverify]")
 // Signature tampering detection
 TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "original message";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -273,7 +273,7 @@ TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
 
 TEST_CASE("TamperedDataFails", "[jwa][tampereddatafails]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string data = "original message";
     std::vector<unsigned char> dataVec(data.begin(), data.end());
 
@@ -291,7 +291,7 @@ TEST_CASE("TamperedDataFails", "[jwa][tampereddatafails]")
 // Key encryption tests
 TEST_CASE("RSA_OAEP_EncryptDecrypt", "[jwa][rsa-oaep-encryptdecrypt]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
     std::vector<unsigned char> cek(32, 0x42);  // 256-bit CEK
 
     std::vector<unsigned char> encrypted =
@@ -308,7 +308,7 @@ TEST_CASE("RSA_OAEP_EncryptDecrypt", "[jwa][rsa-oaep-encryptdecrypt]")
 
 TEST_CASE("RSA_OAEP_256_EncryptDecrypt", "[jwa][rsa-oaep-256-encryptdecrypt]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
     std::vector<unsigned char> cek(32, 0x33);
 
     std::vector<unsigned char> encrypted =
@@ -324,7 +324,7 @@ TEST_CASE("RSA_OAEP_256_EncryptDecrypt", "[jwa][rsa-oaep-256-encryptdecrypt]")
 
 TEST_CASE("A128KW_EncryptDecrypt", "[jwa][a128kw-encryptdecrypt]")
 {
-    JWK kek = JWK::generateOct(128);
+    JWK kek = JWK::generateOct(JWK::Use::encryption, 128);
     std::vector<unsigned char> cek(16, 0x55);
 
     std::vector<unsigned char> encrypted =
@@ -340,7 +340,7 @@ TEST_CASE("A128KW_EncryptDecrypt", "[jwa][a128kw-encryptdecrypt]")
 
 TEST_CASE("A256KW_EncryptDecrypt", "[jwa][a256kw-encryptdecrypt]")
 {
-    JWK kek = JWK::generateOct(256);
+    JWK kek = JWK::generateOct(JWK::Use::encryption, 256);
     std::vector<unsigned char> cek(32, 0x66);
 
     std::vector<unsigned char> encrypted =
@@ -416,7 +416,7 @@ TEST_CASE("A128CBC_HS256_EncryptDecrypt", "[jwa][a128cbc-hs256-encryptdecrypt]")
 // Edge cases
 TEST_CASE("EmptyDataSignature", "[jwa][emptydatasignature]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::vector<unsigned char> emptyData;
 
     std::vector<unsigned char> signature =
@@ -428,7 +428,7 @@ TEST_CASE("EmptyDataSignature", "[jwa][emptydatasignature]")
 
 TEST_CASE("LargeDataSignature", "[jwa][largedatasignature]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::vector<unsigned char> largeData(10000, 0x42);
 
     std::vector<unsigned char> signature =

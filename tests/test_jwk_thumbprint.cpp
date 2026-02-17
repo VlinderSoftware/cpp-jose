@@ -11,7 +11,7 @@ using namespace Vlinder::JOSE;
 // Basic thumbprint computation tests
 TEST_CASE("ComputeRSAThumbprint", "[jwa][computersathumbprint]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     REQUIRE_FALSE(thumbprint.empty());
@@ -21,7 +21,7 @@ TEST_CASE("ComputeRSAThumbprint", "[jwa][computersathumbprint]")
 
 TEST_CASE("ComputeECThumbprint", "[jwa][computeecthumbprint]")
 {
-    JWK key = JWK::generateEC("P-256");
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
     std::string thumbprint = JWKThumbprint::compute(key);
 
     REQUIRE_FALSE(thumbprint.empty());
@@ -30,7 +30,7 @@ TEST_CASE("ComputeECThumbprint", "[jwa][computeecthumbprint]")
 
 TEST_CASE("ComputeOctThumbprint", "[jwa][computeoctthumbprint]")
 {
-    JWK key = JWK::generateOct(256);
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     REQUIRE_FALSE(thumbprint.empty());
@@ -40,7 +40,7 @@ TEST_CASE("ComputeOctThumbprint", "[jwa][computeoctthumbprint]")
 // Default algorithm is SHA-256
 TEST_CASE("DefaultAlgorithmIsSHA256", "[jwa][defaultalgorithmissha256]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string thumbprint1 = JWKThumbprint::compute(key);
     std::string thumbprint2 = JWKThumbprint::compute(key, "SHA-256");
@@ -51,7 +51,7 @@ TEST_CASE("DefaultAlgorithmIsSHA256", "[jwa][defaultalgorithmissha256]")
 // Different hash algorithms
 TEST_CASE("ComputeWithSHA384", "[jwa][computewithsha384]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string thumbprint = JWKThumbprint::compute(key, "SHA-384");
 
     REQUIRE_FALSE(thumbprint.empty());
@@ -61,7 +61,7 @@ TEST_CASE("ComputeWithSHA384", "[jwa][computewithsha384]")
 
 TEST_CASE("ComputeWithSHA512", "[jwa][computewithsha512]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string thumbprint = JWKThumbprint::compute(key, "SHA-512");
 
     REQUIRE_FALSE(thumbprint.empty());
@@ -72,7 +72,7 @@ TEST_CASE("ComputeWithSHA512", "[jwa][computewithsha512]")
 // Deterministic thumbprints
 TEST_CASE("ThumbprintIsDeterministic", "[jwa][thumbprintisdeterministic]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string thumbprint1 = JWKThumbprint::compute(key);
     std::string thumbprint2 = JWKThumbprint::compute(key);
@@ -82,7 +82,7 @@ TEST_CASE("ThumbprintIsDeterministic", "[jwa][thumbprintisdeterministic]")
 
 TEST_CASE("SameKeyDifferentPropertiesSameThumbprint", "[jwa][samekeydifferentpropertiessamethumbprint]")
 {
-    JWK key1 = JWK::generateRSA(2048);
+    JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string keyJson = key1.toJSON(true);
 
     JWK key2 = JWK::fromJSON(keyJson);
@@ -100,8 +100,8 @@ TEST_CASE("SameKeyDifferentPropertiesSameThumbprint", "[jwa][samekeydifferentpro
 // Different keys produce different thumbprints
 TEST_CASE("DifferentKeysProduceDifferentThumbprints", "[jwa][differentkeysproducedifferentthumbprints]")
 {
-    JWK key1 = JWK::generateRSA(2048);
-    JWK key2 = JWK::generateRSA(2048);
+    JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWK key2 = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string thumbprint1 = JWKThumbprint::compute(key1);
     std::string thumbprint2 = JWKThumbprint::compute(key2);
@@ -111,9 +111,9 @@ TEST_CASE("DifferentKeysProduceDifferentThumbprints", "[jwa][differentkeysproduc
 
 TEST_CASE("DifferentKeyTypesProduceDifferentThumbprints", "[jwa][differentkeytypesproducedifferentthumbprints]")
 {
-    JWK rsaKey = JWK::generateRSA(2048);
-    JWK ecKey = JWK::generateEC("P-256");
-    JWK octKey = JWK::generateOct(256);
+    JWK rsaKey = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWK ecKey = JWK::generateEC(JWK::Use::signature, "P-256");
+    JWK octKey = JWK::generateOct(JWK::Use::signature, 256);
 
     std::string rsaThumbprint = JWKThumbprint::compute(rsaKey);
     std::string ecThumbprint = JWKThumbprint::compute(ecKey);
@@ -127,9 +127,9 @@ TEST_CASE("DifferentKeyTypesProduceDifferentThumbprints", "[jwa][differentkeytyp
 // Test with different EC curves
 TEST_CASE("DifferentECCurvesProduceDifferentThumbprints", "[jwa][differenteccurvesproducedifferentthumbprints]")
 {
-    JWK keyP256 = JWK::generateEC("P-256");
-    JWK keyP384 = JWK::generateEC("P-384");
-    JWK keyP521 = JWK::generateEC("P-521");
+    JWK keyP256 = JWK::generateEC(JWK::Use::signature, "P-256");
+    JWK keyP384 = JWK::generateEC(JWK::Use::signature, "P-384");
+    JWK keyP521 = JWK::generateEC(JWK::Use::signature, "P-521");
 
     std::string thumbprintP256 = JWKThumbprint::compute(keyP256);
     std::string thumbprintP384 = JWKThumbprint::compute(keyP384);
@@ -143,7 +143,7 @@ TEST_CASE("DifferentECCurvesProduceDifferentThumbprints", "[jwa][differenteccurv
 // Raw thumbprint tests
 TEST_CASE("ComputeRawThumbprint", "[jwa][computerawthumbprint]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::vector<unsigned char> rawThumbprint = JWKThumbprint::computeRaw(key);
 
@@ -154,7 +154,7 @@ TEST_CASE("ComputeRawThumbprint", "[jwa][computerawthumbprint]")
 
 TEST_CASE("ComputeRawThumbprintSHA384", "[jwa][computerawthumbprintsha384]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::vector<unsigned char> rawThumbprint = JWKThumbprint::computeRaw(key, "SHA-384");
 
@@ -165,7 +165,7 @@ TEST_CASE("ComputeRawThumbprintSHA384", "[jwa][computerawthumbprintsha384]")
 
 TEST_CASE("ComputeRawThumbprintSHA512", "[jwa][computerawthumbprintsha512]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::vector<unsigned char> rawThumbprint = JWKThumbprint::computeRaw(key, "SHA-512");
 
@@ -176,7 +176,7 @@ TEST_CASE("ComputeRawThumbprintSHA512", "[jwa][computerawthumbprintsha512]")
 
 TEST_CASE("RawThumbprintMatchesEncodedThumbprint", "[jwa][rawthumbprintmatchesencodedthumbprint]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string encoded = JWKThumbprint::compute(key);
     std::vector<unsigned char> raw = JWKThumbprint::computeRaw(key);
@@ -190,7 +190,7 @@ TEST_CASE("RawThumbprintMatchesEncodedThumbprint", "[jwa][rawthumbprintmatchesen
 // Round-trip tests
 TEST_CASE("ThumbprintSurvivesSerializationRoundTrip", "[jwa][thumbprintsurvivesserializationroundtrip]")
 {
-    JWK original = JWK::generateRSA(2048);
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string originalThumbprint = JWKThumbprint::compute(original);
 
     // Serialize and deserialize
@@ -204,7 +204,7 @@ TEST_CASE("ThumbprintSurvivesSerializationRoundTrip", "[jwa][thumbprintsurvivess
 
 TEST_CASE("PublicKeyOnlyThumbprintMatchesFullKey", "[jwa][publickeyonlythumbprintmatchesfullkey]")
 {
-    JWK privateKey = JWK::generateRSA(2048);
+    JWK privateKey = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string privateThumbprint = JWKThumbprint::compute(privateKey);
 
     // Export public key only
@@ -220,7 +220,7 @@ TEST_CASE("PublicKeyOnlyThumbprintMatchesFullKey", "[jwa][publickeyonlythumbprin
 // Test that thumbprint doesn't contain invalid base64url characters
 TEST_CASE("ThumbprintIsValidBase64Url", "[jwa][thumbprintisvalidbase64url]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     // Should not contain '+', '/', or '='
@@ -240,7 +240,7 @@ TEST_CASE("ThumbprintIsValidBase64Url", "[jwa][thumbprintisvalidbase64url]")
 // Edge cases
 TEST_CASE("SmallKeyThumbprint", "[jwa][smallkeythumbprint]")
 {
-    JWK key = JWK::generateOct(128);
+    JWK key = JWK::generateOct(JWK::Use::signature, 128);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     REQUIRE_FALSE(thumbprint.empty());
@@ -249,7 +249,7 @@ TEST_CASE("SmallKeyThumbprint", "[jwa][smallkeythumbprint]")
 
 TEST_CASE("LargeKeyThumbprint", "[jwa][largekeythumbprint]")
 {
-    JWK key = JWK::generateRSA(4096);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 4096);
     std::string thumbprint = JWKThumbprint::compute(key);
 
     // Thumbprint size should be the same regardless of key size
@@ -261,7 +261,7 @@ TEST_CASE("RFC7638Example", "[jwa][rfc7638example]")
 {
     // RFC 7638 Section 3.1 provides an example
     // We can't test the exact example without the exact key, but we can test the format
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string thumbprint = JWKThumbprint::compute(key);
 
@@ -276,10 +276,10 @@ TEST_CASE("RFC7638Example", "[jwa][rfc7638example]")
 // Test all key types
 TEST_CASE("AllKeyTypesProduceValidThumbprints", "[jwa][allkeytypesproducevalidthumbprints]")
 {
-    std::vector<JWK> keys = {JWK::generateRSA(2048),   JWK::generateEC("P-256"),
-                             JWK::generateEC("P-384"), JWK::generateEC("P-521"),
-                             JWK::generateOct(128),    JWK::generateOct(256),
-                             JWK::generateOct(512)};
+    std::vector<JWK> keys = {JWK::generateRSA(JWK::Use::signature, 2048),   JWK::generateEC(JWK::Use::signature, "P-256"),
+                             JWK::generateEC(JWK::Use::signature, "P-384"), JWK::generateEC(JWK::Use::signature, "P-521"),
+                             JWK::generateOct(JWK::Use::signature, 128),    JWK::generateOct(JWK::Use::signature, 256),
+                             JWK::generateOct(JWK::Use::signature, 512)};
 
     for (const auto& key : keys)
     {
@@ -297,7 +297,7 @@ TEST_CASE("AllKeyTypesProduceValidThumbprints", "[jwa][allkeytypesproducevalidth
 // Test with different hash algorithms for all key types
 TEST_CASE("AllHashAlgorithmsWork", "[jwa][allhashalgorithmswork]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::vector<std::pair<std::string, size_t>> algorithms = {
         {"SHA-256", 43}, {"SHA-384", 64}, {"SHA-512", 86}};
@@ -313,7 +313,7 @@ TEST_CASE("AllHashAlgorithmsWork", "[jwa][allhashalgorithmswork]")
 // Use thumbprint as key ID
 TEST_CASE("UseThumbprintAsKeyId", "[jwa][usethumbprintaskeyid]")
 {
-    JWK key = JWK::generateRSA(2048);
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     std::string thumbprint = JWKThumbprint::compute(key);
     key.setKeyID(thumbprint);
@@ -339,7 +339,7 @@ TEST_CASE("ManyKeysProduceUniqueThumbprints", "[jwa][manykeysproduceuniquethumbp
     // Generate 100 keys and verify all thumbprints are unique
     for (int i = 0; i < 100; i++)
     {
-        JWK key = JWK::generateRSA(2048);
+        JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
         std::string thumbprint = JWKThumbprint::compute(key);
 
         REQUIRE(0 == thumbprints.count(thumbprint));

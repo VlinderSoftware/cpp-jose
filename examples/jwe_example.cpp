@@ -31,8 +31,9 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating 2048-bit RSA key for encryption..." << std::endl;
-        JWK rsa_key = JWK::generateRSA(2048, "RSA-OAEP", JWK::Use::encryption);
+        JWK rsa_key = JWK::generateRSA(JWK::Use::encryption);
         std::cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
+        std::cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << std::endl;
 
         std::string sensitive_data = "This is highly confidential information!";
         std::cout << "\nPlaintext: " << sensitive_data << std::endl;
@@ -89,8 +90,9 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating 256-bit symmetric key..." << std::endl;
-        JWK kek_key = JWK::generateOct(256);  // Key Encryption Key
+        JWK kek_key = JWK::generateOct(JWK::Use::encryption);  // Key Encryption Key
         std::cout << "Symmetric KEK generated with auto-generated ID: " << kek_key.getKeyID() << std::endl;
+        std::cout << "Algorithm (auto-selected): " << kek_key.getAlgorithm() << std::endl;
 
         std::string secret_message = "Secret message encrypted with AES Key Wrap";
         std::cout << "\nPlaintext: " << secret_message << std::endl;

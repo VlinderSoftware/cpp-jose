@@ -33,8 +33,9 @@ int main()
 
         // Generate a signing key (using HMAC with symmetric key)
         std::cout << "1. Generating symmetric key (HS256)..." << std::endl;
-        JWK key = JWK::generateOct(256, "HS256");
-        std::cout << "   Key generated with auto-generated ID: " << key.getKeyID() << std::endl << std::endl;
+        JWK key = JWK::generateOct(JWK::Use::signature);
+        std::cout << "   Key generated with auto-generated ID: " << key.getKeyID() << std::endl;
+        std::cout << "   Algorithm (auto-selected): " << key.getAlgorithm() << std::endl << std::endl;
 
         // Create a JWT with standard claims
         std::cout << "2. Creating JWT with standard claims..." << std::endl;
@@ -87,8 +88,9 @@ int main()
 
         // Try with RSA keys
         std::cout << "6. Creating JWT with RSA signature (RS256)..." << std::endl;
-        JWK rsa_key = JWK::generateRSA(2048);
+        JWK rsa_key = JWK::generateRSA(JWK::Use::signature);
         std::cout << "   RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
+        std::cout << "   Algorithm (auto-selected): " << rsa_key.getAlgorithm() << std::endl;
 
         JWT jwt_rsa;
         jwt_rsa.setIssuer("https://secure.example.com");

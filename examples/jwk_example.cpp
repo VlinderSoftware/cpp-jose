@@ -36,11 +36,11 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\nGenerating 2048-bit RSA key..." << std::endl;
-        JWK rsa_key = JWK::generateRSA(2048, "RS256");
+        JWK rsa_key = JWK::generateRSA(JWK::Use::signature);
 
         std::cout << "✓ RSA key generated" << std::endl;
         std::cout << "  Key ID (SHA-512 thumbprint): " << rsa_key.getKeyID() << std::endl;
-        std::cout << "  Algorithm: " << rsa_key.getAlgorithm() << std::endl;
+        std::cout << "  Algorithm (auto-selected): " << rsa_key.getAlgorithm() << std::endl;
         std::cout << "  Has Private Key: " << (rsa_key.hasPrivateKey() ? "Yes" : "No") << std::endl;
 
         std::cout << "\nPublic Key (JSON):" << std::endl;
@@ -55,35 +55,40 @@ int main()
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\n--- P-256 Curve ---" << std::endl;
-        JWK ec_key_256 = JWK::generateEC("P-256", "ES256");
+        JWK ec_key_256 = JWK::generateEC(JWK::Use::signature);
 
         std::cout << "✓ EC P-256 key generated" << std::endl;
         std::cout << "  Key ID (SHA-512 thumbprint): " << ec_key_256.getKeyID() << std::endl;
+        std::cout << "  Algorithm (auto-selected): " << ec_key_256.getAlgorithm() << std::endl;
         std::cout << "Public Key: " << ec_key_256.toJSON(false) << std::endl;
 
         std::cout << "\n--- P-384 Curve ---" << std::endl;
-        JWK ec_key_384 = JWK::generateEC("P-384", "ES384");
+        JWK ec_key_384 = JWK::generateEC(JWK::Use::signature, "P-384");
         std::cout << "✓ EC P-384 key generated" << std::endl;
         std::cout << "  Key ID (SHA-512 thumbprint): " << ec_key_384.getKeyID() << std::endl;
+        std::cout << "  Algorithm (auto-selected): " << ec_key_384.getAlgorithm() << std::endl;
 
         std::cout << "\n--- P-521 Curve ---" << std::endl;
-        JWK ec_key_521 = JWK::generateEC("P-521", "ES512");
+        JWK ec_key_521 = JWK::generateEC(JWK::Use::signature, "P-521");
         std::cout << "✓ EC P-521 key generated" << std::endl;
         std::cout << "  Key ID (SHA-512 thumbprint): " << ec_key_521.getKeyID() << std::endl;
+        std::cout << "  Algorithm (auto-selected): " << ec_key_521.getAlgorithm() << std::endl;
 
         // Example 3: Generate Symmetric Keys
         std::cout << "\n\n3. Generating Symmetric Keys" << std::endl;
         std::cout << "==========================================" << std::endl;
 
         std::cout << "\n--- 128-bit Key ---" << std::endl;
-        JWK oct_key_128 = JWK::generateOct(128, "HS256");
+        JWK oct_key_128 = JWK::generateOct(JWK::Use::signature, 128);
         std::cout << "✓ 128-bit symmetric key generated" << std::endl;
         std::cout << "  Key ID (SHA-512 thumbprint): " << oct_key_128.getKeyID() << std::endl;
+        std::cout << "  Algorithm (auto-selected): " << oct_key_128.getAlgorithm() << std::endl;
 
         std::cout << "\n--- 256-bit Key ---" << std::endl;
-        JWK oct_key_256 = JWK::generateOct(256, "HS256");
+        JWK oct_key_256 = JWK::generateOct(JWK::Use::signature);
         std::cout << "✓ 256-bit symmetric key generated" << std::endl;
         std::cout << "  Key ID (SHA-512 thumbprint): " << oct_key_256.getKeyID() << std::endl;
+        std::cout << "  Algorithm (auto-selected): " << oct_key_256.getAlgorithm() << std::endl;
         std::cout << "Public representation: " << oct_key_256.toJSON(false) << std::endl;
 
         // Example 4: JWK Serialization and Deserialization
@@ -109,15 +114,15 @@ int main()
         std::cout << "\nCreating JWK Set with multiple keys..." << std::endl;
         JWKSet jwks;
 
-        JWK key1 = JWK::generateRSA(2048, "RS256");
+        JWK key1 = JWK::generateRSA(JWK::Use::signature);
         jwks.addKey(key1);
         std::cout << "  Added RSA key with ID: " << key1.getKeyID() << std::endl;
 
-        JWK key2 = JWK::generateEC("P-256", "ES256");
+        JWK key2 = JWK::generateEC(JWK::Use::signature);
         jwks.addKey(key2);
         std::cout << "  Added EC key with ID: " << key2.getKeyID() << std::endl;
 
-        JWK key3 = JWK::generateOct(256, "HS256");
+        JWK key3 = JWK::generateOct(JWK::Use::signature);
         jwks.addKey(key3);
         std::cout << "  Added Oct key with ID: " << key3.getKeyID() << std::endl;
 
@@ -179,7 +184,7 @@ int main()
 
         std::cout << "\nAll generated keys automatically use SHA-512 thumbprint as Key ID:" << std::endl;
         
-        JWK auto_key = JWK::generateRSA(2048);
+        JWK auto_key = JWK::generateRSA(JWK::Use::signature, 2048);
         std::string auto_thumbprint_sha512 = JWKThumbprint::compute(auto_key, "SHA-512");
         std::string auto_thumbprint_sha256 = JWKThumbprint::compute(auto_key, "SHA-256");
         
@@ -190,33 +195,36 @@ int main()
                   << (auto_key.getKeyID() == auto_thumbprint_sha512 ? "Yes" : "No") << std::endl;
         std::cout << "SHA-512 length: " << auto_thumbprint_sha512.length() << " characters" << std::endl;
 
-        // Example 8: Key Metadata
-        std::cout << "\n\n8. Working with Key Metadata" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        // Example 8: Key Metadata and Validation
+        std::cout << "\n\n8. Key Metadata and Algorithm Validation" << std::endl;
+        std::cout << "=========================================="<< std::endl;
 
-        JWK metadata_key = JWK::generateRSA(2048, "RS256");
-
-        std::cout << "\nKey with metadata set during generation:" << std::endl;
-        std::cout << "  Key ID (auto): " << metadata_key.getKeyID() << std::endl;
-        std::cout << "  Use: Signature" << std::endl;
-        std::cout << "  Algorithm: " << metadata_key.getAlgorithm() << std::endl;
-        std::cout << "  Key Type: RSA" << std::endl;
+        std::cout << "\nGenerating keys with auto-selected algorithms:" << std::endl;
+        JWK sig_key = JWK::generateRSA(JWK::Use::signature);
+        JWK enc_key = JWK::generateRSA(JWK::Use::encryption);
         
-        std::cout << "\nNote: 'use' and 'alg' fields are OPTIONAL metadata." << std::endl;
-        std::cout << "They're useful for key management in JWKS but not required" << std::endl;
-        std::cout << "for cryptographic operations. You can omit them entirely." << std::endl;
+        std::cout << "  Signature key algorithm: " << sig_key.getAlgorithm() << " (RS256 default)" << std::endl;
+        std::cout << "  Encryption key algorithm: " << enc_key.getAlgorithm() << " (RSA-OAEP-256 default)" << std::endl;
+        
+        std::cout << "\nOverriding with custom algorithm:" << std::endl;
+        JWK custom_key = JWK::generateRSA(JWK::Use::signature, 2048, "PS256");
+        std::cout << "  Custom algorithm: " << custom_key.getAlgorithm() << std::endl;
+        
+        std::cout << "\nNote: Algorithm is validated against key type + use." << std::endl;
+        std::cout << "Try using an invalid algorithm and the library will throw an error." << std::endl;
 
-        std::cout << "\nPublic JWK:" << std::endl;
-        std::cout << metadata_key.toJSON(false) << std::endl;
+        std::cout << "\nPublic JWK (custom key):" << std::endl;
+        std::cout << custom_key.toJSON(false) << std::endl;
 
         // Example 9: Public/Private Key Pairs
         std::cout << "\n\n9. Public/Private Key Pairs" << std::endl;
         std::cout << "==========================================" << std::endl;
 
-        JWK key_pair = JWK::generateEC("P-256");
+        JWK key_pair = JWK::generateEC(JWK::Use::signature);
 
         std::cout << "\nGenerated EC key pair" << std::endl;
         std::cout << "Auto-generated Key ID: " << key_pair.getKeyID() << std::endl;
+        std::cout << "Algorithm: " << key_pair.getAlgorithm() << std::endl;
         std::cout << "Has private key: " << (key_pair.hasPrivateKey() ? "Yes" : "No") << std::endl;
 
         std::string public_only = key_pair.toJSON(false);

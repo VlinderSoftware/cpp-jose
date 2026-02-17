@@ -96,6 +96,8 @@ CheckOptions:
   # Global variables: snake_case (if any)
   - key:             readability-identifier-naming.GlobalVariableCase
     value:           lower_case
+  - key:             readability-identifier-naming.GlobalVariableIgnoredRegexp
+    value:           '^(TEST_CASE|SCENARIO|TEMPLATE_TEST_CASE|TEST_CASE_METHOD|CATCH_|autoRegistrar).*'
   
   # Braces and formatting (aligned with .clang-format)
   - key:             readability-braces-around-statements.ShortStatementLines
