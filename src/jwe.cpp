@@ -3,6 +3,7 @@
 #include <openssl/rand.h>
 
 #include <map>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -147,7 +148,7 @@ std::string JWE::encrypt(const JWK& key) const
     std::vector<unsigned char> encrypted_key;
     std::vector<unsigned char> kek_iv;  // For GCM key wrap
     std::vector<unsigned char> kek_tag; // For GCM key wrap
-    JWK ephemeral_key; // For ECDH-ES
+    std::optional<JWK> ephemeral_key; // For ECDH-ES
     
     if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::dir)
     {
@@ -178,11 +179,14 @@ std::string JWE::encrypt(const JWK& key) const
         // For ECDH-ES, derive the CEK using key agreement
         encrypted_key.clear();  // No encrypted key field
         
+        // Initialize ephemeral_key with dummy that will be overwritten by encryptKey
+        ephemeral_key = JWK::generateEC(JWK::Use::signature, "P-256");
+        
         // Call encryptKey which will generate ephemeral key, perform ECDH, and derive CEK
         size_t cek_size = getKeySize(impl_->content_algorithm_);
         std::vector<unsigned char> dummy_cek(cek_size); // Provide size hint
         cek = JWA::encryptKey(impl_->key_algorithm_, key, dummy_cek, nullptr, nullptr, 
-                              &ephemeral_key, impl_->content_algorithm_);
+                              &ephemeral_key.value(), impl_->content_algorithm_);
     }
     else
     {
@@ -212,10 +216,10 @@ std::string JWE::encrypt(const JWK& key) const
     }
     
     // Add ephemeral public key to header if present (ECDH-ES)
-    if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::ecdh_es)
+    if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::ecdh_es && ephemeral_key)
     {
         // Include ephemeral public key in header as JWK
-        header["epk"] = json::parse(ephemeral_key.toJSON(false));
+        header["epk"] = json::parse(ephemeral_key->toJSON(false));
     }
     
     // Add GCM key wrap IV and tag to header if present

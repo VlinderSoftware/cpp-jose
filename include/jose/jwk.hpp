@@ -31,7 +31,6 @@ public:
         encryption
     };
 
-    JWK();
     ~JWK();
 
     // Copy and move constructors/operators
@@ -54,7 +53,7 @@ public:
      * @param alg Optional algorithm. If empty, defaults to RS256 (sig) or RSA-OAEP-256 (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateRSA(Use use, int bits = 2048, const std::string& alg = "");
+    static JWK generateRSA(Use use, int bits = 2048, const std::string& alg = {});
 
     /**
      * @brief Generate a new EC key
@@ -122,6 +121,8 @@ public:
     void* getKey() const;
 
 private:
+    JWK();
+
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
