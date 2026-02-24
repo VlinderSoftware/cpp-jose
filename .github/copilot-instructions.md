@@ -3,6 +3,7 @@
 - **Standards:** Use C++20 or C++23 standards.
 - **Formatting:** Use 4 spaces for indentation, braces on new lines (Allman style), and `clang-format` if available.
   - **Exception:** Namespace braces should be on the same line as the namespace declaration.
+- **Strong Typing:** Always prefer strong typing (e.g., enums, type aliases, class types) over primitive types. Avoid `int`, `void*`, and other weakly-typed parameters unless absolutely necessary. Use `enum class` and custom types for clarity and safety.
 - **Naming:**
     - **Parameters and local variables:** `snake_case` (all lowercase with underscores)
     - **Members:** `snake_case_` (all lowercase with underscores, ending with underscore)
