@@ -7,27 +7,27 @@ namespace Details {
 class OpenSSLBackend : public CryptoBackend
 {
 public:
-    std::vector<unsigned char> sign(SignatureAlgorithm algorithm, const CryptoKey &key, const std::vector<unsigned char> &data) override
+    std::vector<unsigned char> sign(SignatureAlgorithm algorithm, CryptoKey const &key, std::vector<unsigned char> const &data) override
     {
         // TODO: Implement OpenSSL sign
         return {};
     }
-    bool verify(SignatureAlgorithm algorithm, const CryptoKey &key, const std::vector<unsigned char> &data, const std::vector<unsigned char> &signature) override
+    bool verify(SignatureAlgorithm algorithm, CryptoKey const &key, std::vector<unsigned char> const &data, std::vector<unsigned char> const &signature) override
     {
         // TODO: Implement OpenSSL verify
         return false;
     }
-    std::vector<unsigned char> encrypt(EncryptionAlgorithm algorithm, const CryptoKey &key, const std::vector<unsigned char> &plaintext) override
+    std::vector<unsigned char> encrypt(EncryptionAlgorithm algorithm, CryptoKey const &key, std::vector<unsigned char> const &plaintext) override
     {
         // TODO: Implement OpenSSL encrypt
         return {};
     }
-    std::vector<unsigned char> decrypt(EncryptionAlgorithm algorithm, const CryptoKey &key, const std::vector<unsigned char> &ciphertext) override
+    std::vector<unsigned char> decrypt(EncryptionAlgorithm algorithm, CryptoKey const &key, std::vector<unsigned char> const &ciphertext) override
     {
         // TODO: Implement OpenSSL decrypt
         return {};
     }
-    std::vector<unsigned char> hash(HashAlgorithm algorithm, const std::vector<unsigned char> &data) override
+    std::vector<unsigned char> hash(HashAlgorithm algorithm, std::vector<unsigned char> const &data) override
     {
         // TODO: Implement OpenSSL hash
         return {};

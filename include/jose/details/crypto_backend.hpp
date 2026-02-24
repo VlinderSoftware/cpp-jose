@@ -64,28 +64,28 @@ public:
 
     virtual std::vector<unsigned char> sign(
         SignatureAlgorithm algorithm,
-        const CryptoKey &key,
-        const std::vector<unsigned char> &data) = 0;
+        CryptoKey const &key,
+        std::vector<unsigned char> const &data) = 0;
 
     virtual bool verify(
         SignatureAlgorithm algorithm,
-        const CryptoKey &key,
-        const std::vector<unsigned char> &data,
-        const std::vector<unsigned char> &signature) = 0;
+        CryptoKey const &key,
+        std::vector<unsigned char> const &data,
+        std::vector<unsigned char> const &signature) = 0;
 
     virtual std::vector<unsigned char> encrypt(
         EncryptionAlgorithm algorithm,
-        const CryptoKey &key,
-        const std::vector<unsigned char> &plaintext) = 0;
+        CryptoKey const &key,
+        std::vector<unsigned char> const &plaintext) = 0;
 
     virtual std::vector<unsigned char> decrypt(
         EncryptionAlgorithm algorithm,
-        const CryptoKey &key,
-        const std::vector<unsigned char> &ciphertext) = 0;
+        CryptoKey const &key,
+        std::vector<unsigned char> const &ciphertext) = 0;
 
     virtual std::vector<unsigned char> hash(
         HashAlgorithm algorithm,
-        const std::vector<unsigned char> &data) = 0;
+        std::vector<unsigned char> const &data) = 0;
 
     virtual std::vector<unsigned char> randomBytes(size_t size) = 0;
 };

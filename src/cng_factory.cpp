@@ -7,9 +7,9 @@ namespace JOSE {
 class CNGFactory : public CryptoBackendFactory
 {
 public:
-    std::unique_ptr<CryptoBackend> createBackend() const override
+    std::unique_ptr<Details::CryptoBackend> createBackend() const override
     {
-        return std::make_unique<CNGBackend>();
+        return std::make_unique<Details::CNGBackend>();
     }
 };
 

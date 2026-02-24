@@ -14,7 +14,8 @@ Checks: >
   -cppcoreguidelines-avoid-magic-numbers,
   -modernize-use-trailing-return-type,
   -readability-else-after-return,
-  -readability-identifier-length
+  -readability-identifier-length,
+  readability-const-return-type
 
 WarningsAsErrors: 'readability-identifier-naming'
 
@@ -105,4 +106,5 @@ CheckOptions:
 
 HeaderFilterRegex: '.*'
 
-...
+# Enforce 'T const &' style for parameter declarations if possible
+# Note: clang-tidy does not have a built-in check for this, but readability-const-return-type can help
