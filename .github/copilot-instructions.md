@@ -4,7 +4,9 @@
 - **Formatting:** Use 4 spaces for indentation, braces on new lines (Allman style), and `clang-format` if available.
   - **Exception:** Namespace braces should be on the same line as the namespace declaration.
 - **Strong Typing:** Always prefer strong typing (e.g., enums, type aliases, class types) over primitive types. Avoid `int`, `void*`, and other weakly-typed parameters unless absolutely necessary. Use `enum class` and custom types for clarity and safety.
-- **Const Declaration Style:** Always declare `const` as `T const t` (not `const T t`) for parameters, variables, and members.
+ - **Const Declaration Style:** Always declare `const` as `T const t` (not `const T t`) for parameters, variables, and members.
+ - **Pointer and reference formatting:** Use the following formatting for pointers and references: `T const &t`, `T &t`, `T *p`, `T const *p`. Place the `const` nearest the type it qualifies (e.g., `T const *p` for pointer-to-const).
+ - **Template spacing:** Templates should include a space before the closing angle bracket. Prefer `template< T >` style in code and `std::vector< T >` for instantiations where reasonable to improve readability (e.g., write `<T >` rather than `<T>`).
 - **Naming:**
     - **Parameters and local variables:** `snake_case` (all lowercase with underscores)
     - **Members:** `snake_case_` (all lowercase with underscores, ending with underscore)
@@ -24,6 +26,8 @@
     - The outer namespace should be `Vlinder`
     - Inner namespaces follow PascalCase naming
     - Namespace braces stay on the same line (not Allman style)
+    - **`.cpp` files** must open with `using namespace` directives immediately after the `#include` block (e.g. `using namespace std;`, `using namespace Vlinder::JOSE::Private;`). This means names like `vector`, `string`, `unique_ptr` and project types are used unqualified throughout the file.
+    - **Header files** must never contain `using namespace`. All names must be fully qualified (e.g. `std::vector`, `std::unique_ptr`) to avoid polluting includers' namespaces.
 - **Modern C++:**
     - Use `auto` for type deduction when readable.
     - Use `nullptr` instead of `NULL` or `0`.
