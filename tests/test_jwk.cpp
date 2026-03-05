@@ -619,6 +619,162 @@ TEST_CASE("JWKSet can contain three keys", "[jwk][jwkset]")
     REQUIRE(keys.size() == 3);
 }
 
+// ---------------------------------------------------------------------------
+// EC key import (fromJSON) -- these tests verify behaviour that the current
+// stub (case KeyType::ec: break;) does NOT implement, so they are expected to
+// FAIL until the EC import branch is filled in.
+// ---------------------------------------------------------------------------
+
+// Known-good P-256 public key from RFC 7517 Appendix A.2
+static std::string const k_p256_public_json =
+    R"({"kty":"EC","crv":"P-256",)"
+    R"("x":"MKBCTNIcKUSDii11ySs3526iDZ8AiTo7Tu6KPAqv7D4",)"
+    R"("y":"4Etl6SRW2YiLUrN5vfvVHuhp7x8PxltmWWlbbM4IFyM",)"
+    R"("use":"enc","alg":"ECDH-ES","kid":"p256-pub"})";
+
+// Known-good P-256 private key (public + d)
+static std::string const k_p256_private_json =
+    R"({"kty":"EC","crv":"P-256",)"
+    R"("x":"f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU",)"
+    R"("y":"x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0",)"
+    R"("d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI",)"
+    R"("use":"sig","alg":"ES256","kid":"p256-priv"})";
+
+SCENARIO("EC public keys can be imported from JSON", "[jwk][ec][import][!shouldfail]")
+{
+    GIVEN("a P-256 public key JSON")
+    {
+        WHEN("parsing the JSON")
+        {
+            JWK key = JWK::fromJSON(k_p256_public_json);
+
+            THEN("the key type is EC")
+            {
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
+            }
+            THEN("it has no private component")
+            {
+                REQUIRE_FALSE(key.hasPrivateKey());
+            }
+            THEN("the key ID is preserved")
+            {
+                REQUIRE(key.getKeyID() == "p256-pub");
+            }
+            THEN("the algorithm is preserved")
+            {
+                REQUIRE(key.getAlgorithm() == "ECDH-ES");
+            }
+            THEN("toJSON round-trips the public coordinates")
+            {
+                std::string json = key.toJSON(false);
+                REQUIRE(json.find("\"x\"") != std::string::npos);
+                REQUIRE(json.find("\"y\"") != std::string::npos);
+                REQUIRE(json.find("\"P-256\"") != std::string::npos);
+            }
+        }
+    }
+}
+
+SCENARIO("EC private keys can be imported from JSON", "[jwk][ec][import]")
+{
+    GIVEN("a P-256 private key JSON")
+    {
+        WHEN("parsing the JSON")
+        {
+            JWK key = JWK::fromJSON(k_p256_private_json);
+
+            THEN("the key type is EC")
+            {
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
+            }
+            THEN("it has a private component")
+            {
+                REQUIRE(key.hasPrivateKey());
+            }
+            THEN("the key ID is preserved")
+            {
+                REQUIRE(key.getKeyID() == "p256-priv");
+            }
+            THEN("toJSON with private includes d")
+            {
+                std::string json = key.toJSON(true);
+                REQUIRE(json.find("\"d\"") != std::string::npos);
+            }
+            THEN("toJSON without private omits d")
+            {
+                std::string json = key.toJSON(false);
+                REQUIRE(json.find("\"d\"") == std::string::npos);
+            }
+        }
+    }
+}
+
+SCENARIO("EC keys round-trip through JSON for all standard curves",
+         "[jwk][ec][import][round-trip]")
+{
+    auto test_curve = [](std::string const& curve, std::string const& alg)
+    {
+        JWK original = JWK::generateEC(JWK::Use::signature, curve);
+        original.setKeyID("rt-" + curve);
+        original.setAlgorithm(alg);
+
+        std::string json = original.toJSON(true);
+        JWK parsed = JWK::fromJSON(json);
+
+        REQUIRE(parsed.getKeyType() == JWK::KeyType::ec);
+        REQUIRE(parsed.getKeyID()   == "rt-" + curve);
+        REQUIRE(parsed.getAlgorithm() == alg);
+        // The imported key must carry private material.
+        REQUIRE(parsed.hasPrivateKey());
+        // A second round-trip must produce identical JSON.
+        REQUIRE(parsed.toJSON(true) == json);
+    };
+
+    GIVEN("a generated P-256 key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved") { test_curve("P-256", "ES256"); }
+        }
+    }
+    GIVEN("a generated P-384 key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved") { test_curve("P-384", "ES384"); }
+        }
+    }
+    GIVEN("a generated P-521 key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved") { test_curve("P-521", "ES512"); }
+        }
+    }
+}
+
+SCENARIO("EC encryption keys can be imported from JSON",
+         "[jwk][ec][import][enc]")
+{
+    GIVEN("a P-256 public key intended for ECDH-ES")
+    {
+        WHEN("parsing the JSON")
+        {
+            JWK key = JWK::fromJSON(k_p256_public_json);
+
+            THEN("the key type and algorithm are correct")
+            {
+                REQUIRE(key.getKeyType() == JWK::KeyType::ec);
+                REQUIRE(key.getAlgorithm() == "ECDH-ES");
+            }
+            THEN("it has no private component")
+            {
+                REQUIRE_FALSE(key.hasPrivateKey());
+            }
+        }
+    }
+}
+
 // Edge cases
 TEST_CASE("JWK handles empty key ID", "[jwk][edge-cases]")
 {

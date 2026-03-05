@@ -153,6 +153,10 @@ public:
                 std::vector<unsigned char> const& dq_bytes,
                 std::vector<unsigned char> const& qi_bytes) const = 0;
     virtual std::unique_ptr<Key> generateEC(std::string const& curve) const = 0;
+    virtual std::unique_ptr<Key> generateEC(std::string const& curve,
+                                            std::vector<unsigned char> const& x_bytes,
+                                            std::vector<unsigned char> const& y_bytes,
+                                            std::vector<unsigned char> const& d_bytes) const = 0;
     virtual std::unique_ptr<Key> generateOct(unsigned int bits) const = 0;
     virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const = 0;
     // virtual std::vector<unsigned char> sign(

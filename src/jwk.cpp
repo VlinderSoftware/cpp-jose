@@ -511,98 +511,26 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             break;
         }
         case KeyType::ec:
+        {
+            if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
+            {
+                throw runtime_error("Missing required EC parameters");
+            }
+
+            auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
+            auto y_bytes = Base64Url::decode(jwk_json["y"].get<string>());
+            auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
+                                                  : vector<unsigned char>{};
+
+            impl.key_ = move(back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes));
+            break;
+        }
         case KeyType::okp:
         case KeyType::oct:
             break;
     }
 
-    //else if (kty == "EC")
-    //{
-    //    jwk.impl_->key_type_ = KeyType::ec;
-
-    //    if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
-    //    {
-    //        throw runtime_error("Missing required EC parameters");
-    //    }
-
-    //    string crv = jwk_json["crv"].get<string>();
-    //    auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
-    //    auto y_bytes = Base64Url::decode(jwk_json["y"].get<string>());
-
-    //    // Convert JWK curve names to OpenSSL curve names
-    //    string group_name;
-    //    if (crv == "P-256")
-    //    {
-    //        group_name = "prime256v1";
-    //    }
-    //    else if (crv == "P-384")
-    //    {
-    //        group_name = "secp384r1";
-    //    }
-    //    else if (crv == "P-521")
-    //    {
-    //        group_name = "secp521r1";
-    //    }
-    //    else
-    //    {
-    //        throw runtime_error("Unsupported EC curve: " + crv);
-    //    }
-
-    //    // Encode public key as uncompressed point: 0x04 || X || Y
-    //    vector<unsigned char> pub_key;
-    //    pub_key.push_back(0x04);  // uncompressed point format
-    //    pub_key.insert(pub_key.end(), x_bytes.begin(), x_bytes.end());
-    //    pub_key.insert(pub_key.end(), y_bytes.begin(), y_bytes.end());
-
-    //    OSSL_PARAM_BLD* param_bld = OSSL_PARAM_BLD_new();
-    //    if (!param_bld)
-    //    {
-    //        throw runtime_error("Failed to create OSSL_PARAM_BLD");
-    //    }
-
-    //    OSSL_PARAM_BLD_push_utf8_string(param_bld, OSSL_PKEY_PARAM_GROUP_NAME, 
-    //                                    group_name.c_str(), 0);
-    //    OSSL_PARAM_BLD_push_octet_string(param_bld, OSSL_PKEY_PARAM_PUB_KEY, 
-    //                                     pub_key.data(), pub_key.size());
-
-    //    // Include private key if present
-    //    BIGNUM* d = nullptr;
-    //    if (jwk_json.contains("d"))
-    //    {
-    //        auto d_bytes = Base64Url::decode(jwk_json["d"].get<string>());
-    //        d = BN_bin2bn(d_bytes.data(), static_cast<int>(d_bytes.size()), nullptr);
-    //        OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_PRIV_KEY, d);
-    //    }
-
-    //    OSSL_PARAM* params = OSSL_PARAM_BLD_to_param(param_bld);
-    //    OSSL_PARAM_BLD_free(param_bld);
-    //    
-    //    // Free the BIGNUM after params are built
-    //    if (d)
-    //    {
-    //        BN_free(d);
-    //    }
-
-    //    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
-    //    if (!ctx || EVP_PKEY_fromdata_init(ctx) <= 0)
-    //    {
-    //        OSSL_PARAM_free(params);
-    //        if (ctx) EVP_PKEY_CTX_free(ctx);
-    //        throw runtime_error("Failed to initialize EVP_PKEY_CTX");
-    //    }
-
-    //    int selection = jwk_json.contains("d") ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY;
-    //    if (EVP_PKEY_fromdata(ctx, &jwk.impl_->pkey_, selection, params) <= 0)
-    //    {
-    //        OSSL_PARAM_free(params);
-    //        EVP_PKEY_CTX_free(ctx);
-    //        throw runtime_error("Failed to create EC key from parameters");
-    //    }
-
-    //    OSSL_PARAM_free(params);
-    //    EVP_PKEY_CTX_free(ctx);
-    //}
-    //else if (kty == "oct")
+        //else if (kty == "oct")
     //{
     //    jwk.impl_->key_type_ = KeyType::oct;
 

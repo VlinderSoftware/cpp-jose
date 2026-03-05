@@ -26,8 +26,8 @@ public:
              std::vector<unsigned char> dp,
              std::vector<unsigned char> dq,
              std::vector<unsigned char> iqmp,
-              std::vector<unsigned char> public_blob, std::vector<unsigned char> private_blob,
-              BCRYPT_KEY_HANDLE key_handle = nullptr, BCRYPT_ALG_HANDLE alg_handle = nullptr);
+             std::vector<unsigned char> public_blob, std::vector<unsigned char> private_blob,
+             BCRYPT_KEY_HANDLE key_handle = nullptr, BCRYPT_ALG_HANDLE alg_handle = nullptr);
     ~CNGRSAKey() override = default;
 
     std::vector<unsigned char> getPublicBlob() const;
@@ -99,6 +99,10 @@ public:
                 std::vector<unsigned char> const& dq_bytes,
                 std::vector<unsigned char> const& qi_bytes) const override;
     virtual std::unique_ptr<Key> generateEC(std::string const& curve) const override;
+    virtual std::unique_ptr<Key> generateEC(std::string const& curve,
+                                            std::vector<unsigned char> const& x_bytes,
+                                            std::vector<unsigned char> const& y_bytes,
+                                            std::vector<unsigned char> const& d_bytes) const override;
     virtual std::unique_ptr<Key> generateOct(unsigned int bits) const override;
     virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override;
 

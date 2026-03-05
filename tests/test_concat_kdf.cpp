@@ -42,6 +42,12 @@ public:
     {
         return nullptr;
     }
+    unique_ptr<Key> generateEC(string const&, vector<unsigned char> const&,
+                               vector<unsigned char> const&,
+                               vector<unsigned char> const&) const override
+    {
+        return nullptr;
+    }
     unique_ptr<Key> generateOct(unsigned int bits) const override
     {
         return nullptr;

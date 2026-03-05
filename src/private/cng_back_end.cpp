@@ -75,7 +75,7 @@ vector<unsigned char> CNGECKey::getPrivateBlob() const
 
 bool CNGECKey::hasPrivate() const
 {
-    return !private_blob_.empty();
+    return !d_.empty() || !private_blob_.empty();
 }
 
 unique_ptr<Private::Key> CNGECKey::clone() const
@@ -505,6 +505,129 @@ unique_ptr<Key> CNGBackEnd::generateRSA(
 
     // Transfer ownership of the CNG handles to the key wrapper.
     return make_unique<CNGECKey>(curve_name, x, y, d, move(pub_blob), move(priv_blob), key_guard.release(), alg_guard.release());
+}
+
+unique_ptr<Key>
+CNGBackEnd::generateEC(string const& curve,
+                       vector<unsigned char> const& x_bytes,
+                       vector<unsigned char> const& y_bytes,
+                       vector<unsigned char> const& d_bytes) const
+{
+    if (x_bytes.empty() || y_bytes.empty())
+    {
+        throw runtime_error("EC import requires both x and y coordinates");
+    }
+
+    // Resolve the curve to its CNG algorithm identifier and the two magic values
+    // (public and private) used in BCRYPT_ECCKEY_BLOB.
+    // BCRYPT_ECCKEY_BLOB layout:
+    //   Magic  (ULONG)  -- identifies curve + public/private
+    //   cbKey  (ULONG)  -- byte length of each coordinate / scalar
+    //   X      (cbKey bytes)
+    //   Y      (cbKey bytes)
+    //   [d     (cbKey bytes)]  -- only present in BCRYPT_ECCPRIVATE_BLOB
+    // See: https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_ecckey_blob
+    LPCWSTR alg_id = nullptr;
+    ULONG pub_magic = 0;
+    ULONG priv_magic = 0;
+    string curve_name;
+
+    if (curve == "P-256" || curve == "prime256v1")
+    {
+        alg_id     = BCRYPT_ECDH_P256_ALGORITHM;
+        pub_magic  = BCRYPT_ECDH_PUBLIC_P256_MAGIC;
+        priv_magic = BCRYPT_ECDH_PRIVATE_P256_MAGIC;
+        curve_name = "P-256";
+    }
+    else if (curve == "P-384" || curve == "secp384r1")
+    {
+        alg_id     = BCRYPT_ECDH_P384_ALGORITHM;
+        pub_magic  = BCRYPT_ECDH_PUBLIC_P384_MAGIC;
+        priv_magic = BCRYPT_ECDH_PRIVATE_P384_MAGIC;
+        curve_name = "P-384";
+    }
+    else if (curve == "P-521" || curve == "secp521r1")
+    {
+        alg_id     = BCRYPT_ECDH_P521_ALGORITHM;
+        pub_magic  = BCRYPT_ECDH_PUBLIC_P521_MAGIC;
+        priv_magic = BCRYPT_ECDH_PRIVATE_P521_MAGIC;
+        curve_name = "P-521";
+    }
+    else
+    {
+        throw runtime_error("Unsupported EC curve: " + curve);
+    }
+
+    bool const has_private = !d_bytes.empty();
+
+    // Build the import blob
+    BCRYPT_ECCKEY_BLOB header{};
+    header.dwMagic = has_private ? priv_magic : pub_magic;
+    header.cbKey = static_cast<ULONG>(x_bytes.size());
+
+    vector<unsigned char> blob(sizeof(BCRYPT_ECCKEY_BLOB));
+    copy_n(reinterpret_cast<unsigned char const *>(&header), sizeof(header), blob.data());
+    blob.insert(blob.end(), x_bytes.begin(), x_bytes.end());
+    blob.insert(blob.end(), y_bytes.begin(), y_bytes.end());
+    if (has_private)
+    {
+        blob.insert(blob.end(), d_bytes.begin(), d_bytes.end());
+    }
+
+    BCRYPT_ALG_HANDLE hAlg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, alg_id, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+    }
+    AlgHandle alg_guard(hAlg);
+
+    BCRYPT_KEY_HANDLE hKey = nullptr;
+    LPCWSTR const blob_type = has_private ? BCRYPT_ECCPRIVATE_BLOB : BCRYPT_ECCPUBLIC_BLOB;
+    status = BCryptImportKeyPair(
+        alg_guard.get(),
+        nullptr,
+        blob_type,
+        &hKey,
+        blob.data(),
+        static_cast<ULONG>(blob.size()),
+        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+    }
+    KeyHandle key_guard(hKey);
+
+    // Reconstruct the raw blobs in the same format that generateEC(curve) produces
+    // so that getPublicBlob() / getPrivateBlob() remain consistent.
+    ULONG const cb_key = static_cast<ULONG>(x_bytes.size());
+
+    vector<unsigned char> pub_blob(sizeof(BCRYPT_ECCKEY_BLOB) + 2 * cb_key);
+    BCRYPT_ECCKEY_BLOB pub_hdr{};
+    pub_hdr.dwMagic = pub_magic;
+    pub_hdr.cbKey = cb_key;
+    copy_n(reinterpret_cast<unsigned char const *>(&pub_hdr), sizeof(pub_hdr), pub_blob.data());
+    unsigned char *pub_ptr = pub_blob.data() + sizeof(BCRYPT_ECCKEY_BLOB);
+    copy(x_bytes.begin(), x_bytes.end(), pub_ptr);
+    copy(y_bytes.begin(), y_bytes.end(), pub_ptr + cb_key);
+
+    vector<unsigned char> priv_blob;
+    if (has_private)
+    {
+        priv_blob.resize(sizeof(BCRYPT_ECCKEY_BLOB) + 3 * cb_key);
+        BCRYPT_ECCKEY_BLOB priv_hdr{};
+        priv_hdr.dwMagic = priv_magic;
+        priv_hdr.cbKey = cb_key;
+        copy_n(reinterpret_cast<unsigned char const *>(&priv_hdr), sizeof(priv_hdr), priv_blob.data());
+        unsigned char *priv_ptr = priv_blob.data() + sizeof(BCRYPT_ECCKEY_BLOB);
+        copy(x_bytes.begin(), x_bytes.end(), priv_ptr);
+        copy(y_bytes.begin(), y_bytes.end(), priv_ptr + cb_key);
+        copy(d_bytes.begin(), d_bytes.end(), priv_ptr + 2 * cb_key);
+    }
+
+    return make_unique<CNGECKey>(curve_name, x_bytes, y_bytes, d_bytes,
+                                 move(pub_blob), move(priv_blob),
+                                 key_guard.release(), alg_guard.release());
 }
 
 /*virtual */ unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits) const /*override*/
