@@ -640,7 +640,7 @@ static std::string const k_p256_private_json =
     R"("d":"jpsQnnGQmL-YBIffH1136cspYG6-0iY7X1fCE9-E9LI",)"
     R"("use":"sig","alg":"ES256","kid":"p256-priv"})";
 
-SCENARIO("EC public keys can be imported from JSON", "[jwk][ec][import][!shouldfail]")
+SCENARIO("EC public keys can be imported from JSON", "[jwk][ec][import]")
 {
     GIVEN("a P-256 public key JSON")
     {
