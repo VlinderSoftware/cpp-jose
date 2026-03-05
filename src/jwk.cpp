@@ -119,6 +119,20 @@ JWK::Use inferUseFromAlgorithm(string const& alg)
     throw runtime_error("Cannot infer 'use' from unknown algorithm: '" + alg + "'");
 }
 
+/// Return the required symmetric key size in bits for a given JWA algorithm.
+/// AES variants encode the size directly in the name (e.g. A128KW → 128).
+/// HMAC sizes match the hash output length per RFC 7518 §3.2 (HS256 → 256, etc.).
+unsigned int keySizeFromAlg(string const& alg)
+{
+    if (alg == "A128KW"    || alg == "A128GCMKW") return 128;
+    if (alg == "A192KW"    || alg == "A192GCMKW") return 192;
+    if (alg == "A256KW"    || alg == "A256GCMKW") return 256;
+    if (alg == "HS256") return 256;
+    if (alg == "HS384") return 384;
+    if (alg == "HS512") return 512;
+    throw runtime_error("Cannot determine key size for algorithm: '" + alg + "'");
+}
+
 }  // anonymous namespace
 
 struct JWK::Impl
@@ -366,6 +380,8 @@ string JWK::toJSON(bool include_private) const
     {
 #if defined(JOSE_USE_CNG)
         throw runtime_error("Post-quantum keys are not supported with CNG backend -- use OpenSSL");
+#else
+        throw logic_error("Not yet implemented.");
 #endif
     }
     else if (impl_->key_type_ == KeyType::oct && impl_->key_ && include_private)
@@ -526,10 +542,23 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             break;
         }
         case KeyType::okp:
+#if defined(JOSE_USE_CNG)
+            throw runtime_error(
+                "Post-quantum keys are not supported with CNG backend -- use OpenSSL");
+#else
+            throw logic_error("Not yet implemented.");
+#endif
         case KeyType::oct:
+        {
+            if (!jwk_json.contains("k"))
+            {
+                throw runtime_error("Missing required 'k' parameter for symmetric key");
+            }
+            auto k_bytes = Base64Url::decode(jwk_json["k"].get<string>());
+            impl.key_ = make_unique<Private::OctKey>(k_bytes);
             break;
+        }
     }
-
         //else if (kty == "oct")
     //{
     //    jwk.impl_->key_type_ = KeyType::oct;

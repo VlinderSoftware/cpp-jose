@@ -653,6 +653,19 @@ CNGBackEnd::generateEC(string const& curve,
     return make_unique<OctKey>(move(key_bytes));
 }
 
+unique_ptr<Key>
+CNGBackEnd::generateOct(unsigned int bits, std::vector<unsigned char> const& k_bytes) const
+{
+    auto const key_size(k_bytes.size());
+    if (key_size != bits / 8)
+    {
+        throw runtime_error("Key size error");
+    }
+
+    return make_unique<OctKey>(move(k_bytes));
+}
+
+
 /*virtual*/ unique_ptr<Key> CNGBackEnd::generateOkp(Use use,
                                                          unsigned int bits) const /* override*/
 {

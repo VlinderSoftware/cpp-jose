@@ -158,6 +158,8 @@ public:
                                             std::vector<unsigned char> const& y_bytes,
                                             std::vector<unsigned char> const& d_bytes) const = 0;
     virtual std::unique_ptr<Key> generateOct(unsigned int bits) const = 0;
+    virtual std::unique_ptr<Key>
+    generateOct(unsigned int bits, std::vector<unsigned char> const& k_bytes) const = 0;
     virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const = 0;
     // virtual std::vector<unsigned char> sign(
     //    SignatureAlgorithm algorithm, JWK const& key,

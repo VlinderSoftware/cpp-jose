@@ -964,3 +964,191 @@ TEST_CASE("JWK default algorithms are valid for their use", "[jwk][validation][d
     REQUIRE_NOTHROW(JWK::generateOct(JWK::Use::encryption));
 }
 
+// ---------------------------------------------------------------------------
+// Symmetric key (oct) import (fromJSON)
+// The oct case in fromJSON currently stubs out (case KeyType::oct: break;),
+// so impl.key_ is never set. These tests drive the implementation:
+//   - hasPrivateKey() must return true (currently returns false)
+//   - toJSON(true) must include "k"   (currently omits it)
+//   - round-trip JSON must be stable  (currently loses key material)
+// ---------------------------------------------------------------------------
+
+// RFC 7515 §A.1.1 — 512-bit HMAC key used in the JWS HMAC-SHA2 example
+static std::string const k_oct_512_json =
+    R"({"kty":"oct",)"
+    R"("k":"AyM1SysPpbyDfgZld3umj1qzKObwVMkoqQ-EstJQLr_T-1qS0gZH75aKtMN3Yj0iPS4hcgUuTwjAzZr1Z9CAow",)"
+    R"("use":"sig","alg":"HS512","kid":"oct-512"})";
+
+// RFC 7517 §C.3 — 128-bit AES key-wrap key
+static std::string const k_oct_128_json =
+    R"({"kty":"oct",)"
+    R"("k":"GawgguFyGrWKav7AX4VKUg",)"
+    R"("use":"enc","alg":"A128KW","kid":"81b20965-8332-43d9-a468-82160ad91ac8"})";
+
+SCENARIO("Symmetric keys can be imported from a known JSON vector",
+         "[jwk][oct][import]")
+{
+    GIVEN("the RFC 7515 §A.1.1 512-bit HMAC key")
+    {
+        WHEN("parsing the JSON")
+        {
+            JWK key = JWK::fromJSON(k_oct_512_json);
+
+            THEN("the key type is oct")
+            {
+                REQUIRE(key.getKeyType() == JWK::KeyType::oct);
+            }
+            THEN("it has a private (symmetric) component")
+            {
+                REQUIRE(key.hasPrivateKey());
+            }
+            THEN("the key ID is preserved")
+            {
+                REQUIRE(key.getKeyID() == "oct-512");
+            }
+            THEN("the algorithm is preserved")
+            {
+                REQUIRE(key.getAlgorithm() == "HS512");
+            }
+            THEN("toJSON includes the k parameter")
+            {
+                std::string json = key.toJSON(true);
+                REQUIRE(json.find("\"k\"") != std::string::npos);
+            }
+        }
+    }
+
+    GIVEN("the RFC 7517 §C.3 128-bit AES key-wrap key")
+    {
+        WHEN("parsing the JSON")
+        {
+            JWK key = JWK::fromJSON(k_oct_128_json);
+
+            THEN("the key type is oct")
+            {
+                REQUIRE(key.getKeyType() == JWK::KeyType::oct);
+            }
+            THEN("it has a private (symmetric) component")
+            {
+                REQUIRE(key.hasPrivateKey());
+            }
+            THEN("the algorithm is preserved")
+            {
+                REQUIRE(key.getAlgorithm() == "A128KW");
+            }
+        }
+    }
+}
+
+SCENARIO("Symmetric key JSON must contain the k parameter", "[jwk][oct][import]")
+{
+    GIVEN("a JSON object with kty=oct but no k field")
+    {
+        std::string const bad_json =
+            R"({"kty":"oct","use":"sig","alg":"HS256","kid":"missing-k"})";
+
+        WHEN("parsing the JSON")
+        {
+            THEN("it should throw")
+            {
+                REQUIRE_THROWS(JWK::fromJSON(bad_json));
+            }
+        }
+    }
+}
+
+SCENARIO("Symmetric keys round-trip through JSON for all standard sizes",
+         "[jwk][oct][import][round-trip]")
+{
+    auto test_size = [](int bits, std::string const& alg, JWK::Use use)
+    {
+        JWK original = JWK::generateOct(use, bits, alg);
+        original.setKeyID("rt-" + std::to_string(bits));
+
+        std::string json = original.toJSON(true);
+        JWK parsed = JWK::fromJSON(json);
+
+        REQUIRE(parsed.getKeyType()   == JWK::KeyType::oct);
+        REQUIRE(parsed.getKeyID()     == "rt-" + std::to_string(bits));
+        REQUIRE(parsed.getAlgorithm() == alg);
+        // Symmetric keys always carry private (key) material.
+        REQUIRE(parsed.hasPrivateKey());
+        // A second round-trip must produce identical JSON.
+        REQUIRE(parsed.toJSON(true) == json);
+    };
+
+    GIVEN("a generated 128-bit HS256 key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved")
+            {
+                test_size(128, "HS256", JWK::Use::signature);
+            }
+        }
+    }
+    GIVEN("a generated 192-bit HS384 key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved")
+            {
+                test_size(192, "HS384", JWK::Use::signature);
+            }
+        }
+    }
+    GIVEN("a generated 256-bit HS512 key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved")
+            {
+                test_size(256, "HS512", JWK::Use::signature);
+            }
+        }
+    }
+    GIVEN("a generated 128-bit A128KW key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved")
+            {
+                test_size(128, "A128KW", JWK::Use::encryption);
+            }
+        }
+    }
+    GIVEN("a generated 256-bit A256KW key")
+    {
+        WHEN("round-tripping through JSON")
+        {
+            THEN("all properties are preserved")
+            {
+                test_size(256, "A256KW", JWK::Use::encryption);
+            }
+        }
+    }
+}
+
+SCENARIO("Symmetric key toJSON omits k when include_private is false",
+         "[jwk][oct][import]")
+{
+    GIVEN("an imported symmetric key")
+    {
+        JWK key = JWK::fromJSON(k_oct_512_json);
+
+        WHEN("serialising without private material")
+        {
+            std::string json = key.toJSON(false);
+
+            THEN("the k parameter is absent")
+            {
+                REQUIRE(json.find("\"k\"") == std::string::npos);
+            }
+            THEN("kty and kid are still present")
+            {
+                REQUIRE(json.find("\"oct\"") != std::string::npos);
+                REQUIRE(json.find("\"oct-512\"") != std::string::npos);
+            }
+        }
+    }
+}

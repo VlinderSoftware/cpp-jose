@@ -52,6 +52,10 @@ public:
     {
         return nullptr;
     }
+    unique_ptr<Key> generateOct(unsigned int bits, vector<unsigned char> const&) const override
+    {
+        return nullptr;
+    }
     unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override
     {
         return nullptr;
