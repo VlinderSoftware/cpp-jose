@@ -2,17 +2,30 @@
 
 #include <algorithm>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 
 #include "jose/base64url.hpp"
 #include "jose/json_utils.hpp"
 #include "jose/jwk.hpp"
-#include "details/backend.hpp"
+#include "private/back_end_factory.hpp"
 
 namespace Vlinder {
 namespace JOSE {
 
 namespace {
+
+Private::BackEnd &getBackEnd()
+{
+    static std::once_flag flag;
+    static std::unique_ptr< Private::BackEnd > back_end;
+    std::call_once(flag,
+                   [&]()
+                   {
+                       back_end = std::move(Private::BackEndFactory::get().createBackEnd());
+                   });
+    return *back_end;
+}
 
 // Extract required JWK components in lexicographic order per RFC 7638
 std::string getCanonicalJWKJson(JWK const &key)
@@ -77,19 +90,19 @@ std::string getCanonicalJWKJson(JWK const &key)
     }
 }
 
-const EVP_MD* getHashAlgorithm(std::string const &algorithm)
+Private::HashAlgorithm getHashAlgorithm(std::string const &algorithm)
 {
     if (algorithm == "SHA-256")
     {
-        return EVP_sha256();
+        return Private::HashAlgorithm::sha256;
     }
     else if (algorithm == "SHA-384")
     {
-        return EVP_sha384();
+        return Private::HashAlgorithm::sha384;
     }
     else if (algorithm == "SHA-512")
     {
-        return EVP_sha512();
+        return Private::HashAlgorithm::sha512;
     }
     else
     {
@@ -113,36 +126,10 @@ std::string JWKThumbprint::compute(JWK const &key, std::string const &algorithm)
 std::vector<unsigned char> JWKThumbprint::computeRaw(JWK const &key, std::string const &algorithm)
 {
     std::string const canonical_json = getCanonicalJWKJson(key);
-    const EVP_MD* md = getHashAlgorithm(algorithm);
-    if (!md)
-    {
-        throw std::runtime_error("Failed to get hash algorithm");
-    }
-    EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-    if (!ctx)
-    {
-        throw std::runtime_error("Failed to create EVP_MD_CTX");
-    }
-    if (EVP_DigestInit_ex(ctx, md, nullptr) != 1)
-    {
-        EVP_MD_CTX_free(ctx);
-        throw std::runtime_error("Failed to initialize digest: " + Details::OpenSSLBackend().getErrorString());
-    }
-    if (EVP_DigestUpdate(ctx, canonical_json.data(), canonical_json.size()) != 1)
-    {
-        EVP_MD_CTX_free(ctx);
-        throw std::runtime_error("Failed to update digest: " + Details::OpenSSLBackend().getErrorString());
-    }
-    unsigned int hash_len = 0;
-    std::vector<unsigned char> hash(EVP_MD_size(md));
-    if (EVP_DigestFinal_ex(ctx, hash.data(), &hash_len) != 1)
-    {
-        EVP_MD_CTX_free(ctx);
-        throw std::runtime_error("Failed to finalize digest: " + Details::OpenSSLBackend().getErrorString());
-    }
-    EVP_MD_CTX_free(ctx);
-    hash.resize(hash_len);
-    return hash;
+    auto const hash_algorithm = getHashAlgorithm(algorithm);
+    std::vector<unsigned char> const input(canonical_json.begin(), canonical_json.end());
+    auto const &back_end = getBackEnd();
+    return back_end.hash(hash_algorithm, input);
 }
 
 }  // namespace JOSE

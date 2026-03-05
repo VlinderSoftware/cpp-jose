@@ -15,7 +15,7 @@
  * - RFC 7638: JSON Web Key (JWK) Thumbprint
  *
  * Using OpenSSL for cryptographic operations with support for
- * post-quantum signatures.
+ * OKP keys such as Ed25519/Ed448 and X25519/X448.
  */
 
 #include "base64url.hpp"

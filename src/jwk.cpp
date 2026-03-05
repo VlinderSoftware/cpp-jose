@@ -41,6 +41,10 @@ string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string& cu
     {
         return (use == JWK::Use::signature) ? "HS256" : "A256KW";
     }
+    else if (key_type == JWK::KeyType::okp)
+    {
+        return (use == JWK::Use::signature) ? "EdDSA" : "ECDH-ES";
+    }
     
     throw runtime_error("Unsupported key type for default algorithm");
 }
@@ -65,6 +69,12 @@ void validateAlgorithm(const string& alg, JWK::KeyType key_type, JWK::Use use)
     };
     static const set<string> oct_enc_algs = {
         "A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"
+    };
+    static const set<string> okp_sig_algs = {
+        "EdDSA"
+    };
+    static const set<string> okp_enc_algs = {
+        "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW"
     };
     
     if (key_type == JWK::KeyType::rsa)
@@ -100,13 +110,24 @@ void validateAlgorithm(const string& alg, JWK::KeyType key_type, JWK::Use use)
             throw runtime_error("Algorithm '" + alg + "' is not valid for symmetric encryption keys. Use: A128KW, A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
         }
     }
+    else if (key_type == JWK::KeyType::okp)
+    {
+        if (use == JWK::Use::signature && okp_sig_algs.find(alg) == okp_sig_algs.end())
+        {
+            throw runtime_error("Algorithm '" + alg + "' is not valid for OKP signature keys. Use: EdDSA");
+        }
+        if (use == JWK::Use::encryption && okp_enc_algs.find(alg) == okp_enc_algs.end())
+        {
+            throw runtime_error("Algorithm '" + alg + "' is not valid for OKP encryption keys. Use: ECDH-ES or ECDH-ES+AxxxKW");
+        }
+    }
 }
 
 JWK::Use inferUseFromAlgorithm(string const& alg)
 {
     static set<string> const sig_algs = {
         "RS256", "RS384", "RS512", "PS256", "PS384", "PS512",
-        "ES256", "ES384", "ES512", "ES256K",
+        "ES256", "ES384", "ES512", "ES256K", "EdDSA",
         "HS256", "HS384", "HS512"
     };
     static set<string> const enc_algs = {
@@ -248,12 +269,12 @@ JWK JWK::generateOKP(Use use, unsigned int bits, const std::string& alg)
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::okp, use) : alg;
 
     // Validate algorithm matches key type and use
-    validateAlgorithm(final_alg, KeyType::oct, use);
+    validateAlgorithm(final_alg, KeyType::okp, use);
 
     if (0 == bits)
     {
-        // Default key size based on use
-        bits = (use == Use::signature) ? 192 : 768;  // For OKP, we can default to ML-DSA-65/ML-KEM-768
+        // Default to 25519-family keys unless caller requests larger curves.
+        bits = 255;
     }
 
     Impl impl(KeyType::okp, use, final_alg);
@@ -379,9 +400,30 @@ string JWK::toJSON(bool include_private) const
     else if (impl_->key_type_ == KeyType::okp && impl_->key_)
     {
 #if defined(JOSE_USE_CNG)
-        throw runtime_error("Post-quantum keys are not supported with CNG backend -- use OpenSSL");
+    throw runtime_error("OKP keys are not supported with CNG backend -- use OpenSSL");
 #else
-        throw logic_error("Not yet implemented.");
+        auto okp_key = dynamic_cast<Private::OKPKey*>(impl_->key_.get());
+        if (okp_key == nullptr)
+        {
+            throw runtime_error("Internal error: OKP key type mismatch");
+        }
+
+        json_obj["crv"] = okp_key->getCurveName();
+
+        auto x(okp_key->getX());
+        if (!x.empty())
+        {
+            json_obj["x"] = Base64Url::encode(x);
+        }
+
+        if (include_private)
+        {
+            auto d(okp_key->getD());
+            if (!d.empty())
+            {
+                json_obj["d"] = Base64Url::encode(d);
+            }
+        }
 #endif
     }
     else if (impl_->key_type_ == KeyType::oct && impl_->key_ && include_private)
@@ -413,7 +455,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
     }
 
     string kty = jwk_json["kty"].get<string>();
-    if (!permissive && kty != "RSA" && kty != "EC" && kty != "oct" && kty != "okp")
+    if (!permissive && kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
     {
         throw runtime_error("Unsupported key type: " + kty);
     }
@@ -544,9 +586,20 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
         case KeyType::okp:
 #if defined(JOSE_USE_CNG)
             throw runtime_error(
-                "Post-quantum keys are not supported with CNG backend -- use OpenSSL");
+                "OKP keys are not supported with CNG backend -- use OpenSSL");
 #else
-            throw logic_error("Not yet implemented.");
+        {
+            if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
+            {
+                throw runtime_error("Missing required OKP parameters");
+            }
+
+            auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
+            auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
+                                                   : vector<unsigned char>{};
+            impl.key_ = move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
+            break;
+        }
 #endif
         case KeyType::oct:
         {
@@ -559,19 +612,6 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             break;
         }
     }
-        //else if (kty == "oct")
-    //{
-    //    jwk.impl_->key_type_ = KeyType::oct;
-
-    //    if (!jwk_json.contains("k"))
-    //    {
-    //        throw runtime_error("Missing k parameter for symmetric key");
-    //    }
-
-    //    auto k_bytes = Base64Url::decode(jwk_json["k"].get<string>());
-    //    jwk.impl_->pkey_ =
-    //        EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, nullptr, k_bytes.data(), k_bytes.size());
-    //}
 
     return JWK(move(impl));
 }
@@ -617,36 +657,6 @@ bool JWK::hasPrivateKey() const
     {
         return impl_->key_->hasPrivate();
     }
-
-
-    //if (impl_->key_type_ == KeyType::rsa)
-    //{
-    //    BIGNUM* d = nullptr;
-    //    if (EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_D, &d) > 0)
-    //    {
-    //        bool has_private = (d != nullptr);
-    //        BN_free(d);
-    //        return has_private;
-    //    }
-    //    return false;
-    //}
-    //else if (impl_->key_type_ == KeyType::ec)
-    //{
-    //    BIGNUM* d = nullptr;
-    //    if (EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_PRIV_KEY, &d) > 0)
-    //    {
-    //        bool has_private = (d != nullptr);
-    //        BN_free(d);
-    //        return has_private;
-    //    }
-    //    return false;
-    //}
-    //else if (impl_->key_type_ == KeyType::oct)
-    //{
-    //    return true;  // Symmetric keys always have "private" component
-    //}
-
-    //return false;
 }
 
 // JWKSet implementation

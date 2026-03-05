@@ -1,19 +1,21 @@
-#include "backend_factory.hpp"
-#include "openssl_backend.hpp"
+#pragma once
+
+#include "back_end_factory.hpp"
+#include "openssl_back_end.hpp"
 
 namespace Vlinder {
 namespace JOSE {
 namespace Private {
 
-class OpenSSLFactory : public BackendFactory
+class OpenSSLBackEndFactory : public BackEndFactory
 {
 public:
-    std::unique_ptr<Details::Backend> createBackend() const override
+    std::unique_ptr<BackEnd> createBackEnd() const override
     {
-        return std::make_unique<Details::OpenSSLBackend>();
+        return std::make_unique<OpenSSLBackEnd>();
     }
 };
 
-}  // namespace Private
+} // namespace Private
 } // namespace JOSE
 } // namespace Vlinder

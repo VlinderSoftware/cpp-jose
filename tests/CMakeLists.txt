@@ -27,10 +27,15 @@ add_executable(jose_tests
 #    test_jwk_thumbprint.cpp
 #    test_rfc7520_examples.cpp
     test_endian.cpp
-    test_cng_base64.cpp
     test_concat_kdf.cpp
-    test_cng_generate_key.cpp
 )
+
+if(JOSE_BACKEND STREQUAL "CNG")
+    target_sources(jose_tests PRIVATE
+        test_cng_base64.cpp
+        test_cng_generate_key.cpp
+    )
+endif()
 
 target_link_libraries(jose_tests
     jose

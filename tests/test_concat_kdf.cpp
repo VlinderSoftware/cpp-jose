@@ -60,6 +60,12 @@ public:
     {
         return nullptr;
     }
+    unique_ptr<Key> generateOkp(string const& curve,
+                                vector<unsigned char> const& x_bytes,
+                                vector<unsigned char> const& d_bytes) const override
+    {
+        return nullptr;
+    }
     string getErrorString() const override
     {
         return string();

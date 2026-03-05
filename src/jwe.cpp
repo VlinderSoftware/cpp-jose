@@ -15,6 +15,37 @@ namespace JOSE {
 
 namespace {
 
+std::vector<unsigned char> getOctetKeyMaterial(JWK const &key)
+{
+    json const key_json = json::parse(key.toJSON(true));
+    if (!key_json.contains("kty") || key_json["kty"].get<std::string>() != "oct")
+    {
+        throw std::runtime_error("Direct key mode requires an oct JWK");
+    }
+    if (!key_json.contains("k"))
+    {
+        throw std::runtime_error("oct JWK missing required 'k' field");
+    }
+
+    return Base64Url::decode(key_json["k"].get<std::string>());
+}
+
+std::vector<unsigned char> generateRandomBytes(size_t byte_count)
+{
+    if (byte_count == 0)
+    {
+        return {};
+    }
+
+    JWK random_key = JWK::generateOct(JWK::Use::encryption, static_cast<int>(byte_count * 8));
+    std::vector<unsigned char> bytes = getOctetKeyMaterial(random_key);
+    if (bytes.size() != byte_count)
+    {
+        throw std::runtime_error("Failed to generate random bytes of requested length");
+    }
+    return bytes;
+}
+
 size_t getKeySize(JWA::ContentEncryptionAlgorithm algorithm)
 {
     switch (algorithm)
@@ -152,25 +183,7 @@ std::string JWE::encrypt(const JWK& key) const
     {
         // For direct encryption, use the provided key directly as the CEK
         encrypted_key.clear();  // No encrypted key field
-        
-        // Extract the symmetric key material from the JWK
-        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
-        if (!pkey)
-        {
-            throw std::runtime_error("Invalid key");
-        }
-        
-        size_t key_len = 0;
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &key_len) != 1)
-        {
-            throw std::runtime_error("Failed to get key length");
-        }
-        
-        cek.resize(key_len);
-        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &key_len) != 1)
-        {
-            throw std::runtime_error("Failed to get key data");
-        }
+        cek = getOctetKeyMaterial(key);
     }
     else if (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::ecdh_es)
     {
@@ -190,11 +203,7 @@ std::string JWE::encrypt(const JWK& key) const
     {
         // Generate random CEK and encrypt it with the key
         size_t cek_size = getKeySize(impl_->content_algorithm_);
-        cek.resize(cek_size);
-        if (RAND_bytes(cek.data(), static_cast<int>(cek_size)) != 1)
-        {
-            throw std::runtime_error("Failed to generate random CEK");
-        }
+        cek = generateRandomBytes(cek_size);
         
         // Check if this is a GCM key wrap algorithm
         bool is_gcm_kw = (impl_->key_algorithm_ == JWA::KeyEncryptionAlgorithm::a128gcmkw ||
@@ -238,11 +247,7 @@ std::string JWE::encrypt(const JWK& key) const
 
     // Generate IV
     size_t iv_size = getIVSize(impl_->content_algorithm_);
-    std::vector<unsigned char> iv(iv_size);
-    if (RAND_bytes(iv.data(), static_cast<int>(iv_size)) != 1)
-    {
-        throw std::runtime_error("Failed to generate random IV");
-    }
+    std::vector<unsigned char> iv = generateRandomBytes(iv_size);
     std::string encoded_iv = Base64Url::encode(iv);
 
     // Prepare AAD (Additional Authenticated Data) - the encoded header
@@ -306,23 +311,7 @@ std::string JWE::decrypt(const std::string& jwe, const JWK& key)
     if (key_alg == JWA::KeyEncryptionAlgorithm::dir)
     {
         // For direct encryption, use the provided key directly as the CEK
-        EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
-        if (!pkey)
-        {
-            throw std::runtime_error("Invalid key");
-        }
-        
-        size_t key_len = 0;
-        if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &key_len) != 1)
-        {
-            throw std::runtime_error("Failed to get key length");
-        }
-        
-        cek.resize(key_len);
-        if (EVP_PKEY_get_raw_private_key(pkey, cek.data(), &key_len) != 1)
-        {
-            throw std::runtime_error("Failed to get key data");
-        }
+        cek = getOctetKeyMaterial(key);
     }
     else if (key_alg == JWA::KeyEncryptionAlgorithm::ecdh_es)
     {

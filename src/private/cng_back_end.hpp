@@ -107,6 +107,9 @@ public:
     virtual std::unique_ptr<Key>
     generateOct(unsigned int bits, std::vector<unsigned char> const& k_bytes) const override;
     virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override;
+    virtual std::unique_ptr<Key> generateOkp(std::string const &curve,
+                                             std::vector<unsigned char> const &x_bytes,
+                                             std::vector<unsigned char> const &d_bytes) const override;
 
     //virtual std::vector<unsigned char> sign(SignatureAlgorithm algorithm, JWK const& key,
     //                                        std::vector<unsigned char> const& data) const override;

@@ -21,7 +21,7 @@ public:
     {
         rsa,
         ec,
-        okp,  // Octet Key Pair (for post-quantum)
+        okp,  // Octet Key Pair (RFC 8037: Ed25519/Ed448/X25519/X448)
         oct   // Symmetric key
     };
 

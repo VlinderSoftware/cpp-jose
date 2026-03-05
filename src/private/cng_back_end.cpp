@@ -672,6 +672,17 @@ CNGBackEnd::generateOct(unsigned int bits, std::vector<unsigned char> const& k_b
     throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
+/*virtual*/ unique_ptr<Key>
+CNGBackEnd::generateOkp(std::string const &curve,
+                        std::vector<unsigned char> const &x_bytes,
+                        std::vector<unsigned char> const &d_bytes) const /* override*/
+{
+    (void)curve;
+    (void)x_bytes;
+    (void)d_bytes;
+    throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
+}
+
 ///*virtual */ vector<unsigned char> CNGBackEnd::sign(SignatureAlgorithm algorithm, JWK const& key,
 //                                        vector<unsigned char> const& data) const /*override*/
 //{

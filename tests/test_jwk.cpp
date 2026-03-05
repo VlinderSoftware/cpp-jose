@@ -459,6 +459,51 @@ TEST_CASE("JWK Oct round-trip preserves all properties", "[jwk][round-trip]")
     REQUIRE(original.getAlgorithm() == parsed.getAlgorithm());
 }
 
+#if defined(JOSE_USE_OPENSSL)
+TEST_CASE("JWK OKP signature key generation works", "[jwk][okp][openssl]")
+{
+    JWK key = JWK::generateOKP(JWK::Use::signature);
+    REQUIRE(key.getKeyType() == JWK::KeyType::okp);
+    REQUIRE(key.hasPrivateKey());
+
+    key.setAlgorithm("EdDSA");
+    std::string json = key.toJSON(true);
+    REQUIRE(json.find("\"kty\":\"OKP\"") != std::string::npos);
+    REQUIRE(json.find("\"crv\":\"Ed25519\"") != std::string::npos);
+    REQUIRE(json.find("\"x\"") != std::string::npos);
+    REQUIRE(json.find("\"d\"") != std::string::npos);
+}
+
+TEST_CASE("JWK OKP encryption key generation works", "[jwk][okp][openssl]")
+{
+    JWK key = JWK::generateOKP(JWK::Use::encryption, 448, "ECDH-ES");
+    REQUIRE(key.getKeyType() == JWK::KeyType::okp);
+    REQUIRE(key.hasPrivateKey());
+
+    std::string json = key.toJSON(false);
+    REQUIRE(json.find("\"crv\":\"X448\"") != std::string::npos);
+    REQUIRE(json.find("\"x\"") != std::string::npos);
+    REQUIRE(json.find("\"d\"") == std::string::npos);
+}
+
+TEST_CASE("JWK OKP round-trip preserves key material", "[jwk][okp][openssl][round-trip]")
+{
+    JWK original = JWK::generateOKP(JWK::Use::signature, 255, "EdDSA");
+    original.setKeyID("okp-rt");
+
+    std::string private_json = original.toJSON(true);
+    JWK parsed_private = JWK::fromJSON(private_json);
+    REQUIRE(parsed_private.getKeyType() == JWK::KeyType::okp);
+    REQUIRE(parsed_private.hasPrivateKey());
+    REQUIRE(parsed_private.getKeyID() == "okp-rt");
+
+    std::string public_json = original.toJSON(false);
+    JWK parsed_public = JWK::fromJSON(public_json);
+    REQUIRE(parsed_public.getKeyType() == JWK::KeyType::okp);
+    REQUIRE_FALSE(parsed_public.hasPrivateKey());
+}
+#endif
+
 // Copy and move semantics
 TEST_CASE("JWK copy constructor works correctly", "[jwk][copy]")
 {

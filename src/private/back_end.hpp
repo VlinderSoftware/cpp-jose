@@ -108,6 +108,26 @@ private :
     std::string curve_name_;
 };
 
+class OKPKey : public AsymmetricKey
+{
+public:
+    OKPKey(std::string const &curve_name)
+        : AsymmetricKey(KeyType::okp), curve_name_(curve_name)
+    {
+    }
+
+    std::string getCurveName() const
+    {
+        return curve_name_;
+    }
+
+    virtual std::vector<unsigned char> getX() const = 0;
+    virtual std::vector<unsigned char> getD() const = 0;
+
+private:
+    std::string curve_name_;
+};
+
 class OctKey : public Key
 {
 public:
@@ -161,6 +181,9 @@ public:
     virtual std::unique_ptr<Key>
     generateOct(unsigned int bits, std::vector<unsigned char> const& k_bytes) const = 0;
     virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const = 0;
+    virtual std::unique_ptr<Key> generateOkp(std::string const &curve,
+                                             std::vector<unsigned char> const &x_bytes,
+                                             std::vector<unsigned char> const &d_bytes) const = 0;
     // virtual std::vector<unsigned char> sign(
     //    SignatureAlgorithm algorithm, JWK const& key,
     //    std::vector<unsigned char> const &data) const = 0;

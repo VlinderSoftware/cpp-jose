@@ -1,5 +1,6 @@
 #pragma once
 
+#include <bit>
 #include <cstdint>
 
 namespace Vlinder {
@@ -10,23 +11,20 @@ namespace Private {
 // can live in the header without violating the ODR.
 
 // Prefer a constexpr detection when the platform exposes byte-order macros
-#if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && \
-    (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)
-inline constexpr bool hostIsLittleEndian() { return true; }
-#elif defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && \
-    (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__)
-inline constexpr bool hostIsLittleEndian() { return false; }
-#elif defined(_WIN32)
-// Windows on supported architectures is little-endian
-inline constexpr bool hostIsLittleEndian() { return true; }
-#else
-// Fallback runtime check when compile-time macros are not available.
-inline bool hostIsLittleEndian()
+inline constexpr bool hostIsLittleEndian()
 {
-    uint32_t x = 1;
-    return *reinterpret_cast<unsigned char const *>(&x) == 1;
+    if constexpr (std::endian::native == std::endian::little)
+    {
+        return true;
+    }
+    if constexpr (std::endian::native == std::endian::big)
+    {
+        return false;
+    }
+
+    // Mixed-endian targets are outside supported scope for this library.
+    return false;
 }
-#endif
 
 inline uint32_t byteSwap32(uint32_t v)
 {
