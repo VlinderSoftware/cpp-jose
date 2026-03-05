@@ -1,21 +1,16 @@
-#include "jose/jwk.hpp"
-
-#include <openssl/bn.h>
-#include <openssl/ec.h>
-#include <openssl/evp.h>
-#include <openssl/pem.h>
-#include <openssl/rand.h>
-#include <openssl/rsa.h>
-#include <openssl/core_names.h>
-#include <openssl/param_build.h>
+#include "jwk.hpp"
 
 #include <cstring>
 #include <stdexcept>
 #include <set>
 
-#include "jose/base64url.hpp"
-#include "jose/json_utils.hpp"
-#include "jose/jwk_thumbprint.hpp"
+#include "base64url.hpp"
+#include "jwk_thumbprint.hpp"
+#include "private/json_utils.hpp"
+#include "private/back_end_factory.hpp"
+
+using namespace std;
+using json = Vlinder::JOSE::Private::json;
 
 namespace Vlinder {
 namespace JOSE {
@@ -23,7 +18,7 @@ namespace JOSE {
 namespace {
 
 // Default algorithms for key type + use combinations
-std::string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const std::string& curve = "")
+string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string& curve = "")
 {
     if (key_type == JWK::KeyType::rsa)
     {
@@ -47,28 +42,28 @@ std::string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const std::
         return (use == JWK::Use::signature) ? "HS256" : "A256KW";
     }
     
-    throw std::runtime_error("Unsupported key type for default algorithm");
+    throw runtime_error("Unsupported key type for default algorithm");
 }
 
 // Validate algorithm for key type + use combination
-void validateAlgorithm(const std::string& alg, JWK::KeyType key_type, JWK::Use use)
+void validateAlgorithm(const string& alg, JWK::KeyType key_type, JWK::Use use)
 {
-    static const std::set<std::string> rsa_sig_algs = {
+    static const set<string> rsa_sig_algs = {
         "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"
     };
-    static const std::set<std::string> rsa_enc_algs = {
+    static const set<string> rsa_enc_algs = {
         "RSA-OAEP", "RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512", "RSA1_5"
     };
-    static const std::set<std::string> ec_sig_algs = {
+    static const set<string> ec_sig_algs = {
         "ES256", "ES384", "ES512", "ES256K"
     };
-    static const std::set<std::string> ec_enc_algs = {
+    static const set<string> ec_enc_algs = {
         "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW"
     };
-    static const std::set<std::string> oct_sig_algs = {
+    static const set<string> oct_sig_algs = {
         "HS256", "HS384", "HS512"
     };
-    static const std::set<std::string> oct_enc_algs = {
+    static const set<string> oct_enc_algs = {
         "A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"
     };
     
@@ -76,35 +71,52 @@ void validateAlgorithm(const std::string& alg, JWK::KeyType key_type, JWK::Use u
     {
         if (use == JWK::Use::signature && rsa_sig_algs.find(alg) == rsa_sig_algs.end())
         {
-            throw std::runtime_error("Algorithm '" + alg + "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, PS256, PS384, or PS512");
+            throw runtime_error("Algorithm '" + alg + "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, PS256, PS384, or PS512");
         }
         if (use == JWK::Use::encryption && rsa_enc_algs.find(alg) == rsa_enc_algs.end())
         {
-            throw std::runtime_error("Algorithm '" + alg + "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.");
+            throw runtime_error("Algorithm '" + alg + "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.");
         }
     }
     else if (key_type == JWK::KeyType::ec)
     {
         if (use == JWK::Use::signature && ec_sig_algs.find(alg) == ec_sig_algs.end())
         {
-            throw std::runtime_error("Algorithm '" + alg + "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K");
+            throw runtime_error("Algorithm '" + alg + "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K");
         }
         if (use == JWK::Use::encryption && ec_enc_algs.find(alg) == ec_enc_algs.end())
         {
-            throw std::runtime_error("Algorithm '" + alg + "' is not valid for EC encryption keys. Use: ECDH-ES, ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW");
+            throw runtime_error("Algorithm '" + alg + "' is not valid for EC encryption keys. Use: ECDH-ES, ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW");
         }
     }
     else if (key_type == JWK::KeyType::oct)
     {
         if (use == JWK::Use::signature && oct_sig_algs.find(alg) == oct_sig_algs.end())
         {
-            throw std::runtime_error("Algorithm '" + alg + "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512");
+            throw runtime_error("Algorithm '" + alg + "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512");
         }
         if (use == JWK::Use::encryption && oct_enc_algs.find(alg) == oct_enc_algs.end())
         {
-            throw std::runtime_error("Algorithm '" + alg + "' is not valid for symmetric encryption keys. Use: A128KW, A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
+            throw runtime_error("Algorithm '" + alg + "' is not valid for symmetric encryption keys. Use: A128KW, A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
         }
     }
+}
+
+JWK::Use inferUseFromAlgorithm(string const& alg)
+{
+    static set<string> const sig_algs = {
+        "RS256", "RS384", "RS512", "PS256", "PS384", "PS512",
+        "ES256", "ES384", "ES512", "ES256K",
+        "HS256", "HS384", "HS512"
+    };
+    static set<string> const enc_algs = {
+        "RSA-OAEP", "RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512", "RSA1_5",
+        "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW",
+        "A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"
+    };
+    if (sig_algs.count(alg)) return JWK::Use::signature;
+    if (enc_algs.count(alg)) return JWK::Use::encryption;
+    throw runtime_error("Cannot infer 'use' from unknown algorithm: '" + alg + "'");
 }
 
 }  // anonymous namespace
@@ -112,42 +124,38 @@ void validateAlgorithm(const std::string& alg, JWK::KeyType key_type, JWK::Use u
 struct JWK::Impl
 {
     KeyType key_type_;
-    EVP_PKEY* pkey_ = nullptr;
-    std::string kid_;
-    std::string alg_;
+    unique_ptr<Private::Key> key_;
+    string kid_;
+    string alg_;
     Use use_;
     bool has_use_ = false;
 
-    ~Impl()
-    {
-        if (pkey_)
-        {
-            EVP_PKEY_free(pkey_);
-        }
-    }
+    ~Impl() = default;
 
-    Impl() : key_type_(KeyType::rsa), use_(Use::signature)
+    Impl(KeyType key_type, Use use, string const& alg)
+        : key_type_(key_type), use_(use), alg_(alg), has_use_(true)
     {
     }
 
     Impl(const Impl& other)
-        : key_type_(other.key_type_), pkey_(nullptr), kid_(other.kid_), alg_(other.alg_), use_(other.use_),
+        : key_type_(other.key_type_), kid_(other.kid_), alg_(other.alg_), use_(other.use_),
           has_use_(other.has_use_)
     {
-        if (other.pkey_)
+        if (other.key_)
         {
-            pkey_ = EVP_PKEY_dup(other.pkey_);
+            key_ = other.key_->clone();
         }
     }
 };
 
-JWK::JWK() : impl_(std::make_unique<Impl>())
+JWK::JWK(Impl &&impl)
 {
+    impl_ = make_unique<Impl>(move(impl));
 }
 
 JWK::~JWK() = default;
 
-JWK::JWK(const JWK& other) : impl_(std::make_unique<Impl>(*other.impl_))
+JWK::JWK(const JWK& other) : impl_(make_unique<Impl>(*other.impl_))
 {
 }
 
@@ -155,7 +163,7 @@ JWK& JWK::operator=(const JWK& other)
 {
     if (this != &other)
     {
-        impl_ = std::make_unique<Impl>(*other.impl_);
+        impl_ = make_unique<Impl>(*other.impl_);
     }
     return *this;
 }
@@ -163,155 +171,89 @@ JWK& JWK::operator=(const JWK& other)
 JWK::JWK(JWK&& other) noexcept = default;
 JWK& JWK::operator=(JWK&& other) noexcept = default;
 
-JWK JWK::generateRSA(Use use, int bits, const std::string& alg)
+JWK JWK::generateRSA(Use use, unsigned int bits, const string& alg)
 {
-    JWK jwk;
-    jwk.impl_->key_type_ = KeyType::rsa;
-
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, nullptr);
-    if (!ctx)
-    {
-        throw std::runtime_error("Failed to create EVP_PKEY_CTX");
-    }
-
-    if (EVP_PKEY_keygen_init(ctx) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Failed to initialize key generation");
-    }
-
-    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, bits) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Failed to set key size");
-    }
-
-    if (EVP_PKEY_keygen(ctx, &jwk.impl_->pkey_) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Failed to generate key");
-    }
-
-    EVP_PKEY_CTX_free(ctx);
-    
-    // Automatically set key ID to SHA-512 thumbprint of the public key
-    jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
-    
     // Determine algorithm: use provided or default
-    std::string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::rsa, use) : alg;
+    string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::rsa, use) : alg;
     
     // Validate algorithm matches key type and use
     validateAlgorithm(final_alg, KeyType::rsa, use);
-    
-    // Set metadata
-    jwk.impl_->alg_ = final_alg;
-    jwk.impl_->use_ = use;
-    jwk.impl_->has_use_ = true;
-    
+
+    Impl impl(KeyType::rsa, use, final_alg);
+
+    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    auto back_end(factory.createBackEnd());
+    impl.key_ = move(back_end->generateRSA(bits));
+
+    JWK jwk(move(impl));
+
     return jwk;
 }
 
-JWK JWK::generateEC(Use use, const std::string& curve, const std::string& alg)
+JWK JWK::generateEC(Use use, const string& curve, const string& alg)
 {
-    JWK jwk;
-    jwk.impl_->key_type_ = KeyType::ec;
+    // Determine algorithm: use provided or default
+    string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::ec, use, curve) : alg;
 
-    int nid;
-    if (curve == "P-256")
-    {
-        nid = NID_X9_62_prime256v1;
-    }
-    else if (curve == "P-384")
-    {
-        nid = NID_secp384r1;
-    }
-    else if (curve == "P-521")
-    {
-        nid = NID_secp521r1;
-    }
-    else
-    {
-        throw std::runtime_error("Unsupported curve");
-    }
-
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, nullptr);
-    if (!ctx)
-    {
-        throw std::runtime_error("Failed to create EVP_PKEY_CTX");
-    }
-
-    if (EVP_PKEY_keygen_init(ctx) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Failed to initialize key generation");
-    }
-
-    if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Failed to set curve");
-    }
-
-    if (EVP_PKEY_keygen(ctx, &jwk.impl_->pkey_) <= 0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw std::runtime_error("Failed to generate key");
-    }
-
-    EVP_PKEY_CTX_free(ctx);
-    
-    // Automatically set key ID to SHA-512 thumbprint of the public key
-    jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
-    
-    // Determine algorithm: use provided or default based on curve
-    std::string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::ec, use, curve) : alg;
-    
     // Validate algorithm matches key type and use
     validateAlgorithm(final_alg, KeyType::ec, use);
-    
-    // Set metadata
-    jwk.impl_->alg_ = final_alg;
-    jwk.impl_->use_ = use;
-    jwk.impl_->has_use_ = true;
-    
+
+    Impl impl(KeyType::ec, use, final_alg);
+
+    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    auto back_end(factory.createBackEnd());
+    impl.key_ = move(back_end->generateEC(curve));
+
+    JWK jwk(move(impl));
+
     return jwk;
 }
 
-JWK JWK::generateOct(Use use, int bits, const std::string& alg)
+JWK JWK::generateOct(Use use, int bits, const string& alg)
 {
-    JWK jwk;
-    jwk.impl_->key_type_ = KeyType::oct;
-
-    std::vector<unsigned char> key(bits / 8);
-    if (RAND_bytes(key.data(), static_cast<int>(key.size())) != 1)
-    {
-        throw std::runtime_error("Failed to generate random key");
-    }
-
-    jwk.impl_->pkey_ = EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, nullptr, key.data(), key.size());
-    if (!jwk.impl_->pkey_)
-    {
-        throw std::runtime_error("Failed to create symmetric key");
-    }
-
-    // Automatically set key ID to SHA-512 thumbprint
-    jwk.impl_->kid_ = JWKThumbprint::compute(jwk, "SHA-512");
-
     // Determine algorithm: use provided or default
-    std::string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::oct, use) : alg;
-    
+    string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::oct, use) : alg;
+
     // Validate algorithm matches key type and use
     validateAlgorithm(final_alg, KeyType::oct, use);
-    
-    // Set metadata
-    jwk.impl_->alg_ = final_alg;
-    jwk.impl_->use_ = use;
-    jwk.impl_->has_use_ = true;
+
+    Impl impl(KeyType::oct, use, final_alg);
+
+    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    auto back_end(factory.createBackEnd());
+    impl.key_ = move(back_end->generateOct(bits));
+
+    JWK jwk(move(impl));
 
     return jwk;
 }
 
-std::string JWK::toJSON(bool include_private) const
+JWK JWK::generateOKP(Use use, unsigned int bits, const std::string& alg)
+{
+    // Determine algorithm: use provided or default
+    string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::okp, use) : alg;
+
+    // Validate algorithm matches key type and use
+    validateAlgorithm(final_alg, KeyType::oct, use);
+
+    if (0 == bits)
+    {
+        // Default key size based on use
+        bits = (use == Use::signature) ? 192 : 768;  // For OKP, we can default to ML-DSA-65/ML-KEM-768
+    }
+
+    Impl impl(KeyType::okp, use, final_alg);
+
+    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    auto back_end(factory.createBackEnd());
+    impl.key_ = move(back_end->generateOkp(use, bits));
+
+    JWK jwk(move(impl));
+
+    return jwk;
+}
+
+string JWK::toJSON(bool include_private) const
 {
     json json_obj = json::object();
 
@@ -349,386 +291,332 @@ std::string JWK::toJSON(bool include_private) const
     }
 
     // Add key-specific fields
-    if (impl_->key_type_ == KeyType::rsa && impl_->pkey_)
+    if (impl_->key_type_ == KeyType::rsa && impl_->key_)
     {
-        // Use EVP_PKEY_get_bn_param for OpenSSL 3.0+
-        BIGNUM* n = nullptr;
-        BIGNUM* e = nullptr;
-        BIGNUM* d = nullptr;
-        
-        EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_N, &n);
-        EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_E, &e);
-        
-        if (n)
-        {
-            std::vector<unsigned char> n_bytes(BN_num_bytes(n));
-            BN_bn2bin(n, n_bytes.data());
-            json_obj["n"] = Base64Url::encode(n_bytes);
-            BN_free(n);
-        }
+        auto rsa_key = dynamic_cast<Private::RSAKey*>(impl_->key_.get());
+        auto n(rsa_key->getN());
+        auto e(rsa_key->getE());
 
-        if (e)
+        if (!n.empty())
         {
-            std::vector<unsigned char> e_bytes(BN_num_bytes(e));
-            BN_bn2bin(e, e_bytes.data());
-            json_obj["e"] = Base64Url::encode(e_bytes);
-            BN_free(e);
+            json_obj["n"] = Base64Url::encode(n);
+        }
+        if (!e.empty())
+        {
+            json_obj["e"] = Base64Url::encode(e);
         }
 
         if (include_private)
         {
-            EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_D, &d);
-            if (d)
+            auto d(rsa_key->getD());
+            auto p(rsa_key->getP());
+            auto q(rsa_key->getQ());
+            auto dp(rsa_key->getDp());
+            auto dq(rsa_key->getDq());
+            auto qi(rsa_key->getQi());
+            if (!d.empty())
             {
-                std::vector<unsigned char> d_bytes(BN_num_bytes(d));
-                BN_bn2bin(d, d_bytes.data());
-                json_obj["d"] = Base64Url::encode(d_bytes);
-                BN_free(d);
-
-                BIGNUM *p = nullptr, *q = nullptr, *dmp1 = nullptr, *dmq1 = nullptr, *iqmp = nullptr;
-                EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_FACTOR1, &p);
-                EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_FACTOR2, &q);
-                EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dmp1);
-                EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dmq1);
-                EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &iqmp);
-
-                if (p)
-                {
-                    std::vector<unsigned char> p_bytes(BN_num_bytes(p));
-                    BN_bn2bin(p, p_bytes.data());
-                    json_obj["p"] = Base64Url::encode(p_bytes);
-                    BN_free(p);
-                }
-
-                if (q)
-                {
-                    std::vector<unsigned char> q_bytes(BN_num_bytes(q));
-                    BN_bn2bin(q, q_bytes.data());
-                    json_obj["q"] = Base64Url::encode(q_bytes);
-                    BN_free(q);
-                }
-
-                if (dmp1)
-                {
-                    std::vector<unsigned char> dp(BN_num_bytes(dmp1));
-                    BN_bn2bin(dmp1, dp.data());
-                    json_obj["dp"] = Base64Url::encode(dp);
-                    BN_free(dmp1);
-                }
-
-                if (dmq1)
-                {
-                    std::vector<unsigned char> dq(BN_num_bytes(dmq1));
-                    BN_bn2bin(dmq1, dq.data());
-                    json_obj["dq"] = Base64Url::encode(dq);
-                    BN_free(dmq1);
-                }
-
-                if (iqmp)
-                {
-                    std::vector<unsigned char> qi(BN_num_bytes(iqmp));
-                    BN_bn2bin(iqmp, qi.data());
-                    json_obj["qi"] = Base64Url::encode(qi);
-                    BN_free(iqmp);
-                }
+                json_obj["d"] = Base64Url::encode(d);
+            }
+            if (!d.empty())
+            {
+                json_obj["p"] = Base64Url::encode(p);
+            }
+            if (!d.empty())
+            {
+                json_obj["q"] = Base64Url::encode(q);
+            }
+            if (!d.empty())
+            {
+                json_obj["dp"] = Base64Url::encode(dp);
+            }
+            if (!d.empty())
+            {
+                json_obj["dq"] = Base64Url::encode(dq);
+            }
+            if (!d.empty())
+            {
+                json_obj["qi"] = Base64Url::encode(qi);
             }
         }
     }
-    else if (impl_->key_type_ == KeyType::ec && impl_->pkey_)
+    else if (impl_->key_type_ == KeyType::ec && impl_->key_)
     {
-        // Get the curve name
-        char curve_name[80];
-        size_t curve_name_len = sizeof(curve_name);
-        std::string group_name;
-        size_t key_size = 0;  // Expected byte size for coordinates
-        
-        if (EVP_PKEY_get_utf8_string_param(impl_->pkey_, OSSL_PKEY_PARAM_GROUP_NAME, 
-                                           curve_name, sizeof(curve_name), &curve_name_len))
-        {
-            group_name = std::string(curve_name);
-            // Convert OpenSSL curve names to JWK curve names
-            if (group_name == "prime256v1")
-            {
-                json_obj["crv"] = "P-256";
-                key_size = 32;
-            }
-            else if (group_name == "secp384r1")
-            {
-                json_obj["crv"] = "P-384";
-                key_size = 48;
-            }
-            else if (group_name == "secp521r1")
-            {
-                json_obj["crv"] = "P-521";
-                key_size = 66;
-            }
-            else
-            {
-                json_obj["crv"] = group_name;  // Use as-is if unknown
-            }
-        }
+        auto ec_key = dynamic_cast<Private::ECKey*>(impl_->key_.get());
+        json_obj["crv"] = ec_key->getCurveName();
 
-        // Get the public key coordinates (x, y)
-        BIGNUM* x = nullptr;
-        BIGNUM* y = nullptr;
-        
-        EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_EC_PUB_X, &x);
-        EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_EC_PUB_Y, &y);
-        
-        if (x && key_size > 0)
-        {
-            std::vector<unsigned char> x_bytes(key_size, 0);
-            int x_len = BN_num_bytes(x);
-            // Pad with leading zeros if necessary
-            BN_bn2bin(x, x_bytes.data() + (key_size - x_len));
-            json_obj["x"] = Base64Url::encode(x_bytes);
-            BN_free(x);
-        }
+        auto x(ec_key->getX());
+        auto y(ec_key->getY());
+        auto d(ec_key->getD());
 
-        if (y && key_size > 0)
+        if (!x.empty())
         {
-            std::vector<unsigned char> y_bytes(key_size, 0);
-            int y_len = BN_num_bytes(y);
-            // Pad with leading zeros if necessary
-            BN_bn2bin(y, y_bytes.data() + (key_size - y_len));
-            json_obj["y"] = Base64Url::encode(y_bytes);
-            BN_free(y);
+            json_obj["x"] = Base64Url::encode(x);
         }
-
-        // Include private key if requested
-        if (include_private && key_size > 0)
+        if (!y.empty())
         {
-            BIGNUM* d = nullptr;
-            EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_PRIV_KEY, &d);
-            if (d)
-            {
-                std::vector<unsigned char> d_bytes(key_size, 0);
-                int d_len = BN_num_bytes(d);
-                // Pad with leading zeros if necessary
-                BN_bn2bin(d, d_bytes.data() + (key_size - d_len));
-                json_obj["d"] = Base64Url::encode(d_bytes);
-                BN_free(d);
-            }
+            json_obj["y"] = Base64Url::encode(y);
+        }
+        if (include_private && !d.empty())
+        {
+            json_obj["d"] = Base64Url::encode(d);
         }
     }
-    else if (impl_->key_type_ == KeyType::oct && impl_->pkey_ && include_private)
+    else if (impl_->key_type_ == KeyType::okp && impl_->key_)
     {
-        size_t len = 0;
-        EVP_PKEY_get_raw_private_key(impl_->pkey_, nullptr, &len);
-        std::vector<unsigned char> key(len);
-        EVP_PKEY_get_raw_private_key(impl_->pkey_, key.data(), &len);
-        json_obj["k"] = Base64Url::encode(key);
+#if defined(JOSE_USE_CNG)
+        throw runtime_error("Post-quantum keys are not supported with CNG backend -- use OpenSSL");
+#endif
     }
+    else if (impl_->key_type_ == KeyType::oct && impl_->key_ && include_private)
+    {
+        auto oct_key = dynamic_cast<Private::OctKey*>(impl_->key_.get());
+        auto k(oct_key->getK());
+        if (!k.empty())
+        {
+            json_obj["k"] = Base64Url::encode(k);
+        }
+    }
+    if (impl_->kid_.empty())
+    {
+        // Auto-generate kid as thumbprint if not set
+        //TODO impl_->kid_ = generateThumbprint(json_obj);
+    }
+    json_obj["kid"] = impl_->kid_;
 
     return json_obj.dump();
 }
 
-JWK JWK::fromJSON(const std::string& json_str)
+JWK JWK::fromJSON(const string &json_str, bool permissive)
 {
-    JWK jwk;
     json jwk_json = json::parse(json_str);
 
     if (!jwk_json.contains("kty"))
     {
-        throw std::runtime_error("Missing kty field");
+        throw runtime_error("Missing kty field");
     }
 
-    std::string kty = jwk_json["kty"].get<std::string>();
-
-    if (kty == "RSA")
+    string kty = jwk_json["kty"].get<string>();
+    if (!permissive && kty != "RSA" && kty != "EC" && kty != "oct" && kty != "okp")
     {
-        jwk.impl_->key_type_ = KeyType::rsa;
-
-        if (!jwk_json.contains("n") || !jwk_json.contains("e"))
-        {
-            throw std::runtime_error("Missing required RSA parameters");
-        }
-
-        auto n_bytes = Base64Url::decode(jwk_json["n"].get<std::string>());
-        auto e_bytes = Base64Url::decode(jwk_json["e"].get<std::string>());
-
-        BIGNUM* n = BN_bin2bn(n_bytes.data(), static_cast<int>(n_bytes.size()), nullptr);
-        BIGNUM* e = BN_bin2bn(e_bytes.data(), static_cast<int>(e_bytes.size()), nullptr);
-
-        // Use EVP_PKEY_CTX and OSSL_PARAM_BLD for OpenSSL 3.0+
-        OSSL_PARAM_BLD* param_bld = OSSL_PARAM_BLD_new();
-        if (!param_bld)
-        {
-            BN_free(n);
-            BN_free(e);
-            throw std::runtime_error("Failed to create OSSL_PARAM_BLD");
-        }
-
-        OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_RSA_N, n);
-        OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_RSA_E, e);
-
-        BIGNUM* d = nullptr;
-        BIGNUM* p = nullptr;
-        BIGNUM* q = nullptr;
-        
-        if (jwk_json.contains("d"))
-        {
-            auto d_bytes = Base64Url::decode(jwk_json["d"].get<std::string>());
-            d = BN_bin2bn(d_bytes.data(), static_cast<int>(d_bytes.size()), nullptr);
-            OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_RSA_D, d);
-
-            if (jwk_json.contains("p") && jwk_json.contains("q"))
-            {
-                auto p_bytes = Base64Url::decode(jwk_json["p"].get<std::string>());
-                auto q_bytes = Base64Url::decode(jwk_json["q"].get<std::string>());
-                p = BN_bin2bn(p_bytes.data(), static_cast<int>(p_bytes.size()), nullptr);
-                q = BN_bin2bn(q_bytes.data(), static_cast<int>(q_bytes.size()), nullptr);
-                OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_RSA_FACTOR1, p);
-                OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_RSA_FACTOR2, q);
-            }
-        }
-
-        OSSL_PARAM* params = OSSL_PARAM_BLD_to_param(param_bld);
-        OSSL_PARAM_BLD_free(param_bld);
-        
-        // Free all BIGNUMs after params are built
-        BN_free(n);
-        BN_free(e);
-        if (d) BN_free(d);
-        if (p) BN_free(p);
-        if (q) BN_free(q);
-
-        EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr);
-        if (!ctx || EVP_PKEY_fromdata_init(ctx) <= 0)
-        {
-            OSSL_PARAM_free(params);
-            if (ctx) EVP_PKEY_CTX_free(ctx);
-            throw std::runtime_error("Failed to initialize EVP_PKEY_CTX");
-        }
-
-        if (EVP_PKEY_fromdata(ctx, &jwk.impl_->pkey_, EVP_PKEY_KEYPAIR, params) <= 0)
-        {
-            OSSL_PARAM_free(params);
-            EVP_PKEY_CTX_free(ctx);
-            throw std::runtime_error("Failed to create RSA key from parameters");
-        }
-
-        OSSL_PARAM_free(params);
-        EVP_PKEY_CTX_free(ctx);
+        throw runtime_error("Unsupported key type: " + kty);
     }
-    else if (kty == "EC")
+    if (permissive)
     {
-        jwk.impl_->key_type_ = KeyType::ec;
-
-        if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
+        auto lower_kty(kty);
+        // Allow case-insensitive kty values in permissive mode
+        transform(lower_kty.begin(), lower_kty.end(), lower_kty.begin(), ::tolower);
+        if (lower_kty == "rsa")
         {
-            throw std::runtime_error("Missing required EC parameters");
+            kty = "RSA";
         }
-
-        std::string crv = jwk_json["crv"].get<std::string>();
-        auto x_bytes = Base64Url::decode(jwk_json["x"].get<std::string>());
-        auto y_bytes = Base64Url::decode(jwk_json["y"].get<std::string>());
-
-        // Convert JWK curve names to OpenSSL curve names
-        std::string group_name;
-        if (crv == "P-256")
+        else if (lower_kty == "ec")
         {
-            group_name = "prime256v1";
+            kty = "EC";
         }
-        else if (crv == "P-384")
+        else if (lower_kty == "oct")
         {
-            group_name = "secp384r1";
+            kty = "oct";
         }
-        else if (crv == "P-521")
+        else if (lower_kty == "okp")
         {
-            group_name = "secp521r1";
+            kty = "OKP";
         }
         else
         {
-            throw std::runtime_error("Unsupported EC curve: " + crv);
+            throw runtime_error("Unsupported key type: " + kty);
         }
-
-        // Encode public key as uncompressed point: 0x04 || X || Y
-        std::vector<unsigned char> pub_key;
-        pub_key.push_back(0x04);  // uncompressed point format
-        pub_key.insert(pub_key.end(), x_bytes.begin(), x_bytes.end());
-        pub_key.insert(pub_key.end(), y_bytes.begin(), y_bytes.end());
-
-        OSSL_PARAM_BLD* param_bld = OSSL_PARAM_BLD_new();
-        if (!param_bld)
-        {
-            throw std::runtime_error("Failed to create OSSL_PARAM_BLD");
-        }
-
-        OSSL_PARAM_BLD_push_utf8_string(param_bld, OSSL_PKEY_PARAM_GROUP_NAME, 
-                                        group_name.c_str(), 0);
-        OSSL_PARAM_BLD_push_octet_string(param_bld, OSSL_PKEY_PARAM_PUB_KEY, 
-                                         pub_key.data(), pub_key.size());
-
-        // Include private key if present
-        BIGNUM* d = nullptr;
-        if (jwk_json.contains("d"))
-        {
-            auto d_bytes = Base64Url::decode(jwk_json["d"].get<std::string>());
-            d = BN_bin2bn(d_bytes.data(), static_cast<int>(d_bytes.size()), nullptr);
-            OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_PRIV_KEY, d);
-        }
-
-        OSSL_PARAM* params = OSSL_PARAM_BLD_to_param(param_bld);
-        OSSL_PARAM_BLD_free(param_bld);
-        
-        // Free the BIGNUM after params are built
-        if (d)
-        {
-            BN_free(d);
-        }
-
-        EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
-        if (!ctx || EVP_PKEY_fromdata_init(ctx) <= 0)
-        {
-            OSSL_PARAM_free(params);
-            if (ctx) EVP_PKEY_CTX_free(ctx);
-            throw std::runtime_error("Failed to initialize EVP_PKEY_CTX");
-        }
-
-        int selection = jwk_json.contains("d") ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY;
-        if (EVP_PKEY_fromdata(ctx, &jwk.impl_->pkey_, selection, params) <= 0)
-        {
-            OSSL_PARAM_free(params);
-            EVP_PKEY_CTX_free(ctx);
-            throw std::runtime_error("Failed to create EC key from parameters");
-        }
-
-        OSSL_PARAM_free(params);
-        EVP_PKEY_CTX_free(ctx);
     }
-    else if (kty == "oct")
+    KeyType key_type;
+    bool has_use(jwk_json.contains("use"));
+    Use use(has_use ? jwk_json["use"].get<string>() == "sig" ? Use::signature : Use::encryption
+                    : Use::signature);
+    string alg(jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "");
+
+    // We need either the algorithm or the use. If neither is present, we won't know how to use the
+    // key. If both are present, we'll validate that they are compatible. But if only one is
+    // present, we can infer the other.
+    if (!has_use && alg.empty())
     {
-        jwk.impl_->key_type_ = KeyType::oct;
-
-        if (!jwk_json.contains("k"))
-        {
-            throw std::runtime_error("Missing k parameter for symmetric key");
-        }
-
-        auto k_bytes = Base64Url::decode(jwk_json["k"].get<std::string>());
-        jwk.impl_->pkey_ =
-            EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, nullptr, k_bytes.data(), k_bytes.size());
+        throw runtime_error("JWK must contain at least one of 'use' or 'alg'");
     }
 
+    // Derive key_type from kty for use in validation and inference
+    if      (kty == "RSA") key_type = KeyType::rsa;
+    else if (kty == "EC")  key_type = KeyType::ec;
+    else if (kty == "oct") key_type = KeyType::oct;
+    else                   key_type = KeyType::okp;
+
+    string ec_curve;
+    if (key_type == KeyType::ec)
+    {
+        if (!jwk_json.contains("crv"))
+        {
+            throw runtime_error("Missing required 'crv' parameter for EC key");
+        }
+        ec_curve = jwk_json["crv"].get<string>();
+    }
+
+    if (has_use && !alg.empty())
+    {
+        validateAlgorithm(alg, key_type, use);
+    }
+    else if (!has_use)
+    {
+        // Only alg present: infer use from the algorithm
+        use = inferUseFromAlgorithm(alg);
+        has_use = true;
+    }
+    else
+    {
+        // Only use present: infer alg from use.
+        // For EC signature keys the curve drives the default (P-256→ES256, P-384→ES384,
+        // P-521→ES512), so pass ec_curve. For EC encryption the result is always ECDH-ES
+        // regardless of curve — the curve is carried in the key's 'crv' field, not the alg name.
+        alg = getDefaultAlgorithm(key_type, use, ec_curve);
+    }
+
+    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    auto back_end(factory.createBackEnd());
+    Impl impl(key_type, use, alg);
     if (jwk_json.contains("kid"))
     {
-        jwk.impl_->kid_ = jwk_json["kid"].get<std::string>();
+        impl.kid_ = jwk_json["kid"].get<string>();
     }
 
-    if (jwk_json.contains("alg"))
+    switch (key_type)
     {
-        jwk.impl_->alg_ = jwk_json["alg"].get<std::string>();
+        case KeyType::rsa:
+        {
+            if (!jwk_json.contains("n") || !jwk_json.contains("e"))
+            {
+                throw runtime_error("Missing required RSA parameters");
+            }
+            auto n_bytes = Base64Url::decode(jwk_json["n"].get<string>());
+            auto e_bytes = Base64Url::decode(jwk_json["e"].get<string>());
+            auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
+                                                  : vector<unsigned char>{};
+            auto p_bytes = jwk_json.contains("p") ? Base64Url::decode(jwk_json["p"].get<string>())
+                                                  : vector<unsigned char>{};
+            auto q_bytes = jwk_json.contains("q") ? Base64Url::decode(jwk_json["q"].get<string>())
+                                                  : vector<unsigned char>{};
+            auto dp_bytes = jwk_json.contains("dp") ? Base64Url::decode(jwk_json["dp"].get<string>())
+                                                  : vector<unsigned char>{};
+            auto dq_bytes = jwk_json.contains("dq") ? Base64Url::decode(jwk_json["dq"].get<string>())
+                                                  : vector<unsigned char>{};
+            auto qi_bytes = jwk_json.contains("qi") ? Base64Url::decode(jwk_json["qi"].get<string>())
+                                                  : vector<unsigned char>{};
+            impl.key_ = move(back_end->generateRSA(n_bytes, e_bytes, d_bytes, p_bytes, q_bytes,
+                                                     dp_bytes, dq_bytes, qi_bytes));
+            break;
+        }
+        case KeyType::ec:
+        case KeyType::okp:
+        case KeyType::oct:
+            break;
     }
 
-    if (jwk_json.contains("use"))
-    {
-        std::string use = jwk_json["use"].get<std::string>();
-        jwk.impl_->has_use_ = true;
-        jwk.impl_->use_ = (use == "sig") ? Use::signature : Use::encryption;
-    }
+    //else if (kty == "EC")
+    //{
+    //    jwk.impl_->key_type_ = KeyType::ec;
 
-    return jwk;
+    //    if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
+    //    {
+    //        throw runtime_error("Missing required EC parameters");
+    //    }
+
+    //    string crv = jwk_json["crv"].get<string>();
+    //    auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
+    //    auto y_bytes = Base64Url::decode(jwk_json["y"].get<string>());
+
+    //    // Convert JWK curve names to OpenSSL curve names
+    //    string group_name;
+    //    if (crv == "P-256")
+    //    {
+    //        group_name = "prime256v1";
+    //    }
+    //    else if (crv == "P-384")
+    //    {
+    //        group_name = "secp384r1";
+    //    }
+    //    else if (crv == "P-521")
+    //    {
+    //        group_name = "secp521r1";
+    //    }
+    //    else
+    //    {
+    //        throw runtime_error("Unsupported EC curve: " + crv);
+    //    }
+
+    //    // Encode public key as uncompressed point: 0x04 || X || Y
+    //    vector<unsigned char> pub_key;
+    //    pub_key.push_back(0x04);  // uncompressed point format
+    //    pub_key.insert(pub_key.end(), x_bytes.begin(), x_bytes.end());
+    //    pub_key.insert(pub_key.end(), y_bytes.begin(), y_bytes.end());
+
+    //    OSSL_PARAM_BLD* param_bld = OSSL_PARAM_BLD_new();
+    //    if (!param_bld)
+    //    {
+    //        throw runtime_error("Failed to create OSSL_PARAM_BLD");
+    //    }
+
+    //    OSSL_PARAM_BLD_push_utf8_string(param_bld, OSSL_PKEY_PARAM_GROUP_NAME, 
+    //                                    group_name.c_str(), 0);
+    //    OSSL_PARAM_BLD_push_octet_string(param_bld, OSSL_PKEY_PARAM_PUB_KEY, 
+    //                                     pub_key.data(), pub_key.size());
+
+    //    // Include private key if present
+    //    BIGNUM* d = nullptr;
+    //    if (jwk_json.contains("d"))
+    //    {
+    //        auto d_bytes = Base64Url::decode(jwk_json["d"].get<string>());
+    //        d = BN_bin2bn(d_bytes.data(), static_cast<int>(d_bytes.size()), nullptr);
+    //        OSSL_PARAM_BLD_push_BN(param_bld, OSSL_PKEY_PARAM_PRIV_KEY, d);
+    //    }
+
+    //    OSSL_PARAM* params = OSSL_PARAM_BLD_to_param(param_bld);
+    //    OSSL_PARAM_BLD_free(param_bld);
+    //    
+    //    // Free the BIGNUM after params are built
+    //    if (d)
+    //    {
+    //        BN_free(d);
+    //    }
+
+    //    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
+    //    if (!ctx || EVP_PKEY_fromdata_init(ctx) <= 0)
+    //    {
+    //        OSSL_PARAM_free(params);
+    //        if (ctx) EVP_PKEY_CTX_free(ctx);
+    //        throw runtime_error("Failed to initialize EVP_PKEY_CTX");
+    //    }
+
+    //    int selection = jwk_json.contains("d") ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY;
+    //    if (EVP_PKEY_fromdata(ctx, &jwk.impl_->pkey_, selection, params) <= 0)
+    //    {
+    //        OSSL_PARAM_free(params);
+    //        EVP_PKEY_CTX_free(ctx);
+    //        throw runtime_error("Failed to create EC key from parameters");
+    //    }
+
+    //    OSSL_PARAM_free(params);
+    //    EVP_PKEY_CTX_free(ctx);
+    //}
+    //else if (kty == "oct")
+    //{
+    //    jwk.impl_->key_type_ = KeyType::oct;
+
+    //    if (!jwk_json.contains("k"))
+    //    {
+    //        throw runtime_error("Missing k parameter for symmetric key");
+    //    }
+
+    //    auto k_bytes = Base64Url::decode(jwk_json["k"].get<string>());
+    //    jwk.impl_->pkey_ =
+    //        EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, nullptr, k_bytes.data(), k_bytes.size());
+    //}
+
+    return JWK(move(impl));
 }
 
 JWK::KeyType JWK::getKeyType() const
@@ -736,12 +624,12 @@ JWK::KeyType JWK::getKeyType() const
     return impl_->key_type_;
 }
 
-void JWK::setKeyID(const std::string& kid)
+void JWK::setKeyID(const string& kid)
 {
     impl_->kid_ = kid;
 }
 
-std::string JWK::getKeyID() const
+string JWK::getKeyID() const
 {
     return impl_->kid_;
 }
@@ -752,89 +640,89 @@ void JWK::setUse(Use use)
     impl_->has_use_ = true;
 }
 
-void JWK::setAlgorithm(const std::string& alg)
+void JWK::setAlgorithm(const string& alg)
 {
     impl_->alg_ = alg;
 }
 
-std::string JWK::getAlgorithm() const
+string JWK::getAlgorithm() const
 {
     return impl_->alg_;
 }
 
 bool JWK::hasPrivateKey() const
 {
-    if (!impl_->pkey_)
+    if (!impl_->key_)
     {
         return false;
     }
-
-    if (impl_->key_type_ == KeyType::rsa)
+    else
     {
-        BIGNUM* d = nullptr;
-        if (EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_D, &d) > 0)
-        {
-            bool has_private = (d != nullptr);
-            BN_free(d);
-            return has_private;
-        }
-        return false;
-    }
-    else if (impl_->key_type_ == KeyType::ec)
-    {
-        BIGNUM* d = nullptr;
-        if (EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_PRIV_KEY, &d) > 0)
-        {
-            bool has_private = (d != nullptr);
-            BN_free(d);
-            return has_private;
-        }
-        return false;
-    }
-    else if (impl_->key_type_ == KeyType::oct)
-    {
-        return true;  // Symmetric keys always have "private" component
+        return impl_->key_->hasPrivate();
     }
 
-    return false;
-}
 
-void* JWK::getKey() const
-{
-    return impl_->pkey_;
+    //if (impl_->key_type_ == KeyType::rsa)
+    //{
+    //    BIGNUM* d = nullptr;
+    //    if (EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_RSA_D, &d) > 0)
+    //    {
+    //        bool has_private = (d != nullptr);
+    //        BN_free(d);
+    //        return has_private;
+    //    }
+    //    return false;
+    //}
+    //else if (impl_->key_type_ == KeyType::ec)
+    //{
+    //    BIGNUM* d = nullptr;
+    //    if (EVP_PKEY_get_bn_param(impl_->pkey_, OSSL_PKEY_PARAM_PRIV_KEY, &d) > 0)
+    //    {
+    //        bool has_private = (d != nullptr);
+    //        BN_free(d);
+    //        return has_private;
+    //    }
+    //    return false;
+    //}
+    //else if (impl_->key_type_ == KeyType::oct)
+    //{
+    //    return true;  // Symmetric keys always have "private" component
+    //}
+
+    //return false;
 }
 
 // JWKSet implementation
 struct JWKSet::Impl
 {
-    std::vector<JWK> keys_;
+    vector<JWK> keys_;
 };
 
-JWKSet::JWKSet() : impl_(std::make_unique<Impl>())
+JWKSet::JWKSet() : impl_(make_unique<Impl>())
 {
 }
 
 JWKSet::~JWKSet() = default;
 
-JWKSet JWKSet::fromJSON(const std::string& json_str)
+JWKSet JWKSet::fromJSON(const string& json_str)
 {
     JWKSet set;
     json jwk_set_json = json::parse(json_str);
 
     if (!jwk_set_json.contains("keys"))
     {
-        throw std::runtime_error("Missing keys array");
+        throw runtime_error("Missing keys array");
     }
 
     if (!jwk_set_json["keys"].is_array())
     {
-        throw std::runtime_error("keys field must be an array");
+        throw runtime_error("keys field must be an array");
     }
 
     // Parse each key in the array
     for (const auto& keyJson : jwk_set_json["keys"])
     {
-        std::string keyJsonStr = keyJson.dump();
+        string keyJsonStr = keyJson.dump();
         JWK key = JWK::fromJSON(keyJsonStr);
         set.addKey(key);
     }
@@ -847,7 +735,7 @@ void JWKSet::addKey(const JWK& key)
     impl_->keys_.push_back(key);
 }
 
-JWK JWKSet::getKey(const std::string& kid) const
+JWK JWKSet::getKey(const string& kid) const
 {
     for (const auto& key : impl_->keys_)
     {
@@ -856,15 +744,15 @@ JWK JWKSet::getKey(const std::string& kid) const
             return key;
         }
     }
-    throw std::runtime_error("Key not found");
+    throw runtime_error("Key not found");
 }
 
-std::vector<JWK> JWKSet::getKeys() const
+vector<JWK> JWKSet::getKeys() const
 {
     return impl_->keys_;
 }
 
-std::string JWKSet::toJSON() const
+string JWKSet::toJSON() const
 {
     json json_obj = json::object();
 

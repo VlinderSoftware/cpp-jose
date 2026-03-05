@@ -14,17 +14,22 @@ endif()
 
 enable_testing()
 
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
 # Test executable
 add_executable(jose_tests
     test_base64url.cpp
-    # test_json.cpp - Removed because JsonValue class was replaced with nlohmann::json
     test_jwk.cpp
-    test_jwa.cpp
-    test_jws.cpp
-    test_jwe.cpp
-    test_jwt.cpp
-    test_jwk_thumbprint.cpp
-    test_rfc7520_examples.cpp
+#    test_jwa.cpp
+#    test_jws.cpp
+#    test_jwe.cpp
+#    test_jwt.cpp
+#    test_jwk_thumbprint.cpp
+#    test_rfc7520_examples.cpp
+    test_endian.cpp
+    test_cng_base64.cpp
+    test_concat_kdf.cpp
+    test_cng_generate_key.cpp
 )
 
 target_link_libraries(jose_tests

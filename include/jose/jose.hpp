@@ -18,13 +18,12 @@
  * post-quantum signatures.
  */
 
-#include "jose/base64url.hpp"
-#include "jose/json_utils.hpp"
-#include "jose/jwa.hpp"
-#include "jose/jwe.hpp"
-#include "jose/jwk.hpp"
-#include "jose/jwk_thumbprint.hpp"
-#include "jose/jws.hpp"
-#include "jose/jwt.hpp"
+#include "base64url.hpp"
+#include "jwa.hpp"
+#include "jwe.hpp"
+#include "jwk.hpp"
+#include "jwk_thumbprint.hpp"
+#include "jws.hpp"
+#include "jwt.hpp"
 
 #endif  // JOSE_JOSE_HPP

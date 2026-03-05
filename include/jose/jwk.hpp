@@ -44,7 +44,7 @@ public:
      * @param json JSON string
      * @return JWK object
      */
-    static JWK fromJSON(const std::string& json);
+    static JWK fromJSON(const std::string& json, bool permissive = false);
 
     /**
      * @brief Generate a new RSA key
@@ -53,7 +53,7 @@ public:
      * @param alg Optional algorithm. If empty, defaults to RS256 (sig) or RSA-OAEP-256 (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateRSA(Use use, int bits = 2048, const std::string& alg = {});
+    static JWK generateRSA(Use use, unsigned int bits = 2048, const std::string& alg = {});
 
     /**
      * @brief Generate a new EC key
@@ -72,6 +72,7 @@ public:
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
     static JWK generateOct(Use use, int bits = 256, const std::string& alg = "");
+    static JWK generateOKP(Use use, unsigned int bits = 0/*default depends on use*/, const std::string& alg = {});
 
     /**
      * @brief Serialize to JSON
@@ -115,15 +116,11 @@ public:
      */
     bool hasPrivateKey() const;
 
-    /**
-     * @brief Get the underlying OpenSSL key
-     */
-    void* getKey() const;
-
 private:
-    JWK();
-
     struct Impl;
+
+    JWK(Impl &&impl);
+
     std::unique_ptr<Impl> impl_;
 };
 

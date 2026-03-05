@@ -1,39 +1,41 @@
-#include "jose/base64url.hpp"
-
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
-#include <openssl/evp.h>
+#include <mutex>
+#include "base64url.hpp"
+#include "private/back_end_factory.hpp"
 
 #include <cstring>
 #include <stdexcept>
 
+using namespace std;
+
 namespace Vlinder {
 namespace JOSE {
+namespace {
 
-std::string Base64Url::encode(const std::vector<unsigned char>& data)
+
+Private::BackEnd &getBackEnd()
+{
+    static once_flag flag;
+    static unique_ptr<Private::BackEnd> back_end;
+    call_once(flag,
+              [&]()
+              {
+                  back_end = move(Private::BackEndFactory::get().createBackEnd());
+              });
+    return *back_end;
+}
+}
+
+std::string Base64Url::encode(std::vector<unsigned char> const &data)
 {
     if (data.empty())
     {
         return "";
     }
 
-    // Use OpenSSL to do base64 encoding
-    BIO* b64 = BIO_new(BIO_f_base64());
-    BIO* bio = BIO_new(BIO_s_mem());
-    bio = BIO_push(b64, bio);
+    auto const &back_end = getBackEnd();
+    std::string result = back_end.base64Encode(data);
 
-    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-    BIO_write(bio, data.data(), static_cast<int>(data.size()));
-    BIO_flush(bio);
-
-    BUF_MEM* buffer_ptr;
-    BIO_get_mem_ptr(bio, &buffer_ptr);
-
-    std::string result(buffer_ptr->data, buffer_ptr->length);
-    BIO_free_all(bio);
-
-    // Convert base64 to base64url
-    for (char& c : result)
+    for (char &c : result)
     {
         if (c == '+')
         {
@@ -54,22 +56,20 @@ std::string Base64Url::encode(const std::vector<unsigned char>& data)
     return result;
 }
 
-std::string Base64Url::encode(const std::string& str)
+std::string Base64Url::encode(std::string const &str)
 {
-    std::vector<unsigned char> data(str.begin(), str.end());
+    std::vector<unsigned char> const data(str.begin(), str.end());
     return encode(data);
 }
 
-std::vector<unsigned char> Base64Url::decode(const std::string& encoded)
+std::vector<unsigned char> Base64Url::decode(std::string const &encoded)
 {
     if (encoded.empty())
     {
         return {};
     }
-
-    // Convert base64url to base64
     std::string base64 = encoded;
-    for (char& c : base64)
+    for (char &c : base64)
     {
         if (c == '-')
         {
@@ -80,37 +80,17 @@ std::vector<unsigned char> Base64Url::decode(const std::string& encoded)
             c = '/';
         }
     }
-
-    // Add padding
     while (base64.length() % 4 != 0)
     {
         base64 += '=';
     }
-
-    // Decode using OpenSSL
-    BIO* b64 = BIO_new(BIO_f_base64());
-    BIO* bio = BIO_new_mem_buf(base64.data(), static_cast<int>(base64.length()));
-    bio = BIO_push(b64, bio);
-
-    BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-
-    std::vector<unsigned char> result(base64.length());
-    int decoded_length = BIO_read(bio, result.data(), static_cast<int>(result.size()));
-
-    BIO_free_all(bio);
-
-    if (decoded_length < 0)
-    {
-        throw std::runtime_error("Failed to decode base64url");
-    }
-
-    result.resize(decoded_length);
-    return result;
+    auto const &back_end = getBackEnd();
+    return back_end.base64Decode(base64);
 }
 
-std::string Base64Url::decodeToString(const std::string& encoded)
+std::string Base64Url::decodeToString(std::string const &encoded)
 {
-    auto data = decode(encoded);
+    auto const data = decode(encoded);
     return std::string(data.begin(), data.end());
 }
 

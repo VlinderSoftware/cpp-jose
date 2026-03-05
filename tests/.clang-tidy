@@ -31,4 +31,9 @@ Checks: >
 # Don't treat warnings as errors in test files
 WarningsAsErrors: ''
 
-...
+# Test-suite formatting and style notes
+# - Pointer/reference style: Prefer `T const &t`, `T &t`, `T *p`, `T const *p`.
+#   Use clang-format and code review to maintain this style in tests as well.
+# - Template spacing: Prefer a space before the closing angle bracket in templates and
+#   template instantiations (e.g. `std::vector< T >`). Enforce via `.clang-format`.
+

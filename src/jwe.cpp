@@ -1,7 +1,5 @@
 #include "jose/jwe.hpp"
 
-#include <openssl/rand.h>
-
 #include <map>
 #include <optional>
 #include <sstream>

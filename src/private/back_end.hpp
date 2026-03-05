@@ -1,0 +1,196 @@
+#pragma once
+
+#include "jwa.hpp"
+#include "jwk.hpp"
+
+#include <filesystem>
+#include <vector>
+#include <string>
+#include <memory>
+
+namespace Vlinder {
+namespace JOSE {
+namespace Private {
+
+typedef JWK::KeyType KeyType;
+typedef JWA::SignatureAlgorithm SignatureAlgorithm;
+typedef JWA::KeyEncryptionAlgorithm KeyEncryptionAlgorithm;
+typedef JWA::ContentEncryptionAlgorithm ContentEncryptionAlgorithm;
+typedef JWK::Use Use;
+enum class HashAlgorithm
+{
+    sha256,
+    sha384,
+    sha512
+};
+
+class Key
+{
+public :
+    KeyType getKeyType() const
+    {
+        return key_type_;
+    }
+
+    virtual ~Key() = default;
+
+    /// Whether private material is present
+    virtual bool hasPrivate() const = 0;
+
+    /// Return a deep copy of this key. CNG/OpenSSL handles are not duplicated;
+    /// the clone carries only the serialisable key material.
+    virtual std::unique_ptr<Key> clone() const = 0;
+
+protected:
+    Key(KeyType key_type) : key_type_(key_type)
+    {
+    }
+
+private :
+    KeyType key_type_;
+};
+
+// Abstract key wrapper used by backends. Concrete backends should derive
+// from this to store backend-specific key material.
+class AsymmetricKey : public Key
+{
+public:
+    virtual ~AsymmetricKey() = default;
+
+    /// Return public key material (backend-specific blob)
+    virtual std::vector<unsigned char> getPublicBlob() const = 0;
+
+    /// Return private key material (backend-specific blob); may be empty
+    virtual std::vector<unsigned char> getPrivateBlob() const = 0;
+
+protected:
+    AsymmetricKey(KeyType key_type) : Key(key_type)
+    {
+    }
+};
+
+class RSAKey : public AsymmetricKey
+{
+public:
+    RSAKey() : AsymmetricKey(KeyType::rsa)
+    {
+    }
+
+    // RSA parameter accessors
+    virtual std::vector<unsigned char> getN() const = 0;
+    virtual std::vector<unsigned char> getE() const = 0;
+    virtual std::vector<unsigned char> getD() const = 0;
+    virtual std::vector<unsigned char> getP() const = 0;
+    virtual std::vector<unsigned char> getQ() const = 0;
+    virtual std::vector<unsigned char> getDp() const = 0;
+    virtual std::vector<unsigned char> getDq() const = 0;
+    virtual std::vector<unsigned char> getQi() const = 0;
+};
+
+class ECKey : public AsymmetricKey
+{
+public:
+    ECKey(std::string const& curve_name)
+        : AsymmetricKey(KeyType::ec), curve_name_(curve_name)
+    {
+    }
+
+    std::string getCurveName() const
+    {
+        return curve_name_;
+    }
+
+    virtual std::vector<unsigned char> getX() const = 0;
+    virtual std::vector<unsigned char> getY() const = 0;
+    virtual std::vector<unsigned char> getD() const = 0;
+
+private :
+    std::string curve_name_;
+};
+
+class OctKey : public Key
+{
+public:
+    OctKey(std::vector<unsigned char> const &k = {}) : Key(KeyType::oct), k_(k)
+    {
+    }
+
+    std::vector<unsigned char> getK() const
+    {
+        return k_;
+    }
+
+    virtual bool hasPrivate() const override
+    {
+        return !k_.empty();
+    }
+
+    std::unique_ptr<Key> clone() const override
+    {
+        return std::make_unique<OctKey>(k_);
+    }
+
+private :
+    std::vector<unsigned char> k_;
+};
+
+class BackEnd
+{
+public:
+    virtual ~BackEnd() = default;
+
+    std::vector< unsigned char > concatKDF(
+        std::vector<unsigned char> const& shared_secret,
+        size_t key_data_len, std::string const& algorithm,
+        std::vector<unsigned char> const& apu = {},
+        std::vector<unsigned char> const& apv = {});
+
+    virtual std::unique_ptr<Key> generateRSA(unsigned int bits) const = 0;
+    virtual std::unique_ptr<Key> generateRSA(std::vector<unsigned char> const& n_bytes,
+                                             std::vector<unsigned char> const& e_bytes,
+                                             std::vector<unsigned char> const& d_bytes, std::vector<unsigned char> const& p_bytes,
+                std::vector<unsigned char> const& q_bytes, std::vector<unsigned char> const& dp_bytes,
+                std::vector<unsigned char> const& dq_bytes,
+                std::vector<unsigned char> const& qi_bytes) const = 0;
+    virtual std::unique_ptr<Key> generateEC(std::string const& curve) const = 0;
+    virtual std::unique_ptr<Key> generateOct(unsigned int bits) const = 0;
+    virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const = 0;
+    // virtual std::vector<unsigned char> sign(
+    //    SignatureAlgorithm algorithm, JWK const& key,
+    //    std::vector<unsigned char> const &data) const = 0;
+
+    //virtual bool verify(
+    //    SignatureAlgorithm algorithm, JWK const& key,
+    //    std::vector<unsigned char> const &data,
+    //    std::vector<unsigned char> const& signature) const = 0;
+
+    //virtual std::vector<unsigned char> encrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
+    //    std::vector<unsigned char> const &plaintext) const = 0;
+
+    //virtual std::vector<unsigned char> decrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
+    //    std::vector<unsigned char> const &ciphertext) const = 0;
+
+    virtual std::vector<unsigned char> hash(
+        HashAlgorithm algorithm,
+        std::vector<unsigned char> const &data) const = 0;
+
+    //virtual std::vector<unsigned char> derive(JWK const& private_key,
+    //                                          JWK const& peer_key) const = 0;
+
+    //virtual std::vector<unsigned char> randomBytes(size_t size) const = 0;
+
+    /// Returns a backend-specific error string (stub for non-OpenSSL backends)
+    virtual std::string getErrorString() const { return ""; }
+
+    /// Base64 encode
+    virtual std::string base64Encode(std::vector<unsigned char> const &data) const = 0;
+    /// Base64 decode
+    virtual std::vector<unsigned char> base64Decode(std::string const &encoded) const = 0;
+
+    ///// Get hash algorithm for signature
+    //virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;
+};
+
+} // namespace Private
+} // namespace JOSE
+} // namespace Vlinder

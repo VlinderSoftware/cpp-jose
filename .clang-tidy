@@ -106,5 +106,10 @@ CheckOptions:
 
 HeaderFilterRegex: '.*'
 
-# Enforce 'T const &' style for parameter declarations if possible
-# Note: clang-tidy does not have a built-in check for this, but readability-const-return-type can help
+# Enforce pointer/reference formatting and template spacing
+# - Pointer/reference style: Prefer `T const &t`, `T &t`, `T *p`, `T const *p` (place `const` next to the type it qualifies).
+#   There is no single built-in clang-tidy check that enforces this layout for all cases; use
+#   clang-tidy readability checks together with clang-format and code review to ensure consistency.
+# - Template spacing: Prefer a space before the closing angle bracket in template parameter lists and
+#   template instantiations (e.g. write `template< T >` and `std::vector< T >` rather than `template<T>`).
+#   Template spacing is primarily a formatting concern and should be enforced via `.clang-format`.
