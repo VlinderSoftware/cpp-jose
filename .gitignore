@@ -24,3 +24,6 @@ cmake-build-*/
 test_output/
 Testing/
 .vs/
+
+# Machine-local CMake presets
+CMakeUserPresets.json
