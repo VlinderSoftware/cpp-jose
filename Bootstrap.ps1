@@ -21,6 +21,166 @@ function Write-WarnMessage
     Write-Host "[bootstrap] $Message" -ForegroundColor Yellow
 }
 
+function Get-InstallGuidance
+{
+    param([string]$ToolName)
+
+    $is_windows_platform = ($env:OS -eq 'Windows_NT')
+
+    switch ($ToolName)
+    {
+        'clang-format'
+        {
+            if ($is_windows_platform)
+            {
+                return @(
+                    'Install Visual Studio component: "C++ Clang tools for Windows".',
+                    'Or install LLVM from winget: winget install --id LLVM.LLVM -e'
+                )
+            }
+            return @(
+                'Install via apt: sudo apt-get install -y clang-format',
+                'Or install via your distro package manager for clang-format.'
+            )
+        }
+        'clang-tidy'
+        {
+            if ($is_windows_platform)
+            {
+                return @(
+                    'Install Visual Studio component: "C++ Clang tools for Windows".',
+                    'Or install LLVM from winget: winget install --id LLVM.LLVM -e'
+                )
+            }
+            return @(
+                'Install via apt: sudo apt-get install -y clang-tidy',
+                'Or install via your distro package manager for clang-tidy.'
+            )
+        }
+        'jq'
+        {
+            if ($is_windows_platform)
+            {
+                return @(
+                    'Install via winget: winget install --id jqlang.jq -e'
+                )
+            }
+            return @(
+                'Install via apt: sudo apt-get install -y jq'
+            )
+        }
+        default
+        {
+            return @('Install the tool and ensure it is available on PATH.')
+        }
+    }
+}
+
+function Test-RequiredTools
+{
+    $requiredTools = @('clang-format', 'clang-tidy')
+
+    if ($IsLinux)
+    {
+        # Keep parity with bootstrap policy used by shell hooks.
+        $requiredTools += 'jq'
+    }
+
+    $missingTools = @()
+    foreach ($toolName in $requiredTools)
+    {
+        if (-not (Get-Command $toolName -ErrorAction SilentlyContinue))
+        {
+            $missingTools += $toolName
+        }
+    }
+
+    if ($missingTools.Count -eq 0)
+    {
+        return $true
+    }
+
+    Write-WarnMessage ("Missing required tool(s): {0}" -f ($missingTools -join ', '))
+    foreach ($toolName in $missingTools)
+    {
+        Write-Host ""
+        Write-WarnMessage ("How to install '$toolName':")
+        foreach ($line in (Get-InstallGuidance -ToolName $toolName))
+        {
+            Write-Host "  - $line"
+        }
+    }
+
+    Write-Host ""
+    Write-WarnMessage 'Install the missing tools and run .\Bootstrap.ps1 again.'
+    return $false
+}
+
+function Add-VisualStudioLlvmToPath
+{
+    if ($env:OS -ne 'Windows_NT')
+    {
+        return
+    }
+
+    if ((Get-Command clang-format -ErrorAction SilentlyContinue) -and (Get-Command clang-tidy -ErrorAction SilentlyContinue))
+    {
+        return
+    }
+
+    $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path $vswhere))
+    {
+        return
+    }
+
+    $json = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -format json
+    if (-not $json)
+    {
+        return
+    }
+
+    $instances = $json | ConvertFrom-Json
+    if (-not $instances)
+    {
+        return
+    }
+
+    $installationPath = $instances[0].installationPath
+    if ([string]::IsNullOrWhiteSpace($installationPath))
+    {
+        return
+    }
+
+    $candidates = @(
+        (Join-Path $installationPath "VC\Tools\Llvm\bin"),
+        (Join-Path $installationPath "VC\Tools\Llvm\x64\bin")
+    )
+
+    foreach ($candidate in $candidates)
+    {
+        if (-not (Test-Path $candidate))
+        {
+            continue
+        }
+
+        $has_clang_format = Test-Path (Join-Path $candidate "clang-format.exe")
+        $has_clang_tidy = Test-Path (Join-Path $candidate "clang-tidy.exe")
+        if ($has_clang_format -and $has_clang_tidy)
+        {
+            $pathParts = @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            if ($pathParts -contains $candidate)
+            {
+                return
+            }
+
+            $env:Path = "$candidate;$env:Path"
+            Write-Info "Added Visual Studio LLVM tools to PATH for this session: $candidate"
+            return
+        }
+    }
+}
+
 function Get-LatestVisualStudio
 {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
@@ -145,6 +305,13 @@ Set-Location $repoRoot
 if (-not (Test-Path (Join-Path $repoRoot "CMakeLists.txt")))
 {
     throw "Run this script from the repository root. Could not find CMakeLists.txt in '$repoRoot'."
+}
+
+Add-VisualStudioLlvmToPath
+
+if (-not (Test-RequiredTools))
+{
+    throw "Bootstrap validation failed due to missing required tools."
 }
 
 $vs = Get-LatestVisualStudio

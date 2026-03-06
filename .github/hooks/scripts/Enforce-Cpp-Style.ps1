@@ -25,6 +25,118 @@ function Block-Response {
     }
 }
 
+function Add-VisualStudioLlvmToPath {
+    if ($env:OS -ne 'Windows_NT') {
+        return
+    }
+
+    if ((Get-Command clang-format -ErrorAction SilentlyContinue) -and (Get-Command clang-tidy -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    $VsWhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+    if (-not (Test-Path -LiteralPath $VsWhere -PathType Leaf)) {
+        return
+    }
+
+    $Json = & $VsWhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -format json
+    if (-not $Json) {
+        return
+    }
+
+    $Instances = $Json | ConvertFrom-Json
+    if (-not $Instances) {
+        return
+    }
+
+    $InstallationPath = $Instances[0].installationPath
+    if ([string]::IsNullOrWhiteSpace($InstallationPath)) {
+        return
+    }
+
+    $Candidates = @(
+        (Join-Path $InstallationPath 'VC\Tools\Llvm\bin'),
+        (Join-Path $InstallationPath 'VC\Tools\Llvm\x64\bin')
+    )
+
+    foreach ($Candidate in $Candidates) {
+        if (-not (Test-Path -LiteralPath $Candidate -PathType Container)) {
+            continue
+        }
+
+        $HasClangFormat = Test-Path -LiteralPath (Join-Path $Candidate 'clang-format.exe') -PathType Leaf
+        $HasClangTidy = Test-Path -LiteralPath (Join-Path $Candidate 'clang-tidy.exe') -PathType Leaf
+        if (-not ($HasClangFormat -and $HasClangTidy)) {
+            continue
+        }
+
+        $PathParts = @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($PathParts -contains $Candidate) {
+            return
+        }
+
+        $env:Path = "$Candidate;$env:Path"
+        return
+    }
+}
+
+function Test-BootstrapTools {
+    param(
+        [string]$RepositoryRoot
+    )
+
+    $BootstrapPath = Join-Path $RepositoryRoot 'bootstrap'
+    if (-not (Test-Path -LiteralPath $BootstrapPath -PathType Leaf)) {
+        return @{
+            ok = $false
+            message = "Unable to load bootstrap script: $BootstrapPath"
+        }
+    }
+
+    $IsWindowsPlatform = ($env:OS -eq 'Windows_NT')
+    if (-not $IsWindowsPlatform) {
+        $Bash = Get-Command bash -ErrorAction SilentlyContinue
+        if ($null -ne $Bash) {
+            $EscapedRepoRoot = $RepositoryRoot.Replace("'", "''")
+            $CheckScript = "set -euo pipefail; cd '$EscapedRepoRoot'; CPP_JOSE_BOOTSTRAP_AUTO_CHECK=0; source ./bootstrap; hookBootstrapCheckTools"
+            & $Bash.Source -lc $CheckScript *> $null
+            if ($LASTEXITCODE -eq 0) {
+                return @{
+                    ok = $true
+                    message = ''
+                }
+            }
+            return @{
+                ok = $false
+                message = 'Required tools are missing. On Linux, jq is mandatory; clang-format and clang-tidy are required.'
+            }
+        }
+    }
+
+    $MissingTools = New-Object System.Collections.Generic.List[string]
+    if ((-not $IsWindowsPlatform) -and -not (Get-Command jq -ErrorAction SilentlyContinue)) {
+        $MissingTools.Add('jq')
+    }
+    if (-not (Get-Command clang-format -ErrorAction SilentlyContinue)) {
+        $MissingTools.Add('clang-format')
+    }
+    if (-not (Get-Command clang-tidy -ErrorAction SilentlyContinue)) {
+        $MissingTools.Add('clang-tidy')
+    }
+
+    if ($MissingTools.Count -gt 0) {
+        return @{
+            ok = $false
+            message = ("Required tools are missing: {0}" -f (($MissingTools | Sort-Object -Unique) -join ', '))
+        }
+    }
+
+    return @{
+        ok = $true
+        message = ''
+    }
+}
+
 function Get-PathValues {
     param(
         [Parameter(ValueFromPipeline = $true)]
@@ -79,32 +191,22 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Resolve-Path (Join-Path $ScriptDir "../../..")
 Set-Location $RepoRoot
 
+Add-VisualStudioLlvmToPath
+
 $Payload = [Console]::In.ReadToEnd()
 if ([string]::IsNullOrWhiteSpace($Payload)) {
     Continue-Response
     exit 0
 }
 
-# Option 3: try Bash hook first on Windows, fallback to native PowerShell implementation.
-$Bash = Get-Command bash -ErrorAction SilentlyContinue
-if ($null -ne $Bash) {
-    try {
-        $BashOutput = $Payload | & $Bash.Source ".github/hooks/scripts/enforce-cpp-style.sh" 2>$null
-        if ($LASTEXITCODE -eq 0 -and -not [string]::IsNullOrWhiteSpace($BashOutput)) {
-            $Trimmed = $BashOutput.Trim()
-            if ($Trimmed.StartsWith('{') -and $Trimmed.EndsWith('}')) {
-                Write-Output $Trimmed
-                exit 0
-            }
-        }
-    }
-    catch {
-        # Fall through to native PowerShell checks.
-    }
-}
-
 try {
-    $Data = $Payload | ConvertFrom-Json -Depth 64
+    $ConvertFromJson = Get-Command ConvertFrom-Json -ErrorAction Stop
+    if ($ConvertFromJson.Parameters.ContainsKey('Depth')) {
+        $Data = $Payload | ConvertFrom-Json -Depth 64
+    }
+    else {
+        $Data = $Payload | ConvertFrom-Json
+    }
 }
 catch {
     Continue-Response
@@ -150,19 +252,9 @@ if ($CppFiles.Count -eq 0) {
     exit 0
 }
 
-$MissingTools = New-Object System.Collections.Generic.List[string]
-if ($IsLinux -and -not (Get-Command jq -ErrorAction SilentlyContinue)) {
-    $MissingTools.Add('jq')
-}
-if (-not (Get-Command clang-format -ErrorAction SilentlyContinue)) {
-    $MissingTools.Add('clang-format')
-}
-if (-not (Get-Command clang-tidy -ErrorAction SilentlyContinue)) {
-    $MissingTools.Add('clang-tidy')
-}
-
-if ($MissingTools.Count -gt 0) {
-    Block-Response -Reason 'Hook bootstrap failed' -SystemMessage ("Required tools are missing: {0}" -f (($MissingTools | Sort-Object -Unique) -join ', '))
+$BootstrapResult = Test-BootstrapTools -RepositoryRoot $RepoRoot.Path
+if (-not $BootstrapResult.ok) {
+    Block-Response -Reason 'Hook bootstrap failed' -SystemMessage $BootstrapResult.message
     exit 0
 }
 
