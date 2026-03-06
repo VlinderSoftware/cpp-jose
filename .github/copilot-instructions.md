@@ -39,3 +39,14 @@
     - Organize headers: C++ Standard Library, Third-party, Project headers.
 - **Comments:** Use `///` for documentation comments to enable Doxygen formatting.
 - **Linting:** This project uses `clang-tidy` to enforce naming conventions. Run before committing.
+
+## Workspace Bootstrap and Environment Conventions
+
+- **Bootstrap location and usage:** The workspace bootstrap file is the repo-root file named `bootstrap` (no `.sh` extension). It is intended to be sourced: `. ./bootstrap`.
+- **Bootstrap behavior:** Sourcing `bootstrap` must validate required tooling and return non-zero with a clear message when tooling is missing. It must never terminate the user terminal session (do not `exit` from sourced bootstrap logic).
+- **Linux tooling requirement:** On Linux, `jq` is required. If `jq` is missing, bootstrap validation fails.
+- **Hook integration:** Hook scripts may source `bootstrap` with `CPP_JOSE_BOOTSTRAP_AUTO_CHECK=0` and invoke `hookBootstrapCheckTools` explicitly so hooks can control JSON error output.
+
+- **Environment file pattern:** If the workspace depends on environment variables, include a tracked `dot-env` template and an untracked `.env` file for local values.
+- **Secrets handling:** `.env` must remain gitignored and must not be committed. `dot-env` should contain keys/placeholders only (no secrets).
+- **Sync rule:** When adding or changing required environment variables, update `dot-env` in the same change.

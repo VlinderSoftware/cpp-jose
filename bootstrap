@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+# This script is intended to be sourced from hook scripts.
+# It validates required tooling and returns non-zero on failure
+# without terminating the user's terminal session.
+
+hookBootstrapCheckTools()
+{
+    local platform
+    platform="$(uname -s 2>/dev/null || echo unknown)"
+
+    local -a required_tools
+    required_tools=(clang-format clang-tidy)
+
+    if [[ "$platform" == "Linux" ]]; then
+        # Linux policy: require jq to be installed.
+        required_tools+=(jq)
+    fi
+
+    local -a missing_tools
+    local tool_name
+    for tool_name in "${required_tools[@]}"; do
+        if ! command -v "$tool_name" >/dev/null 2>&1; then
+            missing_tools+=("$tool_name")
+        fi
+    done
+
+    if [[ ${#missing_tools[@]} -gt 0 ]]; then
+        printf 'Hook bootstrap failed: missing required tool(s): %s\n' "${missing_tools[*]}" >&2
+        printf 'Install the missing tool(s) and retry.\n' >&2
+        return 1
+    fi
+
+    return 0
+}
+
+if [[ "${CPP_JOSE_BOOTSTRAP_AUTO_CHECK:-1}" == "1" ]]; then
+    hookBootstrapCheckTools
+    return $?
+fi
+
+return 0
