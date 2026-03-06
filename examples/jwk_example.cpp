@@ -159,7 +159,7 @@ int main()
             std::string ec_thumbprint = JWKThumbprint::compute(ec_key_256);
             std::cout << "SHA-256: " << ec_thumbprint << std::endl;
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
             std::cout << "Note: EC key thumbprint computation requires curve parameters"
                       << std::endl;
@@ -172,7 +172,7 @@ int main()
             std::string oct_thumbprint = JWKThumbprint::compute(oct_key_256);
             std::cout << "SHA-256: " << oct_thumbprint << std::endl;
         }
-        catch (const std::exception& e)
+        catch (const std::exception&)
         {
             std::cout << "Note: Symmetric key thumbprint requires key material" << std::endl;
             std::cout << "(Public representation doesn't include key value)" << std::endl;

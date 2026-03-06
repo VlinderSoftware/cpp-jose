@@ -719,8 +719,82 @@ CNGBackEnd::generateOkp(std::string const &curve,
 CNGBackEnd::hash(HashAlgorithm algorithm,
                                         vector<unsigned char> const& data) const /*override*/
 {
-    throw logic_error("Not yet implemented");
-    return {};
+    wchar_t const *algorithm_name(nullptr);
+    switch (algorithm)
+    {
+        case HashAlgorithm::sha256:
+            algorithm_name = BCRYPT_SHA256_ALGORITHM;
+            break;
+        case HashAlgorithm::sha384:
+            algorithm_name = BCRYPT_SHA384_ALGORITHM;
+            break;
+        case HashAlgorithm::sha512:
+            algorithm_name = BCRYPT_SHA512_ALGORITHM;
+            break;
+        default:
+            throw runtime_error("Unsupported hash algorithm");
+    }
+
+    BCRYPT_ALG_HANDLE h_alg(nullptr);
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, algorithm_name, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+    }
+    AlgHandle alg_guard(h_alg);
+
+    ULONG hash_object_length(0);
+    ULONG result_length(0);
+    status = BCryptGetProperty(alg_guard.get(), BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&hash_object_length),
+                               sizeof(hash_object_length), &result_length, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " + getErrorString());
+    }
+
+    ULONG hash_length(0);
+    status = BCryptGetProperty(alg_guard.get(), BCRYPT_HASH_LENGTH,
+                               reinterpret_cast<PUCHAR>(&hash_length),
+                               sizeof(hash_length), &result_length, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_HASH_LENGTH) failed: " + getErrorString());
+    }
+
+    vector<unsigned char> hash_object(hash_object_length);
+    BCRYPT_HASH_HANDLE h_hash(nullptr);
+    status = BCryptCreateHash(alg_guard.get(), &h_hash,
+                              hash_object.empty() ? nullptr : hash_object.data(),
+                              static_cast<ULONG>(hash_object.size()),
+                              nullptr, 0, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptCreateHash failed: " + getErrorString());
+    }
+
+    if (!data.empty())
+    {
+        status = BCryptHashData(h_hash,
+                                const_cast<PUCHAR>(data.data()),
+                                static_cast<ULONG>(data.size()),
+                                0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            BCryptDestroyHash(h_hash);
+            throw runtime_error("BCryptHashData failed: " + getErrorString());
+        }
+    }
+
+    vector<unsigned char> digest(hash_length);
+    status = BCryptFinishHash(h_hash, digest.data(), static_cast<ULONG>(digest.size()), 0);
+    BCryptDestroyHash(h_hash);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptFinishHash failed: " + getErrorString());
+    }
+
+    return digest;
 }
 //
 ///*virtual */ vector<unsigned char> CNGBackEnd::derive(JWK const& private_key,

@@ -48,7 +48,7 @@ set(JOSE_SOURCES
 #    src/jws.cpp
 #    src/jwe.cpp
 #    src/jwt.cpp
-#    src/jwk_thumbprint.cpp
+    src/jwk_thumbprint.cpp
     "src/private/back_end.cpp"
     src/base64url.cpp
     "src/private/back_end_factory.cpp"
@@ -79,9 +79,9 @@ if(BUILD_TESTS)
 endif()
 
 # Examples
-#if(BUILD_EXAMPLES)
-#    add_subdirectory(examples)
-#endif()
+if(BUILD_EXAMPLES)
+   add_subdirectory(examples)
+endif()
 
 # Installation
 install(TARGETS jose

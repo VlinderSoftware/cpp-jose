@@ -140,6 +140,14 @@ JWK::Use inferUseFromAlgorithm(string const& alg)
     throw runtime_error("Cannot infer 'use' from unknown algorithm: '" + alg + "'");
 }
 
+void ensureKeyID(JWK &jwk)
+{
+    if (jwk.getKeyID().empty())
+    {
+        jwk.setKeyID(JWKThumbprint::compute(jwk));
+    }
+}
+
 /// Return the required symmetric key size in bits for a given JWA algorithm.
 /// AES variants encode the size directly in the name (e.g. A128KW → 128).
 /// HMAC sizes match the hash output length per RFC 7518 §3.2 (HS256 → 256, etc.).
@@ -221,6 +229,7 @@ JWK JWK::generateRSA(Use use, unsigned int bits, const string& alg)
     impl.key_ = move(back_end->generateRSA(bits));
 
     JWK jwk(move(impl));
+    ensureKeyID(jwk);
 
     return jwk;
 }
@@ -240,6 +249,7 @@ JWK JWK::generateEC(Use use, const string& curve, const string& alg)
     impl.key_ = move(back_end->generateEC(curve));
 
     JWK jwk(move(impl));
+    ensureKeyID(jwk);
 
     return jwk;
 }
@@ -259,6 +269,7 @@ JWK JWK::generateOct(Use use, int bits, const string& alg)
     impl.key_ = move(back_end->generateOct(bits));
 
     JWK jwk(move(impl));
+    ensureKeyID(jwk);
 
     return jwk;
 }
@@ -284,6 +295,7 @@ JWK JWK::generateOKP(Use use, unsigned int bits, const std::string& alg)
     impl.key_ = move(back_end->generateOkp(use, bits));
 
     JWK jwk(move(impl));
+    ensureKeyID(jwk);
 
     return jwk;
 }
@@ -435,13 +447,6 @@ string JWK::toJSON(bool include_private) const
             json_obj["k"] = Base64Url::encode(k);
         }
     }
-    if (impl_->kid_.empty())
-    {
-        // Auto-generate kid as thumbprint if not set
-        //TODO impl_->kid_ = generateThumbprint(json_obj);
-    }
-    json_obj["kid"] = impl_->kid_;
-
     return json_obj.dump();
 }
 
@@ -613,7 +618,9 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
         }
     }
 
-    return JWK(move(impl));
+    JWK jwk(move(impl));
+    ensureKeyID(jwk);
+    return jwk;
 }
 
 JWK::KeyType JWK::getKeyType() const

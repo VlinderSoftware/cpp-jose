@@ -331,6 +331,29 @@ TEST_CASE("UseThumbprintAsKeyId", "[jwa][usethumbprintaskeyid]")
     REQUIRE(thumbprint == parsedThumbprint);
 }
 
+TEST_CASE("GeneratedKeyDefaultsKidToThumbprint", "[jwa][defaultkid]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+
+    std::string const thumbprint = JWKThumbprint::compute(key);
+    REQUIRE(key.getKeyID() == thumbprint);
+
+    std::string const json = key.toJSON(false);
+    REQUIRE(json.find("\"kid\":\"") != std::string::npos);
+    REQUIRE(json.find(thumbprint) != std::string::npos);
+}
+
+TEST_CASE("ParsedKeyWithoutKidDefaultsToThumbprint", "[jwa][defaultkid]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    key.setKeyID("");
+    std::string const json = key.toJSON(false);
+
+    JWK parsed = JWK::fromJSON(json);
+
+    REQUIRE(parsed.getKeyID() == JWKThumbprint::compute(parsed));
+}
+
 // Uniqueness test
 TEST_CASE("ManyKeysProduceUniqueThumbprints", "[jwa][manykeysproduceuniquethumbprints]")
 {
