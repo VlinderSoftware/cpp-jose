@@ -8,7 +8,7 @@ namespace JOSE {
 namespace Private {
 
 vector<unsigned char> BackEnd::concatKDF(vector<unsigned char> const& shared_secret /* Z in the spec */,
-                                         size_t key_data_len /* keydatalen */,
+                                         size_t key_data_len,
                                          string const& algorithm,
                                          vector<unsigned char> const& apu,
                                          vector<unsigned char> const& apv)
