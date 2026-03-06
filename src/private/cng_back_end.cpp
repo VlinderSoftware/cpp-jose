@@ -96,7 +96,7 @@ vector<unsigned char> CNGRSAKey::getDq() const { return dq_; }
 vector<unsigned char> CNGRSAKey::getQi() const { return iqmp_; }
 
 
-/*virtual*/ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const /*override*/
+unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
 {
     BCRYPT_ALG_HANDLE hAlg = nullptr;
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
@@ -371,7 +371,7 @@ unique_ptr<Key> CNGBackEnd::generateRSA(
 }
 
 
-/*virtual */unique_ptr<Key> CNGBackEnd::generateEC(string const& curve) const/* override*/
+unique_ptr<Key> CNGBackEnd::generateEC(string const& curve) const
 {
     LPCWSTR alg = nullptr;
     string curve_name;
@@ -630,7 +630,7 @@ CNGBackEnd::generateEC(string const& curve,
                                  key_guard.release(), alg_guard.release());
 }
 
-/*virtual */ unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits) const /*override*/
+unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits) const
 {
     if (bits == 0 || bits % 8 != 0)
     {
@@ -666,16 +666,16 @@ CNGBackEnd::generateOct(unsigned int bits, std::vector<unsigned char> const& k_b
 }
 
 
-/*virtual*/ unique_ptr<Key> CNGBackEnd::generateOkp(Use use,
-                                                         unsigned int bits) const /* override*/
+unique_ptr<Key> CNGBackEnd::generateOkp(Use use,
+                                                         unsigned int bits) const
 {
     throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
-/*virtual*/ unique_ptr<Key>
+unique_ptr<Key>
 CNGBackEnd::generateOkp(std::string const &curve,
                         std::vector<unsigned char> const &x_bytes,
-                        std::vector<unsigned char> const &d_bytes) const /* override*/
+                        std::vector<unsigned char> const &d_bytes) const
 {
     (void)curve;
     (void)x_bytes;
@@ -683,41 +683,41 @@ CNGBackEnd::generateOkp(std::string const &curve,
     throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
-///*virtual */ vector<unsigned char> CNGBackEnd::sign(SignatureAlgorithm algorithm, JWK const& key,
-//                                        vector<unsigned char> const& data) const /*override*/
+//vector<unsigned char> CNGBackEnd::sign(SignatureAlgorithm algorithm, JWK const& key,
+//                                        vector<unsigned char> const& data) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
 //}
 //
-///*virtual */ bool CNGBackEnd::verify(SignatureAlgorithm algorithm, JWK const& key,
+//bool CNGBackEnd::verify(SignatureAlgorithm algorithm, JWK const& key,
 //                    vector<unsigned char> const& data,
-//                    vector<unsigned char> const& signature) const /*override*/
+//                    vector<unsigned char> const& signature) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
 //}
 //
 //
-///*virtual */vector<unsigned char> CNGBackEnd::encrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
-//        vector<unsigned char> const& plaintext) const /*override*/
+//vector<unsigned char> CNGBackEnd::encrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
+//        vector<unsigned char> const& plaintext) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
 //}
 //
 //
-///*virtual */vector<unsigned char> CNGBackEnd::decrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
-//        vector<unsigned char> const& ciphertext) const /*override*/
+//vector<unsigned char> CNGBackEnd::decrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
+//        vector<unsigned char> const& ciphertext) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
 //}
 
 
-/*virtual */ vector<unsigned char>
+vector<unsigned char>
 CNGBackEnd::hash(HashAlgorithm algorithm,
-                                        vector<unsigned char> const& data) const /*override*/
+                                        vector<unsigned char> const& data) const
 {
     wchar_t const *algorithm_name(nullptr);
     switch (algorithm)
@@ -797,21 +797,21 @@ CNGBackEnd::hash(HashAlgorithm algorithm,
     return digest;
 }
 //
-///*virtual */ vector<unsigned char> CNGBackEnd::derive(JWK const& private_key,
-//                                          JWK const& peer_key) const /*override*/
+//vector<unsigned char> CNGBackEnd::derive(JWK const& private_key,
+//                                          JWK const& peer_key) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
 //}
 //
-///*virtual */ vector<unsigned char> CNGBackEnd::randomBytes(size_t size) const /*override*/
+//vector<unsigned char> CNGBackEnd::randomBytes(size_t size) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
 //}
 
 /// Base64 encode
-/*virtual */ string CNGBackEnd::base64Encode(vector<unsigned char> const& data) const /*override*/
+string CNGBackEnd::base64Encode(vector<unsigned char> const& data) const
 {
     if (data.empty())
     {
@@ -846,7 +846,7 @@ CNGBackEnd::hash(HashAlgorithm algorithm,
     return output;
 }
 /// Base64 decode
-/*virtual */ vector<unsigned char> CNGBackEnd::base64Decode(string const& encoded) const /*override*/
+vector<unsigned char> CNGBackEnd::base64Decode(string const& encoded) const
 {
     if (encoded.empty())
     {
@@ -893,7 +893,7 @@ CNGBackEnd::hash(HashAlgorithm algorithm,
     return output;
 }
 
-/*virtual */ string CNGBackEnd::getErrorString() const /*override*/
+string CNGBackEnd::getErrorString() const
 {
     DWORD err = ::GetLastError();
     if (err == 0)
@@ -926,8 +926,8 @@ CNGBackEnd::hash(HashAlgorithm algorithm,
 }
 
 ///// Get hash algorithm for signature
-///*virtual */ void const*
-//CNGBackEnd::getHashAlgorithm(SignatureAlgorithm signature_algorithm) const /*override*/
+//void const*
+//CNGBackEnd::getHashAlgorithm(SignatureAlgorithm signature_algorithm) const
 //{
 //    throw logic_error("Not yet implemented");
 //    return {};
