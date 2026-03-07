@@ -532,7 +532,7 @@ TEST_CASE("JWK move constructor works correctly", "[jwk][move]")
     original.setKeyID("original");
     string expectedId = original.getKeyID();
 
-    JWK moved(move(original));
+    JWK moved(std::move(original));
     REQUIRE(expectedId == moved.getKeyID());
 }
 
@@ -542,7 +542,7 @@ TEST_CASE("JWK move assignment works correctly", "[jwk][move]")
     original.setKeyID("original");
     string expectedId = original.getKeyID();
 
-    JWK moved = move(original);
+    JWK moved = std::move(original);
     REQUIRE(expectedId == moved.getKeyID());
 }
 

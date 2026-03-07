@@ -308,7 +308,7 @@ TEST_CASE("JWS_MoveConstructor", "[jws][moveconstructor]")
     original.setPayload("test payload");
     original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
-    JWS moved(move(original));
+    JWS moved(std::move(original));
     REQUIRE("test payload" == moved.getPayload());
 }
 
@@ -318,7 +318,7 @@ TEST_CASE("JWS_MoveAssignment", "[jws][moveassignment]")
     original.setPayload("test payload");
     original.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
-    JWS moved = move(original);
+    JWS moved = std::move(original);
     REQUIRE("test payload" == moved.getPayload());
 }
 

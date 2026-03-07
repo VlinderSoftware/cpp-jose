@@ -233,7 +233,7 @@ struct JWK::Impl
 
 JWK::JWK(Impl &&impl)
 {
-    impl_ = make_unique<Impl>(move(impl));
+    impl_ = make_unique<Impl>(std::move(impl));
 }
 
 JWK::~JWK() = default;
@@ -266,9 +266,9 @@ JWK JWK::generateRSA(Use use, unsigned int bits, const string &alg)
 
     Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
-    impl.key_ = move(back_end->generateRSA(bits));
+    impl.key_ = std::move(back_end->generateRSA(bits));
 
-    JWK jwk(move(impl));
+    JWK jwk(std::move(impl));
     ensureKeyID(jwk);
 
     return jwk;
@@ -286,9 +286,9 @@ JWK JWK::generateEC(Use use, const string &curve, const string &alg)
 
     Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
-    impl.key_ = move(back_end->generateEC(curve));
+    impl.key_ = std::move(back_end->generateEC(curve));
 
-    JWK jwk(move(impl));
+    JWK jwk(std::move(impl));
     ensureKeyID(jwk);
 
     return jwk;
@@ -306,9 +306,9 @@ JWK JWK::generateOct(Use use, int bits, const string &alg)
 
     Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
-    impl.key_ = move(back_end->generateOct(bits));
+    impl.key_ = std::move(back_end->generateOct(bits));
 
-    JWK jwk(move(impl));
+    JWK jwk(std::move(impl));
     ensureKeyID(jwk);
 
     return jwk;
@@ -332,9 +332,9 @@ JWK JWK::generateOKP(Use use, unsigned int bits, const string &alg)
 
     Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
-    impl.key_ = move(back_end->generateOkp(use, bits));
+    impl.key_ = std::move(back_end->generateOkp(use, bits));
 
-    JWK jwk(move(impl));
+    JWK jwk(std::move(impl));
     ensureKeyID(jwk);
 
     return jwk;
@@ -616,14 +616,14 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             auto qi_bytes = jwk_json.contains("qi")
                                 ? Base64Url::decode(jwk_json["qi"].get<string>())
                                 : vector<unsigned char>{};
-            impl.key_ = move(back_end->generateRSA(n_bytes,
-                                                   e_bytes,
-                                                   d_bytes,
-                                                   p_bytes,
-                                                   q_bytes,
-                                                   dp_bytes,
-                                                   dq_bytes,
-                                                   qi_bytes));
+            impl.key_ = std::move(back_end->generateRSA(n_bytes,
+                                                        e_bytes,
+                                                        d_bytes,
+                                                        p_bytes,
+                                                        q_bytes,
+                                                        dp_bytes,
+                                                        dq_bytes,
+                                                        qi_bytes));
             break;
         }
         case KeyType::ec:
@@ -638,7 +638,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
                                                   : vector<unsigned char>{};
 
-            impl.key_ = move(
+            impl.key_ = std::move(
                 back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes));
             break;
         }
@@ -656,7 +656,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
                                                   : vector<unsigned char>{};
             impl.key_ =
-                move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
+                std::move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
             break;
         }
 #endif
@@ -672,7 +672,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
         }
     }
 
-    JWK jwk(move(impl));
+    JWK jwk(std::move(impl));
     ensureKeyID(jwk);
     return jwk;
 }

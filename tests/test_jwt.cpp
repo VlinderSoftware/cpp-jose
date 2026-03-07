@@ -500,7 +500,7 @@ TEST_CASE("JWT_MoveConstructor", "[jwt][moveconstructor]")
     original.setSubject("subject");
     string expectedIssuer = original.getIssuer();
 
-    JWT moved(move(original));
+    JWT moved(std::move(original));
     REQUIRE(expectedIssuer == moved.getIssuer());
 }
 
@@ -510,7 +510,7 @@ TEST_CASE("JWT_MoveAssignment", "[jwt][moveassignment]")
     original.setIssuer("issuer");
     string expectedIssuer = original.getIssuer();
 
-    JWT moved = move(original);
+    JWT moved = std::move(original);
     REQUIRE(expectedIssuer == moved.getIssuer());
 }
 

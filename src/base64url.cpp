@@ -19,7 +19,7 @@ Private::BackEnd &getBackEnd()
     call_once(flag,
               [&]()
               {
-                  back_end = move(Private::BackEndFactory::get().createBackEnd());
+                  back_end = std::move(Private::BackEndFactory::get().createBackEnd());
               });
     return *back_end;
 }

@@ -26,9 +26,10 @@ CNGRSAKey::CNGRSAKey(vector<unsigned char> n,
                      vector<unsigned char> private_blob,
                      BCRYPT_KEY_HANDLE key_handle /* = nullptr*/,
                      BCRYPT_ALG_HANDLE alg_handle /* = nullptr*/)
-    : public_blob_(move(public_blob)), private_blob_(move(private_blob)), n_(move(n)), e_(move(e)),
-      d_(move(d)), p_(move(p)), q_(move(q)), dp_(move(dp)), dq_(move(dq)), iqmp_(move(iqmp)),
-      key_handle_(key_handle), alg_handle_(alg_handle)
+    : public_blob_(std::move(public_blob)), private_blob_(std::move(private_blob)),
+      n_(std::move(n)), e_(std::move(e)), d_(std::move(d)), p_(std::move(p)), q_(std::move(q)),
+      dp_(std::move(dp)), dq_(std::move(dq)), iqmp_(std::move(iqmp)), key_handle_(key_handle),
+      alg_handle_(alg_handle)
 {
 }
 
@@ -62,8 +63,8 @@ CNGECKey::CNGECKey(string curve_name,
                    vector<unsigned char> private_blob,
                    BCRYPT_KEY_HANDLE key_handle,
                    BCRYPT_ALG_HANDLE alg_handle)
-    : ECKey(curve_name), x_(x), y_(y), d_(d), public_blob_(move(public_blob)),
-      private_blob_(move(private_blob)), key_handle_(key_handle), alg_handle_(alg_handle)
+    : ECKey(curve_name), x_(x), y_(y), d_(d), public_blob_(std::move(public_blob)),
+      private_blob_(std::move(private_blob)), key_handle_(key_handle), alg_handle_(alg_handle)
 {
 }
 
@@ -323,14 +324,14 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
 
     // Transfer ownership of the CNG handles to the key wrapper.
     // The CNGRSAKey destructor will clean them up via the guard members.
-    return make_unique<CNGRSAKey>(move(n),
-                                  move(e),
-                                  move(d),
-                                  move(p),
-                                  move(q),
-                                  move(dp),
-                                  move(dq),
-                                  move(iqmp),
+    return make_unique<CNGRSAKey>(std::move(n),
+                                  std::move(e),
+                                  std::move(d),
+                                  std::move(p),
+                                  std::move(q),
+                                  std::move(dp),
+                                  std::move(dq),
+                                  std::move(iqmp),
                                   pub_blob,
                                   priv_blob,
                                   key_guard.release(),
@@ -591,8 +592,8 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
                                  x,
                                  y,
                                  d,
-                                 move(pub_blob),
-                                 move(priv_blob),
+                                 std::move(pub_blob),
+                                 std::move(priv_blob),
                                  key_guard.release(),
                                  alg_guard.release());
 }
@@ -719,8 +720,8 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve,
                                  x_bytes,
                                  y_bytes,
                                  d_bytes,
-                                 move(pub_blob),
-                                 move(priv_blob),
+                                 std::move(pub_blob),
+                                 std::move(priv_blob),
                                  key_guard.release(),
                                  alg_guard.release());
 }
@@ -744,7 +745,7 @@ unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits) const
         throw runtime_error("BCryptGenRandom failed: " + getErrorString());
     }
 
-    return make_unique<OctKey>(move(key_bytes));
+    return make_unique<OctKey>(std::move(key_bytes));
 }
 
 unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits,
@@ -756,7 +757,7 @@ unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits,
         throw runtime_error("Key size error");
     }
 
-    return make_unique<OctKey>(move(k_bytes));
+    return make_unique<OctKey>(std::move(k_bytes));
 }
 
 unique_ptr<Key> CNGBackEnd::generateOkp(Use use, unsigned int bits) const

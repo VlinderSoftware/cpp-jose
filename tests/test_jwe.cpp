@@ -339,7 +339,7 @@ TEST_CASE("JWE_MoveConstructor", "[jwe][moveconstructor]")
     original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
     original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
-    JWE moved(move(original));
+    JWE moved(std::move(original));
     REQUIRE("test plaintext" == moved.getPlaintext());
 }
 
@@ -350,7 +350,7 @@ TEST_CASE("JWE_MoveAssignment", "[jwe][moveassignment]")
     original.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
     original.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
-    JWE moved = move(original);
+    JWE moved = std::move(original);
     REQUIRE("test plaintext" == moved.getPlaintext());
 }
 
