@@ -1,4 +1,5 @@
 #include "back_end.hpp"
+
 #include "endian.hpp"
 
 using namespace std;
@@ -7,43 +8,50 @@ namespace Vlinder {
 namespace JOSE {
 namespace Private {
 
-vector<unsigned char> BackEnd::concatKDF(vector<unsigned char> const& shared_secret /* Z in the spec */,
-                                         size_t key_data_len,
-                                         string const& algorithm,
-                                         vector<unsigned char> const& apu,
-                                         vector<unsigned char> const& apv)
+vector<unsigned char>
+BackEnd::concatKDF(vector<unsigned char> const &shared_secret /* Z in the spec */,
+                   size_t key_data_len,
+                   string const &algorithm,
+                   vector<unsigned char> const &apu,
+                   vector<unsigned char> const &apv)
 {
     // build AlgorithmID
-    union {
+    union
+    {
         uint32_t value;
         unsigned char bytes[4];
     } alg_len_be;
     alg_len_be.value = toBigEndian(static_cast<uint32_t>(algorithm.length()));
-    vector< unsigned char > algorithm_id;
-    algorithm_id.insert(algorithm_id.end(), reinterpret_cast<unsigned char const*>(&alg_len_be),
-                        reinterpret_cast<unsigned char const*>(&alg_len_be) + sizeof(uint32_t));
+    vector<unsigned char> algorithm_id;
+    algorithm_id.insert(algorithm_id.end(),
+                        reinterpret_cast<unsigned char const *>(&alg_len_be),
+                        reinterpret_cast<unsigned char const *>(&alg_len_be) + sizeof(uint32_t));
     algorithm_id.insert(algorithm_id.end(), algorithm.begin(), algorithm.end());
 
     // build PartyUInfo
-    union {
+    union
+    {
         uint32_t value;
         unsigned char bytes[4];
     } apu_len_be;
     apu_len_be.value = toBigEndian(static_cast<uint32_t>(apu.size()));
     vector<unsigned char> party_u_info;
-    party_u_info.insert(party_u_info.end(), reinterpret_cast<unsigned char const*>(&apu_len_be),
-                        reinterpret_cast<unsigned char const*>(&apu_len_be) + sizeof(uint32_t));
+    party_u_info.insert(party_u_info.end(),
+                        reinterpret_cast<unsigned char const *>(&apu_len_be),
+                        reinterpret_cast<unsigned char const *>(&apu_len_be) + sizeof(uint32_t));
     party_u_info.insert(party_u_info.end(), apu.begin(), apu.end());
 
     // build PartyVInfo
-    union {
+    union
+    {
         uint32_t value;
         unsigned char bytes[4];
     } apv_len_be;
     apv_len_be.value = toBigEndian(static_cast<uint32_t>(apv.size()));
     vector<unsigned char> party_v_info;
-    party_v_info.insert(party_v_info.end(), reinterpret_cast<unsigned char const*>(&apv_len_be),
-                        reinterpret_cast<unsigned char const*>(&apv_len_be) + sizeof(uint32_t));
+    party_v_info.insert(party_v_info.end(),
+                        reinterpret_cast<unsigned char const *>(&apv_len_be),
+                        reinterpret_cast<unsigned char const *>(&apv_len_be) + sizeof(uint32_t));
     party_v_info.insert(party_v_info.end(), apv.begin(), apv.end());
 
     // build SuppPubInfo
@@ -62,7 +70,9 @@ vector<unsigned char> BackEnd::concatKDF(vector<unsigned char> const& shared_sec
     other_info.insert(other_info.end(), algorithm_id.begin(), algorithm_id.end());
     other_info.insert(other_info.end(), party_u_info.begin(), party_u_info.end());
     other_info.insert(other_info.end(), party_v_info.begin(), party_v_info.end());
-    other_info.insert(other_info.end(), supp_pub_info_be.bytes, supp_pub_info_be.bytes + sizeof(uint32_t));
+    other_info.insert(other_info.end(),
+                      supp_pub_info_be.bytes,
+                      supp_pub_info_be.bytes + sizeof(uint32_t));
     other_info.insert(other_info.end(), supp_priv_info.begin(), supp_priv_info.end());
 
     // Perform the KDF rounds
@@ -72,7 +82,8 @@ vector<unsigned char> BackEnd::concatKDF(vector<unsigned char> const& shared_sec
     for (size_t i = 1; i <= reps; ++i)  // 1-based round counter
     {
         vector<unsigned char> round_data;
-        union {
+        union
+        {
             uint32_t value;
             unsigned char bytes[4];
         } round_be;

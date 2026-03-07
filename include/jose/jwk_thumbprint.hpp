@@ -22,7 +22,7 @@ public:
      * @param key JWK to compute thumbprint for
      * @return Base64URL-encoded thumbprint
      */
-    static std::string compute(const JWK& key);
+    static std::string compute(const JWK &key);
 
     /**
      * @brief Compute JWK thumbprint using specified hash algorithm
@@ -30,7 +30,7 @@ public:
      * @param algorithm Hash algorithm (e.g., "SHA-256", "SHA-384", "SHA-512")
      * @return Base64URL-encoded thumbprint
      */
-    static std::string compute(const JWK& key, const std::string& algorithm);
+    static std::string compute(const JWK &key, const std::string &algorithm);
 
     /**
      * @brief Compute raw thumbprint bytes
@@ -38,8 +38,8 @@ public:
      * @param algorithm Hash algorithm
      * @return Raw thumbprint bytes
      */
-    static std::vector<unsigned char> computeRaw(const JWK& key,
-                                                 const std::string& algorithm = "SHA-256");
+    static std::vector<unsigned char> computeRaw(const JWK &key,
+                                                 const std::string &algorithm = "SHA-256");
 };
 
 }  // namespace JOSE

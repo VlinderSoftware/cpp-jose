@@ -1,5 +1,8 @@
-#include "../src/private/endian.hpp"
 #include <catch2/catch_test_macros.hpp>
+
+#include "../src/private/endian.hpp"
+
+using namespace std;
 
 using namespace Vlinder::JOSE::Private;
 
@@ -20,8 +23,9 @@ TEST_CASE("toNetworkEndian and toHostEndian are round-trip")
 
 TEST_CASE("toNetworkEndian produces big-endian representation")
 {
-    uint32_t v = 0x0A0B0C0Du; 
-    union {
+    uint32_t v = 0x0A0B0C0Du;
+    union
+    {
         uint32_t value;
         unsigned char bytes[4];
     } net;

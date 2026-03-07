@@ -23,30 +23,30 @@ public:
     ~JWT();
 
     // Copy and move constructors/operators
-    JWT(const JWT& other);
-    JWT& operator=(const JWT& other);
-    JWT(JWT&& other) noexcept;
-    JWT& operator=(JWT&& other) noexcept;
+    JWT(const JWT &other);
+    JWT &operator=(const JWT &other);
+    JWT(JWT &&other) noexcept;
+    JWT &operator=(JWT &&other) noexcept;
 
     /**
      * @brief Set issuer claim (iss)
      */
-    void setIssuer(const std::string& iss);
+    void setIssuer(const std::string &iss);
 
     /**
      * @brief Set subject claim (sub)
      */
-    void setSubject(const std::string& sub);
+    void setSubject(const std::string &sub);
 
     /**
      * @brief Set audience claim (aud)
      */
-    void setAudience(const std::string& aud);
+    void setAudience(const std::string &aud);
 
     /**
      * @brief Set audience claim with multiple values
      */
-    void setAudience(const std::vector<std::string>& aud);
+    void setAudience(const std::vector<std::string> &aud);
 
     /**
      * @brief Set expiration time claim (exp)
@@ -66,12 +66,12 @@ public:
     /**
      * @brief Set JWT ID claim (jti)
      */
-    void setJWTID(const std::string& jti);
+    void setJWTID(const std::string &jti);
 
     /**
      * @brief Set a custom claim
      */
-    void setClaim(const std::string& name, const std::string& value);
+    void setClaim(const std::string &name, const std::string &value);
 
     /**
      * @brief Get issuer claim
@@ -111,12 +111,12 @@ public:
     /**
      * @brief Get custom claim
      */
-    std::string getClaim(const std::string& name) const;
+    std::string getClaim(const std::string &name) const;
 
     /**
      * @brief Check if claim exists
      */
-    bool hasClaim(const std::string& name) const;
+    bool hasClaim(const std::string &name) const;
 
     /**
      * @brief Sign and serialize the JWT
@@ -124,7 +124,7 @@ public:
      * @param algorithm Algorithm to use
      * @return JWT string
      */
-    std::string sign(const JWK& key, const std::string& algorithm = "RS256") const;
+    std::string sign(const JWK &key, const std::string &algorithm = "RS256") const;
 
     /**
      * @brief Verify and parse a JWT
@@ -132,14 +132,14 @@ public:
      * @param key Verification key
      * @return JWT object
      */
-    static JWT verify(const std::string& jwt, const JWK& key);
+    static JWT verify(const std::string &jwt, const JWK &key);
 
     /**
      * @brief Parse a JWT without verification
      * @param jwt JWT string
      * @return JWT object
      */
-    static JWT parse(const std::string& jwt);
+    static JWT parse(const std::string &jwt);
 
     /**
      * @brief Validate JWT claims
@@ -148,7 +148,8 @@ public:
      * @param leeway Time leeway in seconds for time-based claims
      * @return true if valid, false otherwise
      */
-    bool validate(const std::string& issuer = "", const std::string& audience = "",
+    bool validate(const std::string &issuer = "",
+                  const std::string &audience = "",
                   int leeway = 0) const;
 
 private:

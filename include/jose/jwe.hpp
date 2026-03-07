@@ -23,16 +23,16 @@ public:
     ~JWE();
 
     // Copy and move constructors/operators
-    JWE(const JWE& other);
-    JWE& operator=(const JWE& other);
-    JWE(JWE&& other) noexcept;
-    JWE& operator=(JWE&& other) noexcept;
+    JWE(const JWE &other);
+    JWE &operator=(const JWE &other);
+    JWE(JWE &&other) noexcept;
+    JWE &operator=(JWE &&other) noexcept;
 
     /**
      * @brief Set the plaintext payload
      * @param plaintext Plaintext data
      */
-    void setPlaintext(const std::string& plaintext);
+    void setPlaintext(const std::string &plaintext);
 
     /**
      * @brief Set the key encryption algorithm
@@ -50,27 +50,27 @@ public:
      * @brief Set the key ID
      * @param kid Key ID
      */
-    void setKeyID(const std::string& kid);
+    void setKeyID(const std::string &kid);
 
     /**
      * @brief Set the type header
      * @param typ Type
      */
-    void setType(const std::string& typ);
+    void setType(const std::string &typ);
 
     /**
      * @brief Set a custom header parameter
      * @param name Parameter name
      * @param value Parameter value
      */
-    void setHeaderParam(const std::string& name, const std::string& value);
+    void setHeaderParam(const std::string &name, const std::string &value);
 
     /**
      * @brief Encrypt the payload
      * @param key Encryption key
      * @return JWE in compact serialization format
      */
-    std::string encrypt(const JWK& key) const;
+    std::string encrypt(const JWK &key) const;
 
     /**
      * @brief Decrypt a JWE
@@ -78,14 +78,14 @@ public:
      * @param key Decryption key
      * @return Decrypted plaintext
      */
-    static std::string decrypt(const std::string& jwe, const JWK& key);
+    static std::string decrypt(const std::string &jwe, const JWK &key);
 
     /**
      * @brief Parse a JWE without decryption
      * @param jwe JWE in compact serialization format
      * @return JWE object
      */
-    static JWE parse(const std::string& jwe);
+    static JWE parse(const std::string &jwe);
 
     /**
      * @brief Get the plaintext (after parsing or setting)

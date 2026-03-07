@@ -1,6 +1,9 @@
 #ifdef _WIN32
-#include "../src/private/cng_back_end.hpp"
 #include <catch2/catch_test_macros.hpp>
+
+#include "../src/private/cng_back_end.hpp"
+
+using namespace std;
 
 using namespace Vlinder::JOSE::Private;
 
@@ -12,7 +15,7 @@ TEST_CASE("CNGBackEnd generate RSA and EC keys")
     {
         auto key = backend.generateRSA(2048);
         REQUIRE(key != nullptr);
-        CNGRSAKey* rsa = dynamic_cast<CNGRSAKey*>(key.get());
+        CNGRSAKey *rsa = dynamic_cast<CNGRSAKey *>(key.get());
         REQUIRE(rsa != nullptr);
         auto n = rsa->getN();
         auto e = rsa->getE();
@@ -25,7 +28,7 @@ TEST_CASE("CNGBackEnd generate RSA and EC keys")
     {
         auto key = backend.generateEC("P-256");
         REQUIRE(key != nullptr);
-        CNGECKey* ec = dynamic_cast<CNGECKey*>(key.get());
+        CNGECKey *ec = dynamic_cast<CNGECKey *>(key.get());
         REQUIRE(ec != nullptr);
         auto pub = ec->getPublicBlob();
         REQUIRE(!pub.empty());

@@ -1,8 +1,5 @@
 #include "openssl_back_end.hpp"
 
-#include <algorithm>
-#include <stdexcept>
-
 #include <openssl/bn.h>
 #include <openssl/core_names.h>
 #include <openssl/err.h>
@@ -10,6 +7,9 @@
 #include <openssl/params.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
+
+#include <algorithm>
+#include <stdexcept>
 
 using namespace std;
 
@@ -224,7 +224,7 @@ private:
     EVP_PKEY *pkey_ = nullptr;
 };
 
-} // namespace
+}  // namespace
 
 OpenSSLRSAKey::OpenSSLRSAKey(vector<unsigned char> const &n,
                              vector<unsigned char> const &e,
@@ -236,15 +236,7 @@ OpenSSLRSAKey::OpenSSLRSAKey(vector<unsigned char> const &n,
                              vector<unsigned char> const &qi,
                              vector<unsigned char> const &public_blob,
                              vector<unsigned char> const &private_blob)
-    : n_(n),
-      e_(e),
-      d_(d),
-      p_(p),
-      q_(q),
-      dp_(dp),
-      dq_(dq),
-      qi_(qi),
-      public_blob_(public_blob),
+    : n_(n), e_(e), d_(d), p_(p), q_(q), dp_(dp), dq_(dq), qi_(qi), public_blob_(public_blob),
       private_blob_(private_blob)
 {
 }
@@ -266,17 +258,42 @@ bool OpenSSLRSAKey::hasPrivate() const
 
 unique_ptr<Key> OpenSSLRSAKey::clone() const
 {
-    return make_unique<OpenSSLRSAKey>(n_, e_, d_, p_, q_, dp_, dq_, qi_, public_blob_, private_blob_);
+    return make_unique<
+        OpenSSLRSAKey>(n_, e_, d_, p_, q_, dp_, dq_, qi_, public_blob_, private_blob_);
 }
 
-vector<unsigned char> OpenSSLRSAKey::getN() const { return n_; }
-vector<unsigned char> OpenSSLRSAKey::getE() const { return e_; }
-vector<unsigned char> OpenSSLRSAKey::getD() const { return d_; }
-vector<unsigned char> OpenSSLRSAKey::getP() const { return p_; }
-vector<unsigned char> OpenSSLRSAKey::getQ() const { return q_; }
-vector<unsigned char> OpenSSLRSAKey::getDp() const { return dp_; }
-vector<unsigned char> OpenSSLRSAKey::getDq() const { return dq_; }
-vector<unsigned char> OpenSSLRSAKey::getQi() const { return qi_; }
+vector<unsigned char> OpenSSLRSAKey::getN() const
+{
+    return n_;
+}
+vector<unsigned char> OpenSSLRSAKey::getE() const
+{
+    return e_;
+}
+vector<unsigned char> OpenSSLRSAKey::getD() const
+{
+    return d_;
+}
+vector<unsigned char> OpenSSLRSAKey::getP() const
+{
+    return p_;
+}
+vector<unsigned char> OpenSSLRSAKey::getQ() const
+{
+    return q_;
+}
+vector<unsigned char> OpenSSLRSAKey::getDp() const
+{
+    return dp_;
+}
+vector<unsigned char> OpenSSLRSAKey::getDq() const
+{
+    return dq_;
+}
+vector<unsigned char> OpenSSLRSAKey::getQi() const
+{
+    return qi_;
+}
 
 OpenSSLECKey::OpenSSLECKey(string const &curve_name,
                            vector<unsigned char> const &x,
@@ -284,12 +301,7 @@ OpenSSLECKey::OpenSSLECKey(string const &curve_name,
                            vector<unsigned char> const &d,
                            vector<unsigned char> const &public_blob,
                            vector<unsigned char> const &private_blob)
-    : ECKey(curve_name),
-      x_(x),
-      y_(y),
-      d_(d),
-      public_blob_(public_blob),
-      private_blob_(private_blob)
+    : ECKey(curve_name), x_(x), y_(y), d_(d), public_blob_(public_blob), private_blob_(private_blob)
 {
 }
 
@@ -313,20 +325,25 @@ unique_ptr<Key> OpenSSLECKey::clone() const
     return make_unique<OpenSSLECKey>(getCurveName(), x_, y_, d_, public_blob_, private_blob_);
 }
 
-vector<unsigned char> OpenSSLECKey::getX() const { return x_; }
-vector<unsigned char> OpenSSLECKey::getY() const { return y_; }
-vector<unsigned char> OpenSSLECKey::getD() const { return d_; }
+vector<unsigned char> OpenSSLECKey::getX() const
+{
+    return x_;
+}
+vector<unsigned char> OpenSSLECKey::getY() const
+{
+    return y_;
+}
+vector<unsigned char> OpenSSLECKey::getD() const
+{
+    return d_;
+}
 
 OpenSSLOKPKey::OpenSSLOKPKey(string const &curve_name,
                              vector<unsigned char> const &x,
                              vector<unsigned char> const &d,
                              vector<unsigned char> const &public_blob,
                              vector<unsigned char> const &private_blob)
-    : OKPKey(curve_name),
-      x_(x),
-      d_(d),
-      public_blob_(public_blob),
-      private_blob_(private_blob)
+    : OKPKey(curve_name), x_(x), d_(d), public_blob_(public_blob), private_blob_(private_blob)
 {
 }
 
@@ -350,8 +367,14 @@ unique_ptr<Key> OpenSSLOKPKey::clone() const
     return make_unique<OpenSSLOKPKey>(getCurveName(), x_, d_, public_blob_, private_blob_);
 }
 
-vector<unsigned char> OpenSSLOKPKey::getX() const { return x_; }
-vector<unsigned char> OpenSSLOKPKey::getD() const { return d_; }
+vector<unsigned char> OpenSSLOKPKey::getX() const
+{
+    return x_;
+}
+vector<unsigned char> OpenSSLOKPKey::getD() const
+{
+    return d_;
+}
 
 unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
 {
@@ -361,14 +384,11 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
         throw runtime_error("Failed to create RSA context: " + getErrorString());
     }
 
-    OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_RSA_BITS, &bits),
-        OSSL_PARAM_construct_end()
-    };
+    OSSL_PARAM params[] = {OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_RSA_BITS, &bits),
+                           OSSL_PARAM_construct_end()};
 
     EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_keygen_init(ctx) <= 0 ||
-        EVP_PKEY_CTX_set_params(ctx, params) <= 0 ||
+    if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_CTX_set_params(ctx, params) <= 0 ||
         EVP_PKEY_keygen(ctx, &pkey) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
@@ -434,13 +454,13 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
 }
 
 unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
-                                             vector<unsigned char> const &e_bytes,
-                                             vector<unsigned char> const &d_bytes,
-                                             vector<unsigned char> const &p_bytes,
-                                             vector<unsigned char> const &q_bytes,
-                                             vector<unsigned char> const &dp_bytes,
-                                             vector<unsigned char> const &dq_bytes,
-                                             vector<unsigned char> const &qi_bytes) const
+                                            vector<unsigned char> const &e_bytes,
+                                            vector<unsigned char> const &d_bytes,
+                                            vector<unsigned char> const &p_bytes,
+                                            vector<unsigned char> const &q_bytes,
+                                            vector<unsigned char> const &dp_bytes,
+                                            vector<unsigned char> const &dq_bytes,
+                                            vector<unsigned char> const &qi_bytes) const
 {
     if (n_bytes.empty() || e_bytes.empty())
     {
@@ -467,51 +487,50 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
         throw runtime_error("Failed to initialize RSA import: " + getErrorString());
     }
 
-    OSSL_PARAM params[9] = {
-        OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                const_cast<unsigned char *>(n_bytes.data()),
-                                n_bytes.size()),
-        OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
-                                const_cast<unsigned char *>(e_bytes.data()),
-                                e_bytes.size()),
-        OSSL_PARAM_construct_end(),
-        OSSL_PARAM_construct_end(),
-        OSSL_PARAM_construct_end(),
-        OSSL_PARAM_construct_end(),
-        OSSL_PARAM_construct_end(),
-        OSSL_PARAM_construct_end(),
-        OSSL_PARAM_construct_end()
-    };
+    OSSL_PARAM params[9] = {OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
+                                                    const_cast<unsigned char *>(n_bytes.data()),
+                                                    n_bytes.size()),
+                            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
+                                                    const_cast<unsigned char *>(e_bytes.data()),
+                                                    e_bytes.size()),
+                            OSSL_PARAM_construct_end(),
+                            OSSL_PARAM_construct_end(),
+                            OSSL_PARAM_construct_end(),
+                            OSSL_PARAM_construct_end(),
+                            OSSL_PARAM_construct_end(),
+                            OSSL_PARAM_construct_end(),
+                            OSSL_PARAM_construct_end()};
 
     size_t param_index = 2;
     if (has_crt)
     {
         params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_D,
-                                                         const_cast<unsigned char *>(d_bytes.data()),
-                                                         d_bytes.size());
+                                                        const_cast<unsigned char *>(d_bytes.data()),
+                                                        d_bytes.size());
         params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR1,
-                                                         const_cast<unsigned char *>(p_bytes.data()),
-                                                         p_bytes.size());
+                                                        const_cast<unsigned char *>(p_bytes.data()),
+                                                        p_bytes.size());
         params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR2,
-                                                         const_cast<unsigned char *>(q_bytes.data()),
-                                                         q_bytes.size());
-        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1,
-                                                         const_cast<unsigned char *>(dp_bytes.data()),
-                                                         dp_bytes.size());
-        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2,
-                                                         const_cast<unsigned char *>(dq_bytes.data()),
-                                                         dq_bytes.size());
-        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
-                                                         const_cast<unsigned char *>(qi_bytes.data()),
-                                                         qi_bytes.size());
+                                                        const_cast<unsigned char *>(q_bytes.data()),
+                                                        q_bytes.size());
+        params[param_index++] =
+            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1,
+                                    const_cast<unsigned char *>(dp_bytes.data()),
+                                    dp_bytes.size());
+        params[param_index++] =
+            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2,
+                                    const_cast<unsigned char *>(dq_bytes.data()),
+                                    dq_bytes.size());
+        params[param_index++] =
+            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
+                                    const_cast<unsigned char *>(qi_bytes.data()),
+                                    qi_bytes.size());
     }
     params[param_index] = OSSL_PARAM_construct_end();
 
     EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_fromdata(ctx,
-                          &pkey,
-                          has_crt ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY,
-                          params) <= 0)
+    if (EVP_PKEY_fromdata(ctx, &pkey, has_crt ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) <=
+        0)
     {
         EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to import RSA key: " + getErrorString());
@@ -521,7 +540,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
     EVPKeyHandle pkey_guard(pkey);
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
-    vector<unsigned char> private_blob = d_bytes.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
+    vector<unsigned char> private_blob =
+        d_bytes.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
 
     return make_unique<OpenSSLRSAKey>(n_bytes,
                                       e_bytes,
@@ -550,16 +570,13 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
         throw runtime_error("Failed to create EC context: " + getErrorString());
     }
 
-    OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
-                                         group_name_param.data(),
-                                         group_name_param.size() + 1),
-        OSSL_PARAM_construct_end()
-    };
+    OSSL_PARAM params[] = {OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                                            group_name_param.data(),
+                                                            group_name_param.size() + 1),
+                           OSSL_PARAM_construct_end()};
 
     EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_keygen_init(ctx) <= 0 ||
-        EVP_PKEY_CTX_set_params(ctx, params) <= 0 ||
+    if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_CTX_set_params(ctx, params) <= 0 ||
         EVP_PKEY_keygen(ctx, &pkey) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
@@ -583,7 +600,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
 
     vector<unsigned char> x_bytes = bnToPaddedBytes(x, coordinate_size);
     vector<unsigned char> y_bytes = bnToPaddedBytes(y, coordinate_size);
-    vector<unsigned char> d_bytes = d == nullptr ? vector<unsigned char>{} : bnToPaddedBytes(d, coordinate_size);
+    vector<unsigned char> d_bytes =
+        d == nullptr ? vector<unsigned char>{} : bnToPaddedBytes(d, coordinate_size);
 
     BN_free(x);
     BN_free(y);
@@ -592,13 +610,18 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
 
-    return make_unique<OpenSSLECKey>(canonical_curve, x_bytes, y_bytes, d_bytes, public_blob, private_blob);
+    return make_unique<OpenSSLECKey>(canonical_curve,
+                                     x_bytes,
+                                     y_bytes,
+                                     d_bytes,
+                                     public_blob,
+                                     private_blob);
 }
 
 unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
-                                            vector<unsigned char> const &x_bytes,
-                                            vector<unsigned char> const &y_bytes,
-                                            vector<unsigned char> const &d_bytes) const
+                                           vector<unsigned char> const &x_bytes,
+                                           vector<unsigned char> const &y_bytes,
+                                           vector<unsigned char> const &d_bytes) const
 {
     if (x_bytes.empty() || y_bytes.empty())
     {
@@ -639,21 +662,16 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
         throw runtime_error("Failed to initialize EC import: " + getErrorString());
     }
 
-    OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
-                                         group_name_param.data(),
-                                         group_name_param.size() + 1),
-        OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
-                                          public_point.data(),
-                                          public_point.size()),
-        OSSL_PARAM_construct_end()
-    };
+    OSSL_PARAM params[] = {OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                                            group_name_param.data(),
+                                                            group_name_param.size() + 1),
+                           OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+                                                             public_point.data(),
+                                                             public_point.size()),
+                           OSSL_PARAM_construct_end()};
 
     EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_fromdata(ctx,
-                          &pkey,
-                          EVP_PKEY_PUBLIC_KEY,
-                          params) <= 0)
+    if (EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) <= 0)
     {
         EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to import EC key: " + getErrorString());
@@ -690,7 +708,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateOct(unsigned int bits) const
 }
 
 unique_ptr<Key> OpenSSLBackEnd::generateOct(unsigned int bits,
-                                             vector<unsigned char> const &k_bytes) const
+                                            vector<unsigned char> const &k_bytes) const
 {
     if (k_bytes.size() != (bits / 8))
     {
@@ -814,9 +832,14 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
     }
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
-    vector<unsigned char> private_blob = d_bytes.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
+    vector<unsigned char> private_blob =
+        d_bytes.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
 
-    return make_unique<OpenSSLOKPKey>(canonical_curve, actual_x, actual_d, public_blob, private_blob);
+    return make_unique<OpenSSLOKPKey>(canonical_curve,
+                                      actual_x,
+                                      actual_d,
+                                      public_blob,
+                                      private_blob);
 }
 
 vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
@@ -942,6 +965,6 @@ string OpenSSLBackEnd::getErrorString() const
     return string(buffer);
 }
 
-} // namespace Private
-} // namespace JOSE
-} // namespace Vlinder
+}  // namespace Private
+}  // namespace JOSE
+}  // namespace Vlinder

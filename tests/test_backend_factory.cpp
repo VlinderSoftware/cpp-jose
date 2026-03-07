@@ -1,8 +1,11 @@
 #include <gtest/gtest.h>
-#include "details/backend.hpp"
+
 #include "backend_factory.hpp"
-#include "openssl_factory.cpp"
 #include "cng_factory.cpp"
+#include "details/backend.hpp"
+#include "openssl_factory.cpp"
+
+using namespace std;
 
 using namespace Vlinder::JOSE;
 using namespace Vlinder::JOSE::Details;

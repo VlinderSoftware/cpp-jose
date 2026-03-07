@@ -7,7 +7,6 @@ namespace Vlinder {
 namespace JOSE {
 namespace Private {
 
-
 // Use nlohmann::json as JsonValue
 using json = nlohmann::json;
 

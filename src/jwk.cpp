@@ -1,13 +1,13 @@
 #include "jwk.hpp"
 
 #include <cstring>
-#include <stdexcept>
 #include <set>
+#include <stdexcept>
 
 #include "base64url.hpp"
 #include "jwk_thumbprint.hpp"
-#include "private/json_utils.hpp"
 #include "private/back_end_factory.hpp"
+#include "private/json_utils.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
@@ -18,7 +18,7 @@ namespace JOSE {
 namespace {
 
 // Default algorithms for key type + use combinations
-string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string& curve = "")
+string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string &curve = "")
 {
     if (key_type == JWK::KeyType::rsa)
     {
@@ -30,12 +30,15 @@ string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string& cu
         {
             return "ECDH-ES";  // Default ECDH key agreement algorithm
         }
-        
+
         // Default based on curve for signature
-        if (curve == "P-256") return "ES256";
-        if (curve == "P-384") return "ES384";
-        if (curve == "P-521") return "ES512";
-        return "ES256"; // fallback
+        if (curve == "P-256")
+            return "ES256";
+        if (curve == "P-384")
+            return "ES384";
+        if (curve == "P-521")
+            return "ES512";
+        return "ES256";  // fallback
     }
     else if (key_type == JWK::KeyType::oct)
     {
@@ -45,98 +48,129 @@ string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string& cu
     {
         return (use == JWK::Use::signature) ? "EdDSA" : "ECDH-ES";
     }
-    
+
     throw runtime_error("Unsupported key type for default algorithm");
 }
 
 // Validate algorithm for key type + use combination
-void validateAlgorithm(const string& alg, JWK::KeyType key_type, JWK::Use use)
+void validateAlgorithm(const string &alg, JWK::KeyType key_type, JWK::Use use)
 {
-    static const set<string> rsa_sig_algs = {
-        "RS256", "RS384", "RS512", "PS256", "PS384", "PS512"
-    };
-    static const set<string> rsa_enc_algs = {
-        "RSA-OAEP", "RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512", "RSA1_5"
-    };
-    static const set<string> ec_sig_algs = {
-        "ES256", "ES384", "ES512", "ES256K"
-    };
-    static const set<string> ec_enc_algs = {
-        "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW"
-    };
-    static const set<string> oct_sig_algs = {
-        "HS256", "HS384", "HS512"
-    };
-    static const set<string> oct_enc_algs = {
-        "A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"
-    };
-    static const set<string> okp_sig_algs = {
-        "EdDSA"
-    };
-    static const set<string> okp_enc_algs = {
-        "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW"
-    };
-    
+    static const set<string> rsa_sig_algs = {"RS256", "RS384", "RS512", "PS256", "PS384", "PS512"};
+    static const set<string> rsa_enc_algs = {"RSA-OAEP",
+                                             "RSA-OAEP-256",
+                                             "RSA-OAEP-384",
+                                             "RSA-OAEP-512",
+                                             "RSA1_5"};
+    static const set<string> ec_sig_algs = {"ES256", "ES384", "ES512", "ES256K"};
+    static const set<string> ec_enc_algs = {"ECDH-ES",
+                                            "ECDH-ES+A128KW",
+                                            "ECDH-ES+A192KW",
+                                            "ECDH-ES+A256KW"};
+    static const set<string> oct_sig_algs = {"HS256", "HS384", "HS512"};
+    static const set<string> oct_enc_algs =
+        {"A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"};
+    static const set<string> okp_sig_algs = {"EdDSA"};
+    static const set<string> okp_enc_algs = {"ECDH-ES",
+                                             "ECDH-ES+A128KW",
+                                             "ECDH-ES+A192KW",
+                                             "ECDH-ES+A256KW"};
+
     if (key_type == JWK::KeyType::rsa)
     {
         if (use == JWK::Use::signature && rsa_sig_algs.find(alg) == rsa_sig_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, PS256, PS384, or PS512");
+            throw runtime_error("Algorithm '" + alg +
+                                "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, "
+                                "PS256, PS384, or PS512");
         }
         if (use == JWK::Use::encryption && rsa_enc_algs.find(alg) == rsa_enc_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.");
+            throw runtime_error(
+                "Algorithm '" + alg +
+                "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.");
         }
     }
     else if (key_type == JWK::KeyType::ec)
     {
         if (use == JWK::Use::signature && ec_sig_algs.find(alg) == ec_sig_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K");
+            throw runtime_error(
+                "Algorithm '" + alg +
+                "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K");
         }
         if (use == JWK::Use::encryption && ec_enc_algs.find(alg) == ec_enc_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for EC encryption keys. Use: ECDH-ES, ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW");
+            throw runtime_error("Algorithm '" + alg +
+                                "' is not valid for EC encryption keys. Use: ECDH-ES, "
+                                "ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW");
         }
     }
     else if (key_type == JWK::KeyType::oct)
     {
         if (use == JWK::Use::signature && oct_sig_algs.find(alg) == oct_sig_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512");
+            throw runtime_error(
+                "Algorithm '" + alg +
+                "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512");
         }
         if (use == JWK::Use::encryption && oct_enc_algs.find(alg) == oct_enc_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for symmetric encryption keys. Use: A128KW, A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
+            throw runtime_error("Algorithm '" + alg +
+                                "' is not valid for symmetric encryption keys. Use: A128KW, "
+                                "A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
         }
     }
     else if (key_type == JWK::KeyType::okp)
     {
         if (use == JWK::Use::signature && okp_sig_algs.find(alg) == okp_sig_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for OKP signature keys. Use: EdDSA");
+            throw runtime_error("Algorithm '" + alg +
+                                "' is not valid for OKP signature keys. Use: EdDSA");
         }
         if (use == JWK::Use::encryption && okp_enc_algs.find(alg) == okp_enc_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg + "' is not valid for OKP encryption keys. Use: ECDH-ES or ECDH-ES+AxxxKW");
+            throw runtime_error(
+                "Algorithm '" + alg +
+                "' is not valid for OKP encryption keys. Use: ECDH-ES or ECDH-ES+AxxxKW");
         }
     }
 }
 
-JWK::Use inferUseFromAlgorithm(string const& alg)
+JWK::Use inferUseFromAlgorithm(string const &alg)
 {
-    static set<string> const sig_algs = {
-        "RS256", "RS384", "RS512", "PS256", "PS384", "PS512",
-        "ES256", "ES384", "ES512", "ES256K", "EdDSA",
-        "HS256", "HS384", "HS512"
-    };
-    static set<string> const enc_algs = {
-        "RSA-OAEP", "RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512", "RSA1_5",
-        "ECDH-ES", "ECDH-ES+A128KW", "ECDH-ES+A192KW", "ECDH-ES+A256KW",
-        "A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"
-    };
-    if (sig_algs.count(alg)) return JWK::Use::signature;
-    if (enc_algs.count(alg)) return JWK::Use::encryption;
+    static set<string> const sig_algs = {"RS256",
+                                         "RS384",
+                                         "RS512",
+                                         "PS256",
+                                         "PS384",
+                                         "PS512",
+                                         "ES256",
+                                         "ES384",
+                                         "ES512",
+                                         "ES256K",
+                                         "EdDSA",
+                                         "HS256",
+                                         "HS384",
+                                         "HS512"};
+    static set<string> const enc_algs = {"RSA-OAEP",
+                                         "RSA-OAEP-256",
+                                         "RSA-OAEP-384",
+                                         "RSA-OAEP-512",
+                                         "RSA1_5",
+                                         "ECDH-ES",
+                                         "ECDH-ES+A128KW",
+                                         "ECDH-ES+A192KW",
+                                         "ECDH-ES+A256KW",
+                                         "A128KW",
+                                         "A192KW",
+                                         "A256KW",
+                                         "A128GCMKW",
+                                         "A192GCMKW",
+                                         "A256GCMKW"};
+    if (sig_algs.count(alg))
+        return JWK::Use::signature;
+    if (enc_algs.count(alg))
+        return JWK::Use::encryption;
     throw runtime_error("Cannot infer 'use' from unknown algorithm: '" + alg + "'");
 }
 
@@ -151,14 +185,20 @@ void ensureKeyID(JWK &jwk)
 /// Return the required symmetric key size in bits for a given JWA algorithm.
 /// AES variants encode the size directly in the name (e.g. A128KW → 128).
 /// HMAC sizes match the hash output length per RFC 7518 §3.2 (HS256 → 256, etc.).
-unsigned int keySizeFromAlg(string const& alg)
+unsigned int keySizeFromAlg(string const &alg)
 {
-    if (alg == "A128KW"    || alg == "A128GCMKW") return 128;
-    if (alg == "A192KW"    || alg == "A192GCMKW") return 192;
-    if (alg == "A256KW"    || alg == "A256GCMKW") return 256;
-    if (alg == "HS256") return 256;
-    if (alg == "HS384") return 384;
-    if (alg == "HS512") return 512;
+    if (alg == "A128KW" || alg == "A128GCMKW")
+        return 128;
+    if (alg == "A192KW" || alg == "A192GCMKW")
+        return 192;
+    if (alg == "A256KW" || alg == "A256GCMKW")
+        return 256;
+    if (alg == "HS256")
+        return 256;
+    if (alg == "HS384")
+        return 384;
+    if (alg == "HS512")
+        return 512;
     throw runtime_error("Cannot determine key size for algorithm: '" + alg + "'");
 }
 
@@ -175,12 +215,12 @@ struct JWK::Impl
 
     ~Impl() = default;
 
-    Impl(KeyType key_type, Use use, string const& alg)
+    Impl(KeyType key_type, Use use, string const &alg)
         : key_type_(key_type), use_(use), alg_(alg), has_use_(true)
     {
     }
 
-    Impl(const Impl& other)
+    Impl(const Impl &other)
         : key_type_(other.key_type_), kid_(other.kid_), alg_(other.alg_), use_(other.use_),
           has_use_(other.has_use_)
     {
@@ -198,11 +238,11 @@ JWK::JWK(Impl &&impl)
 
 JWK::~JWK() = default;
 
-JWK::JWK(const JWK& other) : impl_(make_unique<Impl>(*other.impl_))
+JWK::JWK(const JWK &other) : impl_(make_unique<Impl>(*other.impl_))
 {
 }
 
-JWK& JWK::operator=(const JWK& other)
+JWK &JWK::operator=(const JWK &other)
 {
     if (this != &other)
     {
@@ -211,20 +251,20 @@ JWK& JWK::operator=(const JWK& other)
     return *this;
 }
 
-JWK::JWK(JWK&& other) noexcept = default;
-JWK& JWK::operator=(JWK&& other) noexcept = default;
+JWK::JWK(JWK &&other) noexcept = default;
+JWK &JWK::operator=(JWK &&other) noexcept = default;
 
-JWK JWK::generateRSA(Use use, unsigned int bits, const string& alg)
+JWK JWK::generateRSA(Use use, unsigned int bits, const string &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::rsa, use) : alg;
-    
+
     // Validate algorithm matches key type and use
     validateAlgorithm(final_alg, KeyType::rsa, use);
 
     Impl impl(KeyType::rsa, use, final_alg);
 
-    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
     impl.key_ = move(back_end->generateRSA(bits));
 
@@ -234,7 +274,7 @@ JWK JWK::generateRSA(Use use, unsigned int bits, const string& alg)
     return jwk;
 }
 
-JWK JWK::generateEC(Use use, const string& curve, const string& alg)
+JWK JWK::generateEC(Use use, const string &curve, const string &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::ec, use, curve) : alg;
@@ -244,7 +284,7 @@ JWK JWK::generateEC(Use use, const string& curve, const string& alg)
 
     Impl impl(KeyType::ec, use, final_alg);
 
-    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
     impl.key_ = move(back_end->generateEC(curve));
 
@@ -254,7 +294,7 @@ JWK JWK::generateEC(Use use, const string& curve, const string& alg)
     return jwk;
 }
 
-JWK JWK::generateOct(Use use, int bits, const string& alg)
+JWK JWK::generateOct(Use use, int bits, const string &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::oct, use) : alg;
@@ -264,7 +304,7 @@ JWK JWK::generateOct(Use use, int bits, const string& alg)
 
     Impl impl(KeyType::oct, use, final_alg);
 
-    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
     impl.key_ = move(back_end->generateOct(bits));
 
@@ -274,7 +314,7 @@ JWK JWK::generateOct(Use use, int bits, const string& alg)
     return jwk;
 }
 
-JWK JWK::generateOKP(Use use, unsigned int bits, const std::string& alg)
+JWK JWK::generateOKP(Use use, unsigned int bits, const string &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::okp, use) : alg;
@@ -290,7 +330,7 @@ JWK JWK::generateOKP(Use use, unsigned int bits, const std::string& alg)
 
     Impl impl(KeyType::okp, use, final_alg);
 
-    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
     impl.key_ = move(back_end->generateOkp(use, bits));
 
@@ -340,7 +380,7 @@ string JWK::toJSON(bool include_private) const
     // Add key-specific fields
     if (impl_->key_type_ == KeyType::rsa && impl_->key_)
     {
-        auto rsa_key = dynamic_cast<Private::RSAKey*>(impl_->key_.get());
+        auto rsa_key = dynamic_cast<Private::RSAKey *>(impl_->key_.get());
         auto n(rsa_key->getN());
         auto e(rsa_key->getE());
 
@@ -389,7 +429,7 @@ string JWK::toJSON(bool include_private) const
     }
     else if (impl_->key_type_ == KeyType::ec && impl_->key_)
     {
-        auto ec_key = dynamic_cast<Private::ECKey*>(impl_->key_.get());
+        auto ec_key = dynamic_cast<Private::ECKey *>(impl_->key_.get());
         json_obj["crv"] = ec_key->getCurveName();
 
         auto x(ec_key->getX());
@@ -412,9 +452,9 @@ string JWK::toJSON(bool include_private) const
     else if (impl_->key_type_ == KeyType::okp && impl_->key_)
     {
 #if defined(JOSE_USE_CNG)
-    throw runtime_error("OKP keys are not supported with CNG backend -- use OpenSSL");
+        throw runtime_error("OKP keys are not supported with CNG backend -- use OpenSSL");
 #else
-        auto okp_key = dynamic_cast<Private::OKPKey*>(impl_->key_.get());
+        auto okp_key = dynamic_cast<Private::OKPKey *>(impl_->key_.get());
         if (okp_key == nullptr)
         {
             throw runtime_error("Internal error: OKP key type mismatch");
@@ -440,7 +480,7 @@ string JWK::toJSON(bool include_private) const
     }
     else if (impl_->key_type_ == KeyType::oct && impl_->key_ && include_private)
     {
-        auto oct_key = dynamic_cast<Private::OctKey*>(impl_->key_.get());
+        auto oct_key = dynamic_cast<Private::OctKey *>(impl_->key_.get());
         auto k(oct_key->getK());
         if (!k.empty())
         {
@@ -505,10 +545,14 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
     }
 
     // Derive key_type from kty for use in validation and inference
-    if      (kty == "RSA") key_type = KeyType::rsa;
-    else if (kty == "EC")  key_type = KeyType::ec;
-    else if (kty == "oct") key_type = KeyType::oct;
-    else                   key_type = KeyType::okp;
+    if (kty == "RSA")
+        key_type = KeyType::rsa;
+    else if (kty == "EC")
+        key_type = KeyType::ec;
+    else if (kty == "oct")
+        key_type = KeyType::oct;
+    else
+        key_type = KeyType::okp;
 
     string ec_curve;
     if (key_type == KeyType::ec)
@@ -539,7 +583,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
         alg = getDefaultAlgorithm(key_type, use, ec_curve);
     }
 
-    Private::BackEndFactory& factory(Private::BackEndFactory::get());
+    Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
     Impl impl(key_type, use, alg);
     if (jwk_json.contains("kid"))
@@ -563,14 +607,23 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
                                                   : vector<unsigned char>{};
             auto q_bytes = jwk_json.contains("q") ? Base64Url::decode(jwk_json["q"].get<string>())
                                                   : vector<unsigned char>{};
-            auto dp_bytes = jwk_json.contains("dp") ? Base64Url::decode(jwk_json["dp"].get<string>())
-                                                  : vector<unsigned char>{};
-            auto dq_bytes = jwk_json.contains("dq") ? Base64Url::decode(jwk_json["dq"].get<string>())
-                                                  : vector<unsigned char>{};
-            auto qi_bytes = jwk_json.contains("qi") ? Base64Url::decode(jwk_json["qi"].get<string>())
-                                                  : vector<unsigned char>{};
-            impl.key_ = move(back_end->generateRSA(n_bytes, e_bytes, d_bytes, p_bytes, q_bytes,
-                                                     dp_bytes, dq_bytes, qi_bytes));
+            auto dp_bytes = jwk_json.contains("dp")
+                                ? Base64Url::decode(jwk_json["dp"].get<string>())
+                                : vector<unsigned char>{};
+            auto dq_bytes = jwk_json.contains("dq")
+                                ? Base64Url::decode(jwk_json["dq"].get<string>())
+                                : vector<unsigned char>{};
+            auto qi_bytes = jwk_json.contains("qi")
+                                ? Base64Url::decode(jwk_json["qi"].get<string>())
+                                : vector<unsigned char>{};
+            impl.key_ = move(back_end->generateRSA(n_bytes,
+                                                   e_bytes,
+                                                   d_bytes,
+                                                   p_bytes,
+                                                   q_bytes,
+                                                   dp_bytes,
+                                                   dq_bytes,
+                                                   qi_bytes));
             break;
         }
         case KeyType::ec:
@@ -585,13 +638,13 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
                                                   : vector<unsigned char>{};
 
-            impl.key_ = move(back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes));
+            impl.key_ = move(
+                back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes));
             break;
         }
         case KeyType::okp:
 #if defined(JOSE_USE_CNG)
-            throw runtime_error(
-                "OKP keys are not supported with CNG backend -- use OpenSSL");
+            throw runtime_error("OKP keys are not supported with CNG backend -- use OpenSSL");
 #else
         {
             if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
@@ -601,8 +654,9 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
 
             auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
             auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
-                                                   : vector<unsigned char>{};
-            impl.key_ = move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
+                                                  : vector<unsigned char>{};
+            impl.key_ =
+                move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
             break;
         }
 #endif
@@ -628,7 +682,7 @@ JWK::KeyType JWK::getKeyType() const
     return impl_->key_type_;
 }
 
-void JWK::setKeyID(const string& kid)
+void JWK::setKeyID(const string &kid)
 {
     impl_->kid_ = kid;
 }
@@ -644,7 +698,7 @@ void JWK::setUse(Use use)
     impl_->has_use_ = true;
 }
 
-void JWK::setAlgorithm(const string& alg)
+void JWK::setAlgorithm(const string &alg)
 {
     impl_->alg_ = alg;
 }
@@ -678,7 +732,7 @@ JWKSet::JWKSet() : impl_(make_unique<Impl>())
 
 JWKSet::~JWKSet() = default;
 
-JWKSet JWKSet::fromJSON(const string& json_str)
+JWKSet JWKSet::fromJSON(const string &json_str)
 {
     JWKSet set;
     json jwk_set_json = json::parse(json_str);
@@ -694,7 +748,7 @@ JWKSet JWKSet::fromJSON(const string& json_str)
     }
 
     // Parse each key in the array
-    for (const auto& keyJson : jwk_set_json["keys"])
+    for (const auto &keyJson : jwk_set_json["keys"])
     {
         string keyJsonStr = keyJson.dump();
         JWK key = JWK::fromJSON(keyJsonStr);
@@ -704,14 +758,14 @@ JWKSet JWKSet::fromJSON(const string& json_str)
     return set;
 }
 
-void JWKSet::addKey(const JWK& key)
+void JWKSet::addKey(const JWK &key)
 {
     impl_->keys_.push_back(key);
 }
 
-JWK JWKSet::getKey(const string& kid) const
+JWK JWKSet::getKey(const string &kid) const
 {
-    for (const auto& key : impl_->keys_)
+    for (const auto &key : impl_->keys_)
     {
         if (key.getKeyID() == kid)
         {
@@ -732,7 +786,7 @@ string JWKSet::toJSON() const
 
     json keys_array = json::array();
 
-    for (const auto& key : impl_->keys_)
+    for (const auto &key : impl_->keys_)
     {
         keys_array.push_back(json::parse(key.toJSON(false)));
     }

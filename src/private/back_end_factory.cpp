@@ -15,19 +15,19 @@ namespace Vlinder {
 namespace JOSE {
 namespace Private {
 
-BackEndFactory& BackEndFactory::get()
+BackEndFactory &BackEndFactory::get()
 {
 #if defined(JOSE_USE_OPENSSL)
-	static OpenSSLBackEndFactory factory;
+    static OpenSSLBackEndFactory factory;
     return factory;
 #elif defined(JOSE_USE_CNG)
-	static CNGBackEndFactory factory;
-	return factory;
+    static CNGBackEndFactory factory;
+    return factory;
 #else
 #error "No crypto backend defined. Please define USE_OPENSSL or USE_CNG."
 #endif
 }
 
 }  // namespace Private
-} // namespace JOSE
+}  // namespace JOSE
 }  // namespace Vlinder

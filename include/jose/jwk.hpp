@@ -34,17 +34,17 @@ public:
     ~JWK();
 
     // Copy and move constructors/operators
-    JWK(const JWK& other);
-    JWK& operator=(const JWK& other);
-    JWK(JWK&& other) noexcept;
-    JWK& operator=(JWK&& other) noexcept;
+    JWK(const JWK &other);
+    JWK &operator=(const JWK &other);
+    JWK(JWK &&other) noexcept;
+    JWK &operator=(JWK &&other) noexcept;
 
     /**
      * @brief Parse JWK from JSON string
      * @param json JSON string
      * @return JWK object
      */
-    static JWK fromJSON(const std::string& json, bool permissive = false);
+    static JWK fromJSON(const std::string &json, bool permissive = false);
 
     /**
      * @brief Generate a new RSA key
@@ -53,7 +53,7 @@ public:
      * @param alg Optional algorithm. If empty, defaults to RS256 (sig) or RSA-OAEP-256 (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateRSA(Use use, unsigned int bits = 2048, const std::string& alg = {});
+    static JWK generateRSA(Use use, unsigned int bits = 2048, const std::string &alg = {});
 
     /**
      * @brief Generate a new EC key
@@ -62,7 +62,7 @@ public:
      * @param alg Optional algorithm. If empty, defaults based on curve (ES256/ES384/ES512)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateEC(Use use, const std::string& curve = "P-256", const std::string& alg = "");
+    static JWK generateEC(Use use, const std::string &curve = "P-256", const std::string &alg = "");
 
     /**
      * @brief Generate a new symmetric key
@@ -71,8 +71,10 @@ public:
      * @param alg Optional algorithm. If empty, defaults to HS256 (sig) or A256KW (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateOct(Use use, int bits = 256, const std::string& alg = "");
-    static JWK generateOKP(Use use, unsigned int bits = 0/*default depends on use*/, const std::string& alg = {});
+    static JWK generateOct(Use use, int bits = 256, const std::string &alg = "");
+    static JWK generateOKP(Use use,
+                           unsigned int bits = 0 /*default depends on use*/,
+                           const std::string &alg = {});
 
     /**
      * @brief Serialize to JSON
@@ -89,7 +91,7 @@ public:
     /**
      * @brief Set key ID
      */
-    void setKeyID(const std::string& kid);
+    void setKeyID(const std::string &kid);
 
     /**
      * @brief Get key ID
@@ -104,7 +106,7 @@ public:
     /**
      * @brief Set algorithm
      */
-    void setAlgorithm(const std::string& alg);
+    void setAlgorithm(const std::string &alg);
 
     /**
      * @brief Get algorithm
@@ -134,23 +136,23 @@ public:
     ~JWKSet();
 
     // Move constructors/operators
-    JWKSet(JWKSet&& other) noexcept = default;
-    JWKSet& operator=(JWKSet&& other) noexcept = default;
+    JWKSet(JWKSet &&other) noexcept = default;
+    JWKSet &operator=(JWKSet &&other) noexcept = default;
 
     /**
      * @brief Parse JWK Set from JSON
      */
-    static JWKSet fromJSON(const std::string& json);
+    static JWKSet fromJSON(const std::string &json);
 
     /**
      * @brief Add a key to the set
      */
-    void addKey(const JWK& key);
+    void addKey(const JWK &key);
 
     /**
      * @brief Get key by ID
      */
-    JWK getKey(const std::string& kid) const;
+    JWK getKey(const std::string &kid) const;
 
     /**
      * @brief Get all keys

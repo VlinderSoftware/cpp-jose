@@ -131,6 +131,6 @@ public:
     std::string getErrorString() const override;
 };
 
-} // namespace Private
-} // namespace JOSE
-} // namespace Vlinder
+}  // namespace Private
+}  // namespace JOSE
+}  // namespace Vlinder

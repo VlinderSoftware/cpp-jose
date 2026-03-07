@@ -16,27 +16,29 @@
 
 #include "jose/jose.hpp"
 
+using namespace std;
+
 using namespace Vlinder::JOSE;
 
 int main()
 {
     try
     {
-        std::cout << "=== JWE Example ===" << std::endl;
-        std::cout << "\nJSON Web Encryption (JWE) provides encryption" << std::endl;
-        std::cout << "functionality for arbitrary content." << std::endl;
+        cout << "=== JWE Example ===" << endl;
+        cout << "\nJSON Web Encryption (JWE) provides encryption" << endl;
+        cout << "functionality for arbitrary content." << endl;
 
         // Example 1: RSA Key Encryption with AES-GCM
-        std::cout << "\n\n1. RSA-OAEP + AES256-GCM Encryption" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n1. RSA-OAEP + AES256-GCM Encryption" << endl;
+        cout << "==========================================" << endl;
 
-        std::cout << "\nGenerating 2048-bit RSA key for encryption..." << std::endl;
+        cout << "\nGenerating 2048-bit RSA key for encryption..." << endl;
         JWK rsa_key = JWK::generateRSA(JWK::Use::encryption);
-        std::cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
-        std::cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << std::endl;
+        cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << endl;
+        cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << endl;
 
-        std::string sensitive_data = "This is highly confidential information!";
-        std::cout << "\nPlaintext: " << sensitive_data << std::endl;
+        string sensitive_data = "This is highly confidential information!";
+        cout << "\nPlaintext: " << sensitive_data << endl;
 
         JWE jwe;
         jwe.setPlaintext(sensitive_data);
@@ -45,57 +47,56 @@ int main()
         jwe.setKeyID(rsa_key.getKeyID());
         jwe.setType("JWE");
 
-        std::string encrypted = jwe.encrypt(rsa_key);
-        std::cout << "\nEncrypted JWE: " << encrypted.substr(0, 80) << "..." << std::endl;
-        std::cout << "Length: " << encrypted.length() << " characters" << std::endl;
+        string encrypted = jwe.encrypt(rsa_key);
+        cout << "\nEncrypted JWE: " << encrypted.substr(0, 80) << "..." << endl;
+        cout << "Length: " << encrypted.length() << " characters" << endl;
 
-        std::cout << "\nDecrypting JWE..." << std::endl;
-        std::string decrypted = JWE::decrypt(encrypted, rsa_key);
-        std::cout << "Decrypted: " << decrypted << std::endl;
-        std::cout << "Match: " << (decrypted == sensitive_data ? "✓ SUCCESS" : "✗ FAILED")
-                  << std::endl;
+        cout << "\nDecrypting JWE..." << endl;
+        string decrypted = JWE::decrypt(encrypted, rsa_key);
+        cout << "Decrypted: " << decrypted << endl;
+        cout << "Match: " << (decrypted == sensitive_data ? "✓ SUCCESS" : "✗ FAILED") << endl;
 
         // Example 2: Different Content Encryption Algorithms
-        std::cout << "\n\n2. Different Content Encryption Algorithms" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n2. Different Content Encryption Algorithms" << endl;
+        cout << "==========================================" << endl;
 
-        std::string payload = "Testing different encryption algorithms";
+        string payload = "Testing different encryption algorithms";
 
         // AES128-GCM
-        std::cout << "\n--- AES128-GCM ---" << std::endl;
+        cout << "\n--- AES128-GCM ---" << endl;
         JWE jwe128;
         jwe128.setPlaintext(payload);
         jwe128.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
         jwe128.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
 
-        std::string enc128 = jwe128.encrypt(rsa_key);
-        std::string dec128 = JWE::decrypt(enc128, rsa_key);
-        std::cout << "Encrypted and decrypted with A128GCM" << std::endl;
-        std::cout << "Match: " << (dec128 == payload ? "✓" : "✗") << std::endl;
+        string enc128 = jwe128.encrypt(rsa_key);
+        string dec128 = JWE::decrypt(enc128, rsa_key);
+        cout << "Encrypted and decrypted with A128GCM" << endl;
+        cout << "Match: " << (dec128 == payload ? "✓" : "✗") << endl;
 
         // AES256-CBC-HMAC-SHA512
-        std::cout << "\n--- AES256-CBC-HMAC-SHA512 ---" << std::endl;
+        cout << "\n--- AES256-CBC-HMAC-SHA512 ---" << endl;
         JWE jwe_cbc;
         jwe_cbc.setPlaintext(payload);
         jwe_cbc.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
         jwe_cbc.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256cbc_hs512);
 
-        std::string enc_cbc = jwe_cbc.encrypt(rsa_key);
-        std::string dec_cbc = JWE::decrypt(enc_cbc, rsa_key);
-        std::cout << "Encrypted and decrypted with A256CBC-HS512" << std::endl;
-        std::cout << "Match: " << (dec_cbc == payload ? "✓" : "✗") << std::endl;
+        string enc_cbc = jwe_cbc.encrypt(rsa_key);
+        string dec_cbc = JWE::decrypt(enc_cbc, rsa_key);
+        cout << "Encrypted and decrypted with A256CBC-HS512" << endl;
+        cout << "Match: " << (dec_cbc == payload ? "✓" : "✗") << endl;
 
         // Example 3: AES Key Wrap
-        std::cout << "\n\n3. AES Key Wrap + AES-GCM" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n3. AES Key Wrap + AES-GCM" << endl;
+        cout << "==========================================" << endl;
 
-        std::cout << "\nGenerating 256-bit symmetric key..." << std::endl;
+        cout << "\nGenerating 256-bit symmetric key..." << endl;
         JWK kek_key = JWK::generateOct(JWK::Use::encryption);  // Key Encryption Key
-        std::cout << "Symmetric KEK generated with auto-generated ID: " << kek_key.getKeyID() << std::endl;
-        std::cout << "Algorithm (auto-selected): " << kek_key.getAlgorithm() << std::endl;
+        cout << "Symmetric KEK generated with auto-generated ID: " << kek_key.getKeyID() << endl;
+        cout << "Algorithm (auto-selected): " << kek_key.getAlgorithm() << endl;
 
-        std::string secret_message = "Secret message encrypted with AES Key Wrap";
-        std::cout << "\nPlaintext: " << secret_message << std::endl;
+        string secret_message = "Secret message encrypted with AES Key Wrap";
+        cout << "\nPlaintext: " << secret_message << endl;
 
         JWE jwe_kw;
         jwe_kw.setPlaintext(secret_message);
@@ -103,25 +104,23 @@ int main()
         jwe_kw.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
         jwe_kw.setKeyID(kek_key.getKeyID());
 
-        std::string enc_kw = jwe_kw.encrypt(kek_key);
-        std::cout << "\nEncrypted with A256KW + A256GCM" << std::endl;
+        string enc_kw = jwe_kw.encrypt(kek_key);
+        cout << "\nEncrypted with A256KW + A256GCM" << endl;
 
-        std::string dec_kw = JWE::decrypt(enc_kw, kek_key);
-        std::cout << "Decrypted: " << dec_kw << std::endl;
-        std::cout << "Match: " << (dec_kw == secret_message ? "✓ SUCCESS" : "✗ FAILED") << std::endl;
+        string dec_kw = JWE::decrypt(enc_kw, kek_key);
+        cout << "Decrypted: " << dec_kw << endl;
+        cout << "Match: " << (dec_kw == secret_message ? "✓ SUCCESS" : "✗ FAILED") << endl;
 
         // Example 4: Direct Encryption (No Key Wrapping)
-        std::cout << "\n\n4. Direct Encryption (DIR)" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n4. Direct Encryption (DIR)" << endl;
+        cout << "==========================================" << endl;
 
-        std::cout << "\nNote: DIR algorithm uses direct encryption with pre-shared key"
-                  << std::endl;
-        std::cout << "(Implementation may vary by library - skipping for compatibility)"
-                  << std::endl;
+        cout << "\nNote: DIR algorithm uses direct encryption with pre-shared key" << endl;
+        cout << "(Implementation may vary by library - skipping for compatibility)" << endl;
 
         // Example 5: Working with Headers
-        std::cout << "\n\n5. JWE Header Inspection" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n5. JWE Header Inspection" << endl;
+        cout << "==========================================" << endl;
 
         JWE header_example;
         header_example.setPlaintext("Inspecting JWE headers");
@@ -131,17 +130,17 @@ int main()
         header_example.setType("JWE");
         header_example.setHeaderParam("cty", "application/json");
 
-        std::string enc_header = header_example.encrypt(rsa_key);
+        string enc_header = header_example.encrypt(rsa_key);
 
         JWE parsed_header = JWE::parse(enc_header);
-        std::cout << "\nJWE Header: " << parsed_header.getHeader() << std::endl;
+        cout << "\nJWE Header: " << parsed_header.getHeader() << endl;
 
         // Example 6: JWE Compact Serialization Format
-        std::cout << "\n\n6. JWE Compact Serialization Format" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n6. JWE Compact Serialization Format" << endl;
+        cout << "==========================================" << endl;
 
-        std::cout << "\nJWE format: Header.EncKey.IV.Ciphertext.Tag" << std::endl;
-        std::cout << "Full JWE length: " << encrypted.length() << " characters" << std::endl;
+        cout << "\nJWE format: Header.EncKey.IV.Ciphertext.Tag" << endl;
+        cout << "Full JWE length: " << encrypted.length() << " characters" << endl;
 
         int dot_count = 0;
         for (char c : encrypted)
@@ -149,22 +148,22 @@ int main()
             if (c == '.')
                 dot_count++;
         }
-        std::cout << "Number of dots (should be 4): " << dot_count << std::endl;
+        cout << "Number of dots (should be 4): " << dot_count << endl;
 
-        std::cout << "\nFirst 100 characters: " << encrypted.substr(0, 100) << "..." << std::endl;
+        cout << "\nFirst 100 characters: " << encrypted.substr(0, 100) << "..." << endl;
 
         // Example 7: JSON Payload Encryption
-        std::cout << "\n\n7. Encrypting JSON Data" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n7. Encrypting JSON Data" << endl;
+        cout << "==========================================" << endl;
 
-        std::string json_payload = R"({
+        string json_payload = R"({
   "userId": "12345",
   "email": "user@example.com",
   "creditCard": "4111-1111-1111-1111",
   "ssn": "123-45-6789"
 })";
 
-        std::cout << "\nJSON Payload:\n" << json_payload << std::endl;
+        cout << "\nJSON Payload:\n" << json_payload << endl;
 
         JWE jwe_json;
         jwe_json.setPlaintext(json_payload);
@@ -172,20 +171,19 @@ int main()
         jwe_json.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
         jwe_json.setHeaderParam("cty", "application/json");
 
-        std::string enc_json = jwe_json.encrypt(rsa_key);
-        std::cout << "\n✓ JSON payload encrypted" << std::endl;
+        string enc_json = jwe_json.encrypt(rsa_key);
+        cout << "\n✓ JSON payload encrypted" << endl;
 
-        std::string dec_json = JWE::decrypt(enc_json, rsa_key);
-        std::cout << "\nDecrypted JSON:\n" << dec_json << std::endl;
-        std::cout << "\nMatch: " << (dec_json == json_payload ? "✓ SUCCESS" : "✗ FAILED")
-                  << std::endl;
+        string dec_json = JWE::decrypt(enc_json, rsa_key);
+        cout << "\nDecrypted JSON:\n" << dec_json << endl;
+        cout << "\nMatch: " << (dec_json == json_payload ? "✓ SUCCESS" : "✗ FAILED") << endl;
 
-        std::cout << "\n\n=== JWE Example Complete ===" << std::endl;
+        cout << "\n\n=== JWE Example Complete ===" << endl;
         return 0;
     }
-    catch (const std::exception& e)
+    catch (const exception &e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        cerr << "Error: " << e.what() << endl;
         return 1;
     }
 }

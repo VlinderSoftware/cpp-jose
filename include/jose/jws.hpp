@@ -23,16 +23,16 @@ public:
     ~JWS();
 
     // Copy and move constructors/operators
-    JWS(const JWS& other);
-    JWS& operator=(const JWS& other);
-    JWS(JWS&& other) noexcept;
-    JWS& operator=(JWS&& other) noexcept;
+    JWS(const JWS &other);
+    JWS &operator=(const JWS &other);
+    JWS(JWS &&other) noexcept;
+    JWS &operator=(JWS &&other) noexcept;
 
     /**
      * @brief Set the payload
      * @param payload Payload data
      */
-    void setPayload(const std::string& payload);
+    void setPayload(const std::string &payload);
 
     /**
      * @brief Set the algorithm
@@ -44,27 +44,27 @@ public:
      * @brief Set the key ID
      * @param kid Key ID
      */
-    void setKeyID(const std::string& kid);
+    void setKeyID(const std::string &kid);
 
     /**
      * @brief Set the type header
      * @param typ Type (e.g., "JWT")
      */
-    void setType(const std::string& typ);
+    void setType(const std::string &typ);
 
     /**
      * @brief Set a custom header parameter
      * @param name Parameter name
      * @param value Parameter value
      */
-    void setHeaderParam(const std::string& name, const std::string& value);
+    void setHeaderParam(const std::string &name, const std::string &value);
 
     /**
      * @brief Sign the payload
      * @param key Signing key
      * @return JWS in compact serialization format
      */
-    std::string sign(const JWK& key) const;
+    std::string sign(const JWK &key) const;
 
     /**
      * @brief Verify and parse a JWS
@@ -72,14 +72,14 @@ public:
      * @param key Verification key
      * @return true if valid, false otherwise
      */
-    static bool verify(const std::string& jws, const JWK& key);
+    static bool verify(const std::string &jws, const JWK &key);
 
     /**
      * @brief Parse a JWS without verification
      * @param jws JWS in compact serialization format
      * @return JWS object
      */
-    static JWS parse(const std::string& jws);
+    static JWS parse(const std::string &jws);
 
     /**
      * @brief Get the payload (after parsing or setting)

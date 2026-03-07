@@ -10,14 +10,19 @@ namespace JOSE {
 
 string JWA::toString(SignatureAlgorithm alg)
 {
-    static const map<SignatureAlgorithm, string> alg_map = {
-        {SignatureAlgorithm::hs256, "HS256"}, {SignatureAlgorithm::hs384, "HS384"},
-        {SignatureAlgorithm::hs512, "HS512"}, {SignatureAlgorithm::rs256, "RS256"},
-        {SignatureAlgorithm::rs384, "RS384"}, {SignatureAlgorithm::rs512, "RS512"},
-        {SignatureAlgorithm::es256, "ES256"}, {SignatureAlgorithm::es384, "ES384"},
-        {SignatureAlgorithm::es512, "ES512"}, {SignatureAlgorithm::ps256, "PS256"},
-        {SignatureAlgorithm::ps384, "PS384"}, {SignatureAlgorithm::ps512, "PS512"},
-        {SignatureAlgorithm::none, "none"}};
+    static const map<SignatureAlgorithm, string> alg_map = {{SignatureAlgorithm::hs256, "HS256"},
+                                                            {SignatureAlgorithm::hs384, "HS384"},
+                                                            {SignatureAlgorithm::hs512, "HS512"},
+                                                            {SignatureAlgorithm::rs256, "RS256"},
+                                                            {SignatureAlgorithm::rs384, "RS384"},
+                                                            {SignatureAlgorithm::rs512, "RS512"},
+                                                            {SignatureAlgorithm::es256, "ES256"},
+                                                            {SignatureAlgorithm::es384, "ES384"},
+                                                            {SignatureAlgorithm::es512, "ES512"},
+                                                            {SignatureAlgorithm::ps256, "PS256"},
+                                                            {SignatureAlgorithm::ps384, "PS384"},
+                                                            {SignatureAlgorithm::ps512, "PS512"},
+                                                            {SignatureAlgorithm::none, "none"}};
 
     auto it = alg_map.find(alg);
     if (it != alg_map.end())
@@ -71,16 +76,21 @@ string JWA::toString(ContentEncryptionAlgorithm alg)
     throw runtime_error("Unknown content encryption algorithm");
 }
 
-JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const string& alg)
+JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const string &alg)
 {
-    static const map<string, SignatureAlgorithm> alg_map = {
-        {"HS256", SignatureAlgorithm::hs256}, {"HS384", SignatureAlgorithm::hs384},
-        {"HS512", SignatureAlgorithm::hs512}, {"RS256", SignatureAlgorithm::rs256},
-        {"RS384", SignatureAlgorithm::rs384}, {"RS512", SignatureAlgorithm::rs512},
-        {"ES256", SignatureAlgorithm::es256}, {"ES384", SignatureAlgorithm::es384},
-        {"ES512", SignatureAlgorithm::es512}, {"PS256", SignatureAlgorithm::ps256},
-        {"PS384", SignatureAlgorithm::ps384}, {"PS512", SignatureAlgorithm::ps512},
-        {"none", SignatureAlgorithm::none}};
+    static const map<string, SignatureAlgorithm> alg_map = {{"HS256", SignatureAlgorithm::hs256},
+                                                            {"HS384", SignatureAlgorithm::hs384},
+                                                            {"HS512", SignatureAlgorithm::hs512},
+                                                            {"RS256", SignatureAlgorithm::rs256},
+                                                            {"RS384", SignatureAlgorithm::rs384},
+                                                            {"RS512", SignatureAlgorithm::rs512},
+                                                            {"ES256", SignatureAlgorithm::es256},
+                                                            {"ES384", SignatureAlgorithm::es384},
+                                                            {"ES512", SignatureAlgorithm::es512},
+                                                            {"PS256", SignatureAlgorithm::ps256},
+                                                            {"PS384", SignatureAlgorithm::ps384},
+                                                            {"PS512", SignatureAlgorithm::ps512},
+                                                            {"none", SignatureAlgorithm::none}};
 
     auto it = alg_map.find(alg);
     if (it != alg_map.end())
@@ -91,7 +101,7 @@ JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const string& alg)
     throw runtime_error("Unknown signature algorithm: " + alg);
 }
 
-JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const string& alg)
+JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const string &alg)
 {
     static const map<string, KeyEncryptionAlgorithm> alg_map = {
         {"RSA1_5", KeyEncryptionAlgorithm::rsa1_5},
@@ -115,7 +125,7 @@ JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const string& 
     throw runtime_error("Unknown key encryption algorithm: " + alg);
 }
 
-JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const string& alg)
+JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const string &alg)
 {
     static const map<string, ContentEncryptionAlgorithm> alg_map = {
         {"A128CBC-HS256", ContentEncryptionAlgorithm::a128cbc_hs256},

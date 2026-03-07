@@ -1,8 +1,8 @@
 #pragma once
 
-#include "back_end.hpp"
-
 #include <memory>
+
+#include "back_end.hpp"
 
 namespace Vlinder {
 namespace JOSE {
@@ -14,9 +14,9 @@ public:
     virtual ~BackEndFactory() = default;
     virtual std::unique_ptr<BackEnd> createBackEnd() const = 0;
 
-    static BackEndFactory& get();
+    static BackEndFactory &get();
 };
 
-} // namespace Private
-} // namespace JOSE
-} // namespace Vlinder
+}  // namespace Private
+}  // namespace JOSE
+}  // namespace Vlinder

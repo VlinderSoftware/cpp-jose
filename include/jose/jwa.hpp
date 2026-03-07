@@ -75,8 +75,8 @@ public:
      * @param data Data to sign
      * @return Signature
      */
-    static std::vector<unsigned char> sign(SignatureAlgorithm algorithm, const JWK& key,
-                                           const std::vector<unsigned char>& data);
+    static std::vector<unsigned char>
+    sign(SignatureAlgorithm algorithm, const JWK &key, const std::vector<unsigned char> &data);
 
     /**
      * @brief Verify signature
@@ -86,9 +86,10 @@ public:
      * @param signature Signature to verify
      * @return true if valid, false otherwise
      */
-    static bool verify(SignatureAlgorithm algorithm, const JWK& key,
-                       const std::vector<unsigned char>& data,
-                       const std::vector<unsigned char>& signature);
+    static bool verify(SignatureAlgorithm algorithm,
+                       const JWK &key,
+                       const std::vector<unsigned char> &data,
+                       const std::vector<unsigned char> &signature);
 
     /**
      * @brief Encrypt content encryption key
@@ -101,12 +102,14 @@ public:
      * @param contentAlg Content encryption algorithm (for ECDH-ES key derivation)
      * @return Encrypted CEK
      */
-    static std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                                 const std::vector<unsigned char>& cek,
-                                                 std::vector<unsigned char>* iv = nullptr,
-                                                 std::vector<unsigned char>* tag = nullptr,
-                                                 JWK* ephemeral_key = nullptr,
-                                                 ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm);
+    static std::vector<unsigned char>
+    encryptKey(KeyEncryptionAlgorithm algorithm,
+               const JWK &key,
+               const std::vector<unsigned char> &cek,
+               std::vector<unsigned char> *iv = nullptr,
+               std::vector<unsigned char> *tag = nullptr,
+               JWK *ephemeral_key = nullptr,
+               ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm);
 
     /**
      * @brief Decrypt content encryption key
@@ -119,12 +122,14 @@ public:
      * @param contentAlg Content encryption algorithm (for ECDH-ES key derivation)
      * @return Decrypted CEK
      */
-    static std::vector<unsigned char> decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                                 const std::vector<unsigned char>& encrypted_cek,
-                                                 const std::vector<unsigned char>* iv = nullptr,
-                                                 const std::vector<unsigned char>* tag = nullptr,
-                                                 const JWK* ephemeral_key = nullptr,
-                                                 ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm);
+    static std::vector<unsigned char>
+    decryptKey(KeyEncryptionAlgorithm algorithm,
+               const JWK &key,
+               const std::vector<unsigned char> &encrypted_cek,
+               const std::vector<unsigned char> *iv = nullptr,
+               const std::vector<unsigned char> *tag = nullptr,
+               const JWK *ephemeral_key = nullptr,
+               ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm);
 
     /**
      * @brief Encrypt content
@@ -136,10 +141,11 @@ public:
      * @return Ciphertext and authentication tag
      */
     static std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
-    encryptContent(ContentEncryptionAlgorithm algorithm, const std::vector<unsigned char>& cek,
-                   const std::vector<unsigned char>& iv,
-                   const std::vector<unsigned char>& plaintext,
-                   const std::vector<unsigned char>& aad);
+    encryptContent(ContentEncryptionAlgorithm algorithm,
+                   const std::vector<unsigned char> &cek,
+                   const std::vector<unsigned char> &iv,
+                   const std::vector<unsigned char> &plaintext,
+                   const std::vector<unsigned char> &aad);
 
     /**
      * @brief Decrypt content
@@ -152,11 +158,11 @@ public:
      * @return Decrypted plaintext
      */
     static std::vector<unsigned char> decryptContent(ContentEncryptionAlgorithm algorithm,
-                                                     const std::vector<unsigned char>& cek,
-                                                     const std::vector<unsigned char>& iv,
-                                                     const std::vector<unsigned char>& ciphertext,
-                                                     const std::vector<unsigned char>& aad,
-                                                     const std::vector<unsigned char>& tag);
+                                                     const std::vector<unsigned char> &cek,
+                                                     const std::vector<unsigned char> &iv,
+                                                     const std::vector<unsigned char> &ciphertext,
+                                                     const std::vector<unsigned char> &aad,
+                                                     const std::vector<unsigned char> &tag);
 
     /**
      * @brief Convert algorithm enum to string
@@ -168,9 +174,9 @@ public:
     /**
      * @brief Convert string to algorithm enum
      */
-    static SignatureAlgorithm signatureAlgorithmFromString(const std::string& alg);
-    static KeyEncryptionAlgorithm keyEncryptionAlgorithmFromString(const std::string& alg);
-    static ContentEncryptionAlgorithm contentEncryptionAlgorithmFromString(const std::string& alg);
+    static SignatureAlgorithm signatureAlgorithmFromString(const std::string &alg);
+    static KeyEncryptionAlgorithm keyEncryptionAlgorithmFromString(const std::string &alg);
+    static ContentEncryptionAlgorithm contentEncryptionAlgorithmFromString(const std::string &alg);
 };
 
 }  // namespace JOSE

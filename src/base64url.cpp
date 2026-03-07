@@ -1,16 +1,16 @@
-#include <mutex>
 #include "base64url.hpp"
-#include "private/back_end_factory.hpp"
 
 #include <cstring>
+#include <mutex>
 #include <stdexcept>
+
+#include "private/back_end_factory.hpp"
 
 using namespace std;
 
 namespace Vlinder {
 namespace JOSE {
 namespace {
-
 
 Private::BackEnd &getBackEnd()
 {
@@ -23,9 +23,9 @@ Private::BackEnd &getBackEnd()
               });
     return *back_end;
 }
-}
+}  // namespace
 
-std::string Base64Url::encode(std::vector<unsigned char> const &data)
+string Base64Url::encode(vector<unsigned char> const &data)
 {
     if (data.empty())
     {
@@ -33,7 +33,7 @@ std::string Base64Url::encode(std::vector<unsigned char> const &data)
     }
 
     auto const &back_end = getBackEnd();
-    std::string result = back_end.base64Encode(data);
+    string result = back_end.base64Encode(data);
 
     for (char &c : result)
     {
@@ -56,19 +56,19 @@ std::string Base64Url::encode(std::vector<unsigned char> const &data)
     return result;
 }
 
-std::string Base64Url::encode(std::string const &str)
+string Base64Url::encode(string const &str)
 {
-    std::vector<unsigned char> const data(str.begin(), str.end());
+    vector<unsigned char> const data(str.begin(), str.end());
     return encode(data);
 }
 
-std::vector<unsigned char> Base64Url::decode(std::string const &encoded)
+vector<unsigned char> Base64Url::decode(string const &encoded)
 {
     if (encoded.empty())
     {
         return {};
     }
-    std::string base64 = encoded;
+    string base64 = encoded;
     for (char &c : base64)
     {
         if (c == '-')
@@ -88,10 +88,10 @@ std::vector<unsigned char> Base64Url::decode(std::string const &encoded)
     return back_end.base64Decode(base64);
 }
 
-std::string Base64Url::decodeToString(std::string const &encoded)
+string Base64Url::decodeToString(string const &encoded)
 {
     auto const data = decode(encoded);
-    return std::string(data.begin(), data.end());
+    return string(data.begin(), data.end());
 }
 
 }  // namespace JOSE

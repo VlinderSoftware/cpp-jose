@@ -16,6 +16,6 @@ public:
     }
 };
 
-} // namespace Private
-} // namespace JOSE
-} // namespace Vlinder
+}  // namespace Private
+}  // namespace JOSE
+}  // namespace Vlinder

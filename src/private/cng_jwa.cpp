@@ -1,15 +1,16 @@
-#include "jwa.hpp"
-
 #include <stdexcept>
 
-#if defined(JOSE_USE_CNG)
+#include "jwa.hpp"
 
 using namespace std;
+
+#if defined(JOSE_USE_CNG)
 
 namespace Vlinder {
 namespace JOSE {
 
-vector<unsigned char> JWA::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data)
+vector<unsigned char>
+JWA::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data)
 {
     (void)algorithm;
     (void)key;
@@ -17,7 +18,10 @@ vector<unsigned char> JWA::sign(SignatureAlgorithm algorithm, JWK const &key, ve
     throw runtime_error("JWA sign is not implemented for CNG back-end yet");
 }
 
-bool JWA::verify(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data, vector<unsigned char> const &signature)
+bool JWA::verify(SignatureAlgorithm algorithm,
+                 JWK const &key,
+                 vector<unsigned char> const &data,
+                 vector<unsigned char> const &signature)
 {
     (void)algorithm;
     (void)key;
@@ -26,12 +30,13 @@ bool JWA::verify(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned c
     throw runtime_error("JWA verify is not implemented for CNG back-end yet");
 }
 
-vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                           const vector<unsigned char>& cek,
-                                           vector<unsigned char>* out_iv,
-                                           vector<unsigned char>* out_tag,
-                                           JWK* ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg)
+vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
+                                      const JWK &key,
+                                      const vector<unsigned char> &cek,
+                                      vector<unsigned char> *out_iv,
+                                      vector<unsigned char> *out_tag,
+                                      JWK *ephemeral_key,
+                                      ContentEncryptionAlgorithm content_alg)
 {
     (void)algorithm;
     (void)key;
@@ -43,12 +48,13 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
     throw runtime_error("JWA key encryption is not implemented for CNG back-end yet");
 }
 
-vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                           const vector<unsigned char>& encrypted_cek,
-                                           const vector<unsigned char>* in_iv,
-                                           const vector<unsigned char>* in_tag,
-                                           const JWK* ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg)
+vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
+                                      const JWK &key,
+                                      const vector<unsigned char> &encrypted_cek,
+                                      const vector<unsigned char> *in_iv,
+                                      const vector<unsigned char> *in_tag,
+                                      const JWK *ephemeral_key,
+                                      ContentEncryptionAlgorithm content_alg)
 {
     (void)algorithm;
     (void)key;
@@ -61,10 +67,11 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JW
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
-JWA::encryptContent(ContentEncryptionAlgorithm algorithm, const vector<unsigned char>& cek,
-                    const vector<unsigned char>& iv,
-                    const vector<unsigned char>& plaintext,
-                    const vector<unsigned char>& aad)
+JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
+                    const vector<unsigned char> &cek,
+                    const vector<unsigned char> &iv,
+                    const vector<unsigned char> &plaintext,
+                    const vector<unsigned char> &aad)
 {
     (void)algorithm;
     (void)cek;
@@ -75,11 +82,11 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm, const vector<unsigned 
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
-                                               const vector<unsigned char>& cek,
-                                               const vector<unsigned char>& iv,
-                                               const vector<unsigned char>& ciphertext,
-                                               const vector<unsigned char>& aad,
-                                               const vector<unsigned char>& tag)
+                                          const vector<unsigned char> &cek,
+                                          const vector<unsigned char> &iv,
+                                          const vector<unsigned char> &ciphertext,
+                                          const vector<unsigned char> &aad,
+                                          const vector<unsigned char> &tag)
 {
     (void)algorithm;
     (void)cek;

@@ -1,19 +1,18 @@
-#include "jwa.hpp"
-#include "backend_factory.hpp"
-#include "private/endian.hpp"
-#include "details/backend.hpp"
+#include <openssl/params.h>
 
 #include <cstring>
 #include <map>
 #include <stdexcept>
 
-#include <openssl/params.h>
-
+#include "backend_factory.hpp"
+#include "details/backend.hpp"
+#include "jwa.hpp"
 #include "jwk.hpp"
-
-#if defined(JOSE_USE_OPENSSL)
+#include "private/endian.hpp"
 
 using namespace std;
+
+#if defined(JOSE_USE_OPENSSL)
 
 namespace Vlinder {
 namespace JOSE {
@@ -21,24 +20,23 @@ namespace JOSE {
 namespace {
 
 // Perform ECDH key agreement
-vector<unsigned char> performECDH(Details::KeyRing const& private_key,
-                                  Details::KeyRing const& public_key)
+vector<unsigned char> performECDH(Details::KeyRing const &private_key,
+                                  Details::KeyRing const &public_key)
 {
-    Details::Backend& backend(private_key.getBackend());
+    Details::Backend &backend(private_key.getBackend());
     return backend.derive(private_key, public_key);
 }
 
-vector<unsigned char> hmacSign(const void* md, const JWK& key,
-                                    const vector<unsigned char>& data)
+vector<unsigned char> hmacSign(const void *md, const JWK &key, const vector<unsigned char> &data)
 {
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         throw runtime_error("Invalid key");
     }
 
     size_t key_len = 0;
-    unsigned char* key_data = nullptr;
+    unsigned char *key_data = nullptr;
 
     if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &key_len) != 1)
     {
@@ -53,9 +51,15 @@ vector<unsigned char> hmacSign(const void* md, const JWK& key,
     }
 
     unsigned int sig_len;
-    vector<unsigned char> signature(EVP_MD_size(static_cast<const EVP_MD*>(md)));
+    vector<unsigned char> signature(EVP_MD_size(static_cast<const EVP_MD *>(md)));
 
-    if (!HMAC(static_cast<const EVP_MD*>(md), key_data, key_len, data.data(), data.size(), signature.data(), &sig_len))
+    if (!HMAC(static_cast<const EVP_MD *>(md),
+              key_data,
+              key_len,
+              data.data(),
+              data.size(),
+              signature.data(),
+              &sig_len))
     {
         delete[] key_data;
         throw runtime_error("HMAC signing failed: " + getOpenSSLError());
@@ -66,8 +70,10 @@ vector<unsigned char> hmacSign(const void* md, const JWK& key,
     return signature;
 }
 
-bool hmacVerify(const void* md, const JWK& key, const vector<unsigned char>& data,
-                const vector<unsigned char>& signature)
+bool hmacVerify(const void *md,
+                const JWK &key,
+                const vector<unsigned char> &data,
+                const vector<unsigned char> &signature)
 {
     vector<unsigned char> expected_sig = hmacSign(md, key, data);
 
@@ -78,22 +84,22 @@ bool hmacVerify(const void* md, const JWK& key, const vector<unsigned char>& dat
 
     return CRYPTO_memcmp(expected_sig.data(), signature.data(), signature.size()) == 0;
 }
-vector<unsigned char> rsaSign(const void* md, const JWK& key,
-                                   const vector<unsigned char>& data, bool use_pss)
+vector<unsigned char>
+rsaSign(const void *md, const JWK &key, const vector<unsigned char> &data, bool use_pss)
 {
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         throw runtime_error("Invalid key");
     }
 
-    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx)
     {
         throw runtime_error("Failed to create MD context: " + getOpenSSLError());
     }
 
-    EVP_PKEY_CTX* pctx = nullptr;
+    EVP_PKEY_CTX *pctx = nullptr;
 
     if (EVP_DigestSignInit(mdctx, &pctx, md, nullptr, pkey) != 1)
     {
@@ -135,22 +141,25 @@ vector<unsigned char> rsaSign(const void* md, const JWK& key,
     return signature;
 }
 
-bool rsaVerify(const void* md, const JWK& key, const vector<unsigned char>& data,
-               const vector<unsigned char>& signature, bool use_pss)
+bool rsaVerify(const void *md,
+               const JWK &key,
+               const vector<unsigned char> &data,
+               const vector<unsigned char> &signature,
+               bool use_pss)
 {
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         throw runtime_error("Invalid key");
     }
 
-    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx)
     {
         throw runtime_error("Failed to create MD context: " + getOpenSSLError());
     }
 
-    EVP_PKEY_CTX* pctx = nullptr;
+    EVP_PKEY_CTX *pctx = nullptr;
 
     if (EVP_DigestVerifyInit(mdctx, &pctx, md, nullptr, pkey) != 1)
     {
@@ -180,22 +189,21 @@ bool rsaVerify(const void* md, const JWK& key, const vector<unsigned char>& data
     return result == 1;
 }
 
-vector<unsigned char> ecdsaSign(const void* md, const JWK& key,
-                                     const vector<unsigned char>& data)
+vector<unsigned char> ecdsaSign(const void *md, const JWK &key, const vector<unsigned char> &data)
 {
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         throw runtime_error("Invalid key");
     }
 
-    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx)
     {
         throw runtime_error("Failed to create MD context: " + getOpenSSLError());
     }
 
-    EVP_PKEY_CTX* pctx = nullptr;
+    EVP_PKEY_CTX *pctx = nullptr;
     if (EVP_DigestSignInit(mdctx, &pctx, md, nullptr, pkey) != 1)
     {
         EVP_MD_CTX_free(mdctx);
@@ -210,8 +218,7 @@ vector<unsigned char> ecdsaSign(const void* md, const JWK& key,
         char sig_format[] = "ieee-p1363";
         OSSL_PARAM params[] = {
             OSSL_PARAM_construct_utf8_string("ecdsa_sig_format", sig_format, sizeof(sig_format)),
-            OSSL_PARAM_construct_end()
-        };
+            OSSL_PARAM_construct_end()};
         use_p1363 = (EVP_PKEY_CTX_set_params(pctx, params) == 1);
     }
 
@@ -237,15 +244,15 @@ vector<unsigned char> ecdsaSign(const void* md, const JWK& key,
         return signature;
     }
 
-    const unsigned char* p = signature.data();
-    ECDSA_SIG* ecdsa_sig = d2i_ECDSA_SIG(nullptr, &p, signature.size());
+    const unsigned char *p = signature.data();
+    ECDSA_SIG *ecdsa_sig = d2i_ECDSA_SIG(nullptr, &p, signature.size());
     if (!ecdsa_sig)
     {
         throw runtime_error("Failed to parse ECDSA signature: " + getOpenSSLError());
     }
 
-    const BIGNUM* r;
-    const BIGNUM* s;
+    const BIGNUM *r;
+    const BIGNUM *s;
     ECDSA_SIG_get0(ecdsa_sig, &r, &s);
 
     // Get the field size from the EC key, not from the hash size
@@ -267,14 +274,17 @@ vector<unsigned char> ecdsaSign(const void* md, const JWK& key,
             key_size = 66;  // ceil(521/8)
         }
     }
-    
+
     if (key_size == 0)
     {
         // Fallback: try to get curve name as string
         char curve_name[80];
         size_t curve_name_len = sizeof(curve_name);
-        if (EVP_PKEY_get_utf8_string_param(pkey, OSSL_PKEY_PARAM_GROUP_NAME, 
-                                           curve_name, sizeof(curve_name), &curve_name_len))
+        if (EVP_PKEY_get_utf8_string_param(pkey,
+                                           OSSL_PKEY_PARAM_GROUP_NAME,
+                                           curve_name,
+                                           sizeof(curve_name),
+                                           &curve_name_len))
         {
             string group_name(curve_name);
             if (group_name == "prime256v1")
@@ -291,7 +301,7 @@ vector<unsigned char> ecdsaSign(const void* md, const JWK& key,
             }
         }
     }
-    
+
     if (key_size == 0)
     {
         ECDSA_SIG_free(ecdsa_sig);
@@ -307,8 +317,10 @@ vector<unsigned char> ecdsaSign(const void* md, const JWK& key,
     return signature;
 }
 
-bool ecdsaVerify(const void* md, const JWK& key, const vector<unsigned char>& data,
-                 const vector<unsigned char>& signature)
+bool ecdsaVerify(const void *md,
+                 const JWK &key,
+                 const vector<unsigned char> &data,
+                 const vector<unsigned char> &signature)
 {
     if (signature.size() % 2 != 0)
     {
@@ -317,8 +329,8 @@ bool ecdsaVerify(const void* md, const JWK& key, const vector<unsigned char>& da
 
     size_t key_size = signature.size() / 2;
 
-    BIGNUM* r = BN_bin2bn(signature.data(), key_size, nullptr);
-    BIGNUM* s = BN_bin2bn(signature.data() + key_size, key_size, nullptr);
+    BIGNUM *r = BN_bin2bn(signature.data(), key_size, nullptr);
+    BIGNUM *s = BN_bin2bn(signature.data() + key_size, key_size, nullptr);
 
     if (!r || !s)
     {
@@ -329,7 +341,7 @@ bool ecdsaVerify(const void* md, const JWK& key, const vector<unsigned char>& da
         return false;
     }
 
-    ECDSA_SIG* ecdsa_sig = ECDSA_SIG_new();
+    ECDSA_SIG *ecdsa_sig = ECDSA_SIG_new();
     if (!ecdsa_sig)
     {
         BN_free(r);
@@ -339,7 +351,7 @@ bool ecdsaVerify(const void* md, const JWK& key, const vector<unsigned char>& da
 
     ECDSA_SIG_set0(ecdsa_sig, r, s);
 
-    unsigned char* der_sig = nullptr;
+    unsigned char *der_sig = nullptr;
     int der_len = i2d_ECDSA_SIG(ecdsa_sig, &der_sig);
 
     if (der_len <= 0)
@@ -352,19 +364,19 @@ bool ecdsaVerify(const void* md, const JWK& key, const vector<unsigned char>& da
     OPENSSL_free(der_sig);
     ECDSA_SIG_free(ecdsa_sig);
 
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         return false;
     }
 
-    EVP_MD_CTX* mdctx = EVP_MD_CTX_new();
+    EVP_MD_CTX *mdctx = EVP_MD_CTX_new();
     if (!mdctx)
     {
         return false;
     }
 
-    EVP_PKEY_CTX* pctx = nullptr;
+    EVP_PKEY_CTX *pctx = nullptr;
     if (EVP_DigestVerifyInit(mdctx, &pctx, md, nullptr, pkey) != 1)
     {
         EVP_MD_CTX_free(mdctx);
@@ -376,34 +388,42 @@ bool ecdsaVerify(const void* md, const JWK& key, const vector<unsigned char>& da
         char sig_format[] = "ieee-p1363";
         OSSL_PARAM params[] = {
             OSSL_PARAM_construct_utf8_string("ecdsa_sig_format", sig_format, sizeof(sig_format)),
-            OSSL_PARAM_construct_end()
-        };
+            OSSL_PARAM_construct_end()};
 
         if (EVP_PKEY_CTX_set_params(pctx, params) == 1)
         {
-            int const result = EVP_DigestVerify(mdctx, signature.data(), signature.size(), data.data(), data.size());
+            int const result = EVP_DigestVerify(mdctx,
+                                                signature.data(),
+                                                signature.size(),
+                                                data.data(),
+                                                data.size());
             EVP_MD_CTX_free(mdctx);
             return result == 1;
         }
     }
 
-    int result =
-        EVP_DigestVerify(mdctx, der_signature.data(), der_signature.size(), data.data(), data.size());
+    int result = EVP_DigestVerify(mdctx,
+                                  der_signature.data(),
+                                  der_signature.size(),
+                                  data.data(),
+                                  data.size());
 
     EVP_MD_CTX_free(mdctx);
     return result == 1;
 }
 
-vector<unsigned char> rsaEncrypt(const JWK& key, const vector<unsigned char>& plaintext,
-                                      int padding, const EVP_MD* md = nullptr)
+vector<unsigned char> rsaEncrypt(const JWK &key,
+                                 const vector<unsigned char> &plaintext,
+                                 int padding,
+                                 const EVP_MD *md = nullptr)
 {
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         throw runtime_error("Invalid key");
     }
 
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
     if (!ctx)
     {
         throw runtime_error("Failed to create context: " + getOpenSSLError());
@@ -455,16 +475,18 @@ vector<unsigned char> rsaEncrypt(const JWK& key, const vector<unsigned char>& pl
     return ciphertext;
 }
 
-vector<unsigned char> rsaDecrypt(const JWK& key, const vector<unsigned char>& ciphertext,
-                                      int padding, const EVP_MD* md = nullptr)
+vector<unsigned char> rsaDecrypt(const JWK &key,
+                                 const vector<unsigned char> &ciphertext,
+                                 int padding,
+                                 const EVP_MD *md = nullptr)
 {
-    EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+    EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
     {
         throw runtime_error("Invalid key");
     }
 
-    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(pkey, nullptr);
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, nullptr);
     if (!ctx)
     {
         throw runtime_error("Failed to create context: " + getOpenSSLError());
@@ -505,7 +527,8 @@ vector<unsigned char> rsaDecrypt(const JWK& key, const vector<unsigned char>& ci
     }
 
     vector<unsigned char> plaintext(out_len);
-    if (EVP_PKEY_decrypt(ctx, plaintext.data(), &out_len, ciphertext.data(), ciphertext.size()) <= 0)
+    if (EVP_PKEY_decrypt(ctx, plaintext.data(), &out_len, ciphertext.data(), ciphertext.size()) <=
+        0)
     {
         EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Decryption failed: " + getOpenSSLError());
@@ -516,17 +539,17 @@ vector<unsigned char> rsaDecrypt(const JWK& key, const vector<unsigned char>& ci
     return plaintext;
 }
 
-vector<unsigned char> aesKeyWrap(const vector<unsigned char>& kek,
-                                      const vector<unsigned char>& plaintext)
+vector<unsigned char> aesKeyWrap(const vector<unsigned char> &kek,
+                                 const vector<unsigned char> &plaintext)
 {
     // Use EVP API for OpenSSL 3.0+
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
     }
 
-    const EVP_CIPHER* cipher = nullptr;
+    const EVP_CIPHER *cipher = nullptr;
     if (kek.size() == 16)
         cipher = EVP_aes_128_wrap();
     else if (kek.size() == 24)
@@ -547,8 +570,9 @@ vector<unsigned char> aesKeyWrap(const vector<unsigned char>& kek,
 
     vector<unsigned char> ciphertext(plaintext.size() + EVP_CIPHER_CTX_block_size(ctx));
     int out_len = 0;
-    
-    if (EVP_EncryptUpdate(ctx, ciphertext.data(), &out_len, plaintext.data(), plaintext.size()) != 1)
+
+    if (EVP_EncryptUpdate(ctx, ciphertext.data(), &out_len, plaintext.data(), plaintext.size()) !=
+        1)
     {
         EVP_CIPHER_CTX_free(ctx);
         throw runtime_error("AES key wrap failed: " + getOpenSSLError());
@@ -566,17 +590,17 @@ vector<unsigned char> aesKeyWrap(const vector<unsigned char>& kek,
     return ciphertext;
 }
 
-vector<unsigned char> aesKeyUnwrap(const vector<unsigned char>& kek,
-                                        const vector<unsigned char>& ciphertext)
+vector<unsigned char> aesKeyUnwrap(const vector<unsigned char> &kek,
+                                   const vector<unsigned char> &ciphertext)
 {
     // Use EVP API for OpenSSL 3.0+
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
     }
 
-    const EVP_CIPHER* cipher = nullptr;
+    const EVP_CIPHER *cipher = nullptr;
     if (kek.size() == 16)
         cipher = EVP_aes_128_wrap();
     else if (kek.size() == 24)
@@ -597,8 +621,9 @@ vector<unsigned char> aesKeyUnwrap(const vector<unsigned char>& kek,
 
     vector<unsigned char> plaintext(ciphertext.size());
     int out_len = 0;
-    
-    if (EVP_DecryptUpdate(ctx, plaintext.data(), &out_len, ciphertext.data(), ciphertext.size()) != 1)
+
+    if (EVP_DecryptUpdate(ctx, plaintext.data(), &out_len, ciphertext.data(), ciphertext.size()) !=
+        1)
     {
         EVP_CIPHER_CTX_free(ctx);
         throw runtime_error("AES key unwrap failed: " + getOpenSSLError());
@@ -616,10 +641,10 @@ vector<unsigned char> aesKeyUnwrap(const vector<unsigned char>& kek,
     return plaintext;
 }
 
-vector<unsigned char> aesGcmKeyWrap(const vector<unsigned char>& kek,
-                                         const vector<unsigned char>& plaintext,
-                                         vector<unsigned char>& iv,
-                                         vector<unsigned char>& tag)
+vector<unsigned char> aesGcmKeyWrap(const vector<unsigned char> &kek,
+                                    const vector<unsigned char> &plaintext,
+                                    vector<unsigned char> &iv,
+                                    vector<unsigned char> &tag)
 {
     if (iv.empty())
     {
@@ -630,13 +655,13 @@ vector<unsigned char> aesGcmKeyWrap(const vector<unsigned char>& kek,
         }
     }
 
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
     }
 
-    const EVP_CIPHER* cipher = nullptr;
+    const EVP_CIPHER *cipher = nullptr;
     switch (kek.size())
     {
         case 16:
@@ -690,18 +715,18 @@ vector<unsigned char> aesGcmKeyWrap(const vector<unsigned char>& kek,
     return ciphertext;
 }
 
-vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char>& kek,
-                                           const vector<unsigned char>& ciphertext,
-                                           const vector<unsigned char>& iv,
-                                           const vector<unsigned char>& tag)
+vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char> &kek,
+                                      const vector<unsigned char> &ciphertext,
+                                      const vector<unsigned char> &iv,
+                                      const vector<unsigned char> &tag)
 {
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
     }
 
-    const EVP_CIPHER* cipher = nullptr;
+    const EVP_CIPHER *cipher = nullptr;
     switch (kek.size())
     {
         case 16:
@@ -735,8 +760,10 @@ vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char>& kek,
 
     int plaintext_len = len;
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, tag.size(),
-                            const_cast<unsigned char*>(tag.data())) != 1)
+    if (EVP_CIPHER_CTX_ctrl(ctx,
+                            EVP_CTRL_GCM_SET_TAG,
+                            tag.size(),
+                            const_cast<unsigned char *>(tag.data())) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
         throw runtime_error("Failed to set tag: " + getOpenSSLError());
@@ -746,7 +773,7 @@ vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char>& kek,
     {
         EVP_CIPHER_CTX_free(ctx);
         throw runtime_error("Decryption finalization failed (authentication failed): " +
-                                 getOpenSSLError());
+                            getOpenSSLError());
     }
 
     plaintext_len += len;
@@ -757,15 +784,18 @@ vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char>& kek,
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
-aesCbcHmacEncrypt(const EVP_CIPHER* cipher, const EVP_MD* md, const vector<unsigned char>& cek,
-                  const vector<unsigned char>& iv, const vector<unsigned char>& plaintext,
-                  const vector<unsigned char>& aad)
+aesCbcHmacEncrypt(const EVP_CIPHER *cipher,
+                  const EVP_MD *md,
+                  const vector<unsigned char> &cek,
+                  const vector<unsigned char> &iv,
+                  const vector<unsigned char> &plaintext,
+                  const vector<unsigned char> &aad)
 {
     size_t key_len = cek.size() / 2;
     vector<unsigned char> mac_key(cek.begin(), cek.begin() + key_len);
     vector<unsigned char> enc_key(cek.begin() + key_len, cek.end());
 
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
@@ -815,7 +845,12 @@ aesCbcHmacEncrypt(const EVP_CIPHER* cipher, const EVP_MD* md, const vector<unsig
     unsigned int mac_len;
     vector<unsigned char> mac(EVP_MD_size(md));
 
-    if (!HMAC(md, mac_key.data(), mac_key.size(), mac_data.data(), mac_data.size(), mac.data(),
+    if (!HMAC(md,
+              mac_key.data(),
+              mac_key.size(),
+              mac_data.data(),
+              mac_data.size(),
+              mac.data(),
               &mac_len))
     {
         throw runtime_error("HMAC computation failed: " + getOpenSSLError());
@@ -826,12 +861,13 @@ aesCbcHmacEncrypt(const EVP_CIPHER* cipher, const EVP_MD* md, const vector<unsig
     return {ciphertext, tag};
 }
 
-vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER* cipher, const EVP_MD* md,
-                                             const vector<unsigned char>& cek,
-                                             const vector<unsigned char>& iv,
-                                             const vector<unsigned char>& ciphertext,
-                                             const vector<unsigned char>& aad,
-                                             const vector<unsigned char>& tag)
+vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER *cipher,
+                                        const EVP_MD *md,
+                                        const vector<unsigned char> &cek,
+                                        const vector<unsigned char> &iv,
+                                        const vector<unsigned char> &ciphertext,
+                                        const vector<unsigned char> &aad,
+                                        const vector<unsigned char> &tag)
 {
     size_t key_len = cek.size() / 2;
     vector<unsigned char> mac_key(cek.begin(), cek.begin() + key_len);
@@ -854,7 +890,12 @@ vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER* cipher, const EVP_MD* 
     unsigned int mac_len;
     vector<unsigned char> mac(EVP_MD_size(md));
 
-    if (!HMAC(md, mac_key.data(), mac_key.size(), mac_data.data(), mac_data.size(), mac.data(),
+    if (!HMAC(md,
+              mac_key.data(),
+              mac_key.size(),
+              mac_data.data(),
+              mac_data.size(),
+              mac.data(),
               &mac_len))
     {
         throw runtime_error("HMAC computation failed: " + getOpenSSLError());
@@ -868,7 +909,7 @@ vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER* cipher, const EVP_MD* 
         throw runtime_error("Authentication tag verification failed");
     }
 
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
@@ -905,11 +946,13 @@ vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER* cipher, const EVP_MD* 
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
-aesGcmEncrypt(const EVP_CIPHER* cipher, const vector<unsigned char>& cek,
-              const vector<unsigned char>& iv, const vector<unsigned char>& plaintext,
-              const vector<unsigned char>& aad)
+aesGcmEncrypt(const EVP_CIPHER *cipher,
+              const vector<unsigned char> &cek,
+              const vector<unsigned char> &iv,
+              const vector<unsigned char> &plaintext,
+              const vector<unsigned char> &aad)
 {
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
@@ -962,12 +1005,14 @@ aesGcmEncrypt(const EVP_CIPHER* cipher, const vector<unsigned char>& cek,
     return {ciphertext, tag};
 }
 
-vector<unsigned char>
-aesGcmDecrypt(const EVP_CIPHER* cipher, const vector<unsigned char>& cek,
-              const vector<unsigned char>& iv, const vector<unsigned char>& ciphertext,
-              const vector<unsigned char>& aad, const vector<unsigned char>& tag)
+vector<unsigned char> aesGcmDecrypt(const EVP_CIPHER *cipher,
+                                    const vector<unsigned char> &cek,
+                                    const vector<unsigned char> &iv,
+                                    const vector<unsigned char> &ciphertext,
+                                    const vector<unsigned char> &aad,
+                                    const vector<unsigned char> &tag)
 {
-    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
     {
         throw runtime_error("Failed to create cipher context: " + getOpenSSLError());
@@ -1000,8 +1045,10 @@ aesGcmDecrypt(const EVP_CIPHER* cipher, const vector<unsigned char>& cek,
 
     int plaintext_len = len;
 
-    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, tag.size(),
-                            const_cast<unsigned char*>(tag.data())) != 1)
+    if (EVP_CIPHER_CTX_ctrl(ctx,
+                            EVP_CTRL_GCM_SET_TAG,
+                            tag.size(),
+                            const_cast<unsigned char *>(tag.data())) != 1)
     {
         EVP_CIPHER_CTX_free(ctx);
         throw runtime_error("Failed to set tag: " + getOpenSSLError());
@@ -1011,7 +1058,7 @@ aesGcmDecrypt(const EVP_CIPHER* cipher, const vector<unsigned char>& cek,
     {
         EVP_CIPHER_CTX_free(ctx);
         throw runtime_error("Decryption finalization failed (authentication failed): " +
-                                 getOpenSSLError());
+                            getOpenSSLError());
     }
 
     plaintext_len += len;
@@ -1023,7 +1070,8 @@ aesGcmDecrypt(const EVP_CIPHER* cipher, const vector<unsigned char>& cek,
 
 }  // namespace
 
-vector<unsigned char> JWA::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data)
+vector<unsigned char>
+JWA::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data)
 {
     auto const &backend = getBackend();
     void const *hash_alg = backend.getHashAlgorithm(algorithm);
@@ -1052,7 +1100,10 @@ vector<unsigned char> JWA::sign(SignatureAlgorithm algorithm, JWK const &key, ve
     }
 }
 
-bool JWA::verify(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data, vector<unsigned char> const &signature)
+bool JWA::verify(SignatureAlgorithm algorithm,
+                 JWK const &key,
+                 vector<unsigned char> const &data,
+                 vector<unsigned char> const &signature)
 {
     if (algorithm == SignatureAlgorithm::none)
     {
@@ -1083,12 +1134,13 @@ bool JWA::verify(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned c
     }
 }
 
-vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                           const vector<unsigned char>& cek,
-                                           vector<unsigned char>* out_iv,
-                                           vector<unsigned char>* out_tag,
-                                           JWK* ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg)
+vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
+                                      const JWK &key,
+                                      const vector<unsigned char> &cek,
+                                      vector<unsigned char> *out_iv,
+                                      vector<unsigned char> *out_tag,
+                                      JWK *ephemeral_key,
+                                      ContentEncryptionAlgorithm content_alg)
 {
     switch (algorithm)
     {
@@ -1105,14 +1157,14 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
         case KeyEncryptionAlgorithm::a192kw:
         case KeyEncryptionAlgorithm::a256kw:
         {
-            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
             if (!pkey)
             {
                 throw runtime_error("Invalid key");
             }
 
             size_t kek_len = 0;
-            unsigned char* kek_data = nullptr;
+            unsigned char *kek_data = nullptr;
 
             if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kek_len) != 1)
             {
@@ -1139,14 +1191,14 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
         case KeyEncryptionAlgorithm::a192gcmkw:
         case KeyEncryptionAlgorithm::a256gcmkw:
         {
-            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
             if (!pkey)
             {
                 throw runtime_error("Invalid key");
             }
 
             size_t kek_len = 0;
-            unsigned char* kek_data = nullptr;
+            unsigned char *kek_data = nullptr;
 
             if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kek_len) != 1)
             {
@@ -1166,7 +1218,7 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
             vector<unsigned char> iv;
             vector<unsigned char> tag;
             vector<unsigned char> result = aesGcmKeyWrap(kek, cek, iv, tag);
-            
+
             // Store IV and tag in output parameters if provided
             if (out_iv)
             {
@@ -1176,7 +1228,7 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
             {
                 *out_tag = tag;
             }
-            
+
             return result;
         }
 
@@ -1184,26 +1236,27 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
         {
             // ECDH-ES: Elliptic Curve Diffie-Hellman Ephemeral Static
             // For ECDH-ES, we derive the CEK directly (not encrypt it)
-            
-            EVP_PKEY* recipient_key = static_cast<EVP_PKEY*>(key.getKey());
+
+            EVP_PKEY *recipient_key = static_cast<EVP_PKEY *>(key.getKey());
             if (!recipient_key)
             {
                 throw runtime_error("Invalid recipient key");
             }
-            
+
             // Get the curve name from recipient's key
             string curve_name = getECCurveName(recipient_key);
-            
+
             // Generate ephemeral EC key pair on the same curve
-            // Use signature as the use parameter (ephemeral keys for ECDH don't use the 'use' field)
+            // Use signature as the use parameter (ephemeral keys for ECDH don't use the 'use'
+            // field)
             JWK epk = JWK::generateEC(JWK::Use::signature, curve_name);
-            EVP_PKEY* ephemeral_private_key = static_cast<EVP_PKEY*>(epk.getKey());
-            
+            EVP_PKEY *ephemeral_private_key = static_cast<EVP_PKEY *>(epk.getKey());
+
             // Perform ECDH to get shared secret
             vector<unsigned char> shared_secret = performECDH(ephemeral_private_key, recipient_key);
-            
+
             // Determine key length needed based on content encryption algorithm
-            size_t key_len = cek.size(); // Use the provided CEK size
+            size_t key_len = cek.size();  // Use the provided CEK size
             if (key_len == 0)
             {
                 // If no CEK provided, determine size from content algorithm
@@ -1225,17 +1278,18 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
                         key_len = 32;
                 }
             }
-            
+
             // Use Concat KDF to derive the CEK
             string algorithm = toString(content_alg);
-            vector<unsigned char> derived_cek = back_end->concatKDF(shared_secret, key_len, algorithm);
-            
+            vector<unsigned char> derived_cek =
+                back_end->concatKDF(shared_secret, key_len, algorithm);
+
             // Store the ephemeral public key for inclusion in JWE header
             if (ephemeral_key)
             {
                 *ephemeral_key = epk;
             }
-            
+
             // For ECDH-ES, return the derived CEK (which caller will use as the CEK)
             // The "encrypted key" field in JWE will be empty
             return derived_cek;
@@ -1246,12 +1300,13 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm, const JW
     }
 }
 
-vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JWK& key,
-                                           const vector<unsigned char>& encrypted_cek,
-                                           const vector<unsigned char>* in_iv,
-                                           const vector<unsigned char>* in_tag,
-                                           const JWK* ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg)
+vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
+                                      const JWK &key,
+                                      const vector<unsigned char> &encrypted_cek,
+                                      const vector<unsigned char> *in_iv,
+                                      const vector<unsigned char> *in_tag,
+                                      const JWK *ephemeral_key,
+                                      ContentEncryptionAlgorithm content_alg)
 {
     switch (algorithm)
     {
@@ -1268,14 +1323,14 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JW
         case KeyEncryptionAlgorithm::a192kw:
         case KeyEncryptionAlgorithm::a256kw:
         {
-            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+            EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
             if (!pkey)
             {
                 throw runtime_error("Invalid key");
             }
 
             size_t kek_len = 0;
-            unsigned char* kek_data = nullptr;
+            unsigned char *kek_data = nullptr;
 
             if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kek_len) != 1)
             {
@@ -1303,15 +1358,15 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JW
             {
                 throw runtime_error("IV and tag required for AES-GCM key unwrap");
             }
-            
-            EVP_PKEY* pkey = static_cast<EVP_PKEY*>(key.getKey());
+
+            EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
             if (!pkey)
             {
                 throw runtime_error("Invalid key");
             }
 
             size_t kek_len = 0;
-            unsigned char* kek_data = nullptr;
+            unsigned char *kek_data = nullptr;
 
             if (EVP_PKEY_get_raw_private_key(pkey, nullptr, &kek_len) != 1)
             {
@@ -1341,22 +1396,23 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JW
             {
                 throw runtime_error("Ephemeral key required for ECDH-ES");
             }
-            
-            EVP_PKEY* recipient_private_key = static_cast<EVP_PKEY*>(key.getKey());
+
+            EVP_PKEY *recipient_private_key = static_cast<EVP_PKEY *>(key.getKey());
             if (!recipient_private_key)
             {
                 throw runtime_error("Invalid recipient key");
             }
-            
-            EVP_PKEY* ephemeral_public_key = static_cast<EVP_PKEY*>(ephemeral_key->getKey());
+
+            EVP_PKEY *ephemeral_public_key = static_cast<EVP_PKEY *>(ephemeral_key->getKey());
             if (!ephemeral_public_key)
             {
                 throw runtime_error("Invalid ephemeral key");
             }
-            
+
             // Perform ECDH to get shared secret
-            vector<unsigned char> shared_secret = performECDH(recipient_private_key, ephemeral_public_key);
-            
+            vector<unsigned char> shared_secret =
+                performECDH(recipient_private_key, ephemeral_public_key);
+
             // Determine key length from content encryption algorithm
             size_t key_len;
             switch (content_alg)
@@ -1376,11 +1432,11 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JW
                 default:
                     key_len = 32;
             }
-            
+
             // Use Concat KDF to derive the CEK
             string algorithm = toString(content_alg);
             vector<unsigned char> derived_cek = concatKDF(shared_secret, key_len, algorithm);
-            
+
             return derived_cek;
         }
 
@@ -1390,10 +1446,11 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm, const JW
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
-JWA::encryptContent(ContentEncryptionAlgorithm algorithm, const vector<unsigned char>& cek,
-                    const vector<unsigned char>& iv,
-                    const vector<unsigned char>& plaintext,
-                    const vector<unsigned char>& aad)
+JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
+                    const vector<unsigned char> &cek,
+                    const vector<unsigned char> &iv,
+                    const vector<unsigned char> &plaintext,
+                    const vector<unsigned char> &aad)
 {
     switch (algorithm)
     {
@@ -1421,24 +1478,39 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm, const vector<unsigned 
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
-                                               const vector<unsigned char>& cek,
-                                               const vector<unsigned char>& iv,
-                                               const vector<unsigned char>& ciphertext,
-                                               const vector<unsigned char>& aad,
-                                               const vector<unsigned char>& tag)
+                                          const vector<unsigned char> &cek,
+                                          const vector<unsigned char> &iv,
+                                          const vector<unsigned char> &ciphertext,
+                                          const vector<unsigned char> &aad,
+                                          const vector<unsigned char> &tag)
 {
     switch (algorithm)
     {
         case ContentEncryptionAlgorithm::a128cbc_hs256:
-            return aesCbcHmacDecrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, ciphertext, aad,
+            return aesCbcHmacDecrypt(EVP_aes_128_cbc(),
+                                     EVP_sha256(),
+                                     cek,
+                                     iv,
+                                     ciphertext,
+                                     aad,
                                      tag);
 
         case ContentEncryptionAlgorithm::a192cbc_hs384:
-            return aesCbcHmacDecrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, ciphertext, aad,
+            return aesCbcHmacDecrypt(EVP_aes_192_cbc(),
+                                     EVP_sha384(),
+                                     cek,
+                                     iv,
+                                     ciphertext,
+                                     aad,
                                      tag);
 
         case ContentEncryptionAlgorithm::a256cbc_hs512:
-            return aesCbcHmacDecrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, ciphertext, aad,
+            return aesCbcHmacDecrypt(EVP_aes_256_cbc(),
+                                     EVP_sha512(),
+                                     cek,
+                                     iv,
+                                     ciphertext,
+                                     aad,
                                      tag);
 
         case ContentEncryptionAlgorithm::a128gcm:
@@ -1454,7 +1526,6 @@ vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
             throw runtime_error("Unsupported content encryption algorithm");
     }
 }
-
 
 }  // namespace JOSE
 }  // namespace Vlinder

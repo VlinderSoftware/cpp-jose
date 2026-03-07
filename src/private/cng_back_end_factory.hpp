@@ -15,5 +15,5 @@ public:
 };
 
 }  // namespace Private
-} // namespace JOSE
-} // namespace Vlinder
+}  // namespace JOSE
+}  // namespace Vlinder

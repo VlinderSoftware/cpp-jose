@@ -9,42 +9,44 @@
 #include "jose/jwa.hpp"
 #include "jose/jwk.hpp"
 
+using namespace std;
+
 namespace Vlinder {
 namespace JOSE {
 
 struct JWS::Impl
 {
-    std::string payload_;
+    string payload_;
     JWA::SignatureAlgorithm algorithm_ = JWA::SignatureAlgorithm::rs256;
-    std::string kid_;
-    std::string typ_;
-    std::map<std::string, std::string> header_params_;
-    std::string header_json_;
+    string kid_;
+    string typ_;
+    map<string, string> header_params_;
+    string header_json_;
 };
 
-JWS::JWS() : impl_(std::make_unique<Impl>())
+JWS::JWS() : impl_(make_unique<Impl>())
 {
 }
 
 JWS::~JWS() = default;
 
-JWS::JWS(const JWS& other) : impl_(std::make_unique<Impl>(*other.impl_))
+JWS::JWS(const JWS &other) : impl_(make_unique<Impl>(*other.impl_))
 {
 }
 
-JWS& JWS::operator=(const JWS& other)
+JWS &JWS::operator=(const JWS &other)
 {
     if (this != &other)
     {
-        impl_ = std::make_unique<Impl>(*other.impl_);
+        impl_ = make_unique<Impl>(*other.impl_);
     }
     return *this;
 }
 
-JWS::JWS(JWS&& other) noexcept = default;
-JWS& JWS::operator=(JWS&& other) noexcept = default;
+JWS::JWS(JWS &&other) noexcept = default;
+JWS &JWS::operator=(JWS &&other) noexcept = default;
 
-void JWS::setPayload(const std::string& payload)
+void JWS::setPayload(const string &payload)
 {
     impl_->payload_ = payload;
 }
@@ -54,22 +56,22 @@ void JWS::setAlgorithm(JWA::SignatureAlgorithm algorithm)
     impl_->algorithm_ = algorithm;
 }
 
-void JWS::setKeyID(const std::string& kid)
+void JWS::setKeyID(const string &kid)
 {
     impl_->kid_ = kid;
 }
 
-void JWS::setType(const std::string& typ)
+void JWS::setType(const string &typ)
 {
     impl_->typ_ = typ;
 }
 
-void JWS::setHeaderParam(const std::string& name, const std::string& value)
+void JWS::setHeaderParam(const string &name, const string &value)
 {
     impl_->header_params_[name] = value;
 }
 
-std::string JWS::sign(const JWK& key) const
+string JWS::sign(const JWK &key) const
 {
     // Build JOSE header
     json header = json::object();
@@ -86,21 +88,21 @@ std::string JWS::sign(const JWK& key) const
     }
 
     // Add custom header parameters
-    for (const auto& param : impl_->header_params_)
+    for (const auto &param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }
 
-    std::string header_json = header.dump();
-    std::string encoded_header = Base64Url::encode(header_json);
-    std::string encoded_payload = Base64Url::encode(impl_->payload_);
+    string header_json = header.dump();
+    string encoded_header = Base64Url::encode(header_json);
+    string encoded_payload = Base64Url::encode(impl_->payload_);
 
     // Create signing input
-    std::string signing_input = encoded_header + "." + encoded_payload;
-    std::vector<unsigned char> signing_input_bytes(signing_input.begin(), signing_input.end());
+    string signing_input = encoded_header + "." + encoded_payload;
+    vector<unsigned char> signing_input_bytes(signing_input.begin(), signing_input.end());
 
     // Sign
-    std::vector<unsigned char> signature;
+    vector<unsigned char> signature;
     if (impl_->algorithm_ == JWA::SignatureAlgorithm::none)
     {
         signature.clear();
@@ -110,13 +112,13 @@ std::string JWS::sign(const JWK& key) const
         signature = JWA::sign(impl_->algorithm_, key, signing_input_bytes);
     }
 
-    std::string encoded_signature = Base64Url::encode(signature);
+    string encoded_signature = Base64Url::encode(signature);
 
     // Return compact serialization
     return signing_input + "." + encoded_signature;
 }
 
-bool JWS::verify(const std::string& jws, const JWK& key)
+bool JWS::verify(const string &jws, const JWK &key)
 {
     try
     {
@@ -124,17 +126,17 @@ bool JWS::verify(const std::string& jws, const JWK& key)
         size_t first_dot = jws.find('.');
         size_t second_dot = jws.find('.', first_dot + 1);
 
-        if (first_dot == std::string::npos || second_dot == std::string::npos)
+        if (first_dot == string::npos || second_dot == string::npos)
         {
             return false;
         }
 
-        std::string encoded_header = jws.substr(0, first_dot);
-        std::string encoded_payload = jws.substr(first_dot + 1, second_dot - first_dot - 1);
-        std::string encoded_signature = jws.substr(second_dot + 1);
+        string encoded_header = jws.substr(0, first_dot);
+        string encoded_payload = jws.substr(first_dot + 1, second_dot - first_dot - 1);
+        string encoded_signature = jws.substr(second_dot + 1);
 
         // Decode header to get algorithm
-        std::string header_json = Base64Url::decodeToString(encoded_header);
+        string header_json = Base64Url::decodeToString(encoded_header);
         json header = json::parse(header_json);
 
         if (!header.contains("alg"))
@@ -142,7 +144,7 @@ bool JWS::verify(const std::string& jws, const JWK& key)
             return false;
         }
 
-        std::string alg_str = header["alg"].get<std::string>();
+        string alg_str = header["alg"].get<string>();
         JWA::SignatureAlgorithm algorithm = JWA::signatureAlgorithmFromString(alg_str);
 
         // Handle "none" algorithm
@@ -152,11 +154,11 @@ bool JWS::verify(const std::string& jws, const JWK& key)
         }
 
         // Decode signature
-        std::vector<unsigned char> signature = Base64Url::decode(encoded_signature);
+        vector<unsigned char> signature = Base64Url::decode(encoded_signature);
 
         // Verify
-        std::string signing_input = encoded_header + "." + encoded_payload;
-        std::vector<unsigned char> signing_input_bytes(signing_input.begin(), signing_input.end());
+        string signing_input = encoded_header + "." + encoded_payload;
+        vector<unsigned char> signing_input_bytes(signing_input.begin(), signing_input.end());
 
         return JWA::verify(algorithm, key, signing_input_bytes, signature);
     }
@@ -166,23 +168,23 @@ bool JWS::verify(const std::string& jws, const JWK& key)
     }
 }
 
-JWS JWS::parse(const std::string& jws)
+JWS JWS::parse(const string &jws)
 {
     // Split into three parts
     size_t first_dot = jws.find('.');
     size_t second_dot = jws.find('.', first_dot + 1);
 
-    if (first_dot == std::string::npos || second_dot == std::string::npos)
+    if (first_dot == string::npos || second_dot == string::npos)
     {
-        throw std::runtime_error("Invalid JWS format");
+        throw runtime_error("Invalid JWS format");
     }
 
-    std::string encoded_header = jws.substr(0, first_dot);
-    std::string encoded_payload = jws.substr(first_dot + 1, second_dot - first_dot - 1);
+    string encoded_header = jws.substr(0, first_dot);
+    string encoded_payload = jws.substr(first_dot + 1, second_dot - first_dot - 1);
 
     // Decode
-    std::string header_json = Base64Url::decodeToString(encoded_header);
-    std::string payload = Base64Url::decodeToString(encoded_payload);
+    string header_json = Base64Url::decodeToString(encoded_header);
+    string payload = Base64Url::decodeToString(encoded_payload);
 
     // Parse header
     json header = json::parse(header_json);
@@ -193,29 +195,29 @@ JWS JWS::parse(const std::string& jws)
 
     if (header.contains("alg"))
     {
-        std::string alg_str = header["alg"].get<std::string>();
+        string alg_str = header["alg"].get<string>();
         result.impl_->algorithm_ = JWA::signatureAlgorithmFromString(alg_str);
     }
 
     if (header.contains("kid"))
     {
-        result.impl_->kid_ = header["kid"].get<std::string>();
+        result.impl_->kid_ = header["kid"].get<string>();
     }
 
     if (header.contains("typ"))
     {
-        result.impl_->typ_ = header["typ"].get<std::string>();
+        result.impl_->typ_ = header["typ"].get<string>();
     }
 
     return result;
 }
 
-std::string JWS::getPayload() const
+string JWS::getPayload() const
 {
     return impl_->payload_;
 }
 
-std::string JWS::getHeader() const
+string JWS::getHeader() const
 {
     if (!impl_->header_json_.empty())
     {
@@ -235,7 +237,7 @@ std::string JWS::getHeader() const
         header["kid"] = impl_->kid_;
     }
 
-    for (const auto& param : impl_->header_params_)
+    for (const auto &param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }

@@ -16,11 +16,13 @@
 
 #include "jose/jose.hpp"
 
+using namespace std;
+
 using namespace Vlinder::JOSE;
 
-void demonstrateAlgorithm(const std::string& alg_name, JWA::SignatureAlgorithm alg, const JWK& key)
+void demonstrateAlgorithm(const string &alg_name, JWA::SignatureAlgorithm alg, const JWK &key)
 {
-    std::cout << "\n--- " << alg_name << " ---" << std::endl;
+    cout << "\n--- " << alg_name << " ---" << endl;
 
     JWS jws;
     jws.setPayload("This is a test message for " + alg_name);
@@ -28,27 +30,27 @@ void demonstrateAlgorithm(const std::string& alg_name, JWA::SignatureAlgorithm a
     jws.setKeyID(key.getKeyID());
     jws.setType("JWS");
 
-    std::string signed_jws = jws.sign(key);
-    std::cout << "Signed JWS: " << signed_jws.substr(0, 60) << "..." << std::endl;
+    string signed_jws = jws.sign(key);
+    cout << "Signed JWS: " << signed_jws.substr(0, 60) << "..." << endl;
 
     bool verified = JWS::verify(signed_jws, key);
-    std::cout << "Verification: " << (verified ? "✓ SUCCESS" : "✗ FAILED") << std::endl;
+    cout << "Verification: " << (verified ? "✓ SUCCESS" : "✗ FAILED") << endl;
 
     JWS parsed = JWS::parse(signed_jws);
-    std::cout << "Payload: " << parsed.getPayload() << std::endl;
+    cout << "Payload: " << parsed.getPayload() << endl;
 }
 
 int main()
 {
     try
     {
-        std::cout << "=== JWS Example ===" << std::endl;
-        std::cout << "\nJSON Web Signature (JWS) provides digital signature" << std::endl;
-        std::cout << "and MAC functionality for arbitrary payloads." << std::endl;
+        cout << "=== JWS Example ===" << endl;
+        cout << "\nJSON Web Signature (JWS) provides digital signature" << endl;
+        cout << "and MAC functionality for arbitrary payloads." << endl;
 
         // Example 1: HMAC Signatures
-        std::cout << "\n\n1. HMAC Signatures (Symmetric Keys)" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n1. HMAC Signatures (Symmetric Keys)" << endl;
+        cout << "==========================================" << endl;
 
         JWK hmac_key_256 = JWK::generateOct(JWK::Use::signature);
         demonstrateAlgorithm("HS256", JWA::SignatureAlgorithm::hs256, hmac_key_256);
@@ -60,31 +62,31 @@ int main()
         demonstrateAlgorithm("HS512", JWA::SignatureAlgorithm::hs512, hmac_key_512);
 
         // Example 2: RSA Signatures
-        std::cout << "\n\n2. RSA Signatures (Asymmetric Keys)" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n2. RSA Signatures (Asymmetric Keys)" << endl;
+        cout << "==========================================" << endl;
 
-        std::cout << "\nGenerating 2048-bit RSA key..." << std::endl;
+        cout << "\nGenerating 2048-bit RSA key..." << endl;
         JWK rsa_key = JWK::generateRSA(JWK::Use::signature);
-        std::cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << std::endl;
-        std::cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << std::endl;
+        cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << endl;
+        cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << endl;
 
         demonstrateAlgorithm("RS256", JWA::SignatureAlgorithm::rs256, rsa_key);
         demonstrateAlgorithm("PS256", JWA::SignatureAlgorithm::ps256, rsa_key);
 
         // Example 3: Elliptic Curve Signatures
-        std::cout << "\n\n3. Elliptic Curve Signatures" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n3. Elliptic Curve Signatures" << endl;
+        cout << "==========================================" << endl;
 
-        std::cout << "\nGenerating P-256 EC key..." << std::endl;
+        cout << "\nGenerating P-256 EC key..." << endl;
         JWK ec_key = JWK::generateEC(JWK::Use::signature);
-        std::cout << "EC key generated with auto-generated ID: " << ec_key.getKeyID() << std::endl;
-        std::cout << "Algorithm (auto-selected): " << ec_key.getAlgorithm() << std::endl;
+        cout << "EC key generated with auto-generated ID: " << ec_key.getKeyID() << endl;
+        cout << "Algorithm (auto-selected): " << ec_key.getAlgorithm() << endl;
 
         demonstrateAlgorithm("ES256", JWA::SignatureAlgorithm::es256, ec_key);
 
         // Example 4: Working with Headers
-        std::cout << "\n\n4. Custom Headers" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n4. Custom Headers" << endl;
+        cout << "==========================================" << endl;
 
         JWS custom_jws;
         custom_jws.setPayload("{\"userId\":\"12345\",\"action\":\"login\"}");
@@ -94,55 +96,54 @@ int main()
         custom_jws.setHeaderParam("cty", "application/json");
         custom_jws.setHeaderParam("custom", "header-value");
 
-        std::string custom_signed = custom_jws.sign(hmac_key_256);
-        std::cout << "\nSigned JWS with custom headers" << std::endl;
+        string custom_signed = custom_jws.sign(hmac_key_256);
+        cout << "\nSigned JWS with custom headers" << endl;
 
         JWS custom_parsed = JWS::parse(custom_signed);
-        std::cout << "Header: " << custom_parsed.getHeader() << std::endl;
-        std::cout << "Payload: " << custom_parsed.getPayload() << std::endl;
+        cout << "Header: " << custom_parsed.getHeader() << endl;
+        cout << "Payload: " << custom_parsed.getPayload() << endl;
 
         bool custom_verified = JWS::verify(custom_signed, hmac_key_256);
-        std::cout << "Verification: " << (custom_verified ? "✓ SUCCESS" : "✗ FAILED") << std::endl;
+        cout << "Verification: " << (custom_verified ? "✓ SUCCESS" : "✗ FAILED") << endl;
 
         // Example 5: Compact Serialization Format
-        std::cout << "\n\n5. JWS Compact Serialization" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n5. JWS Compact Serialization" << endl;
+        cout << "==========================================" << endl;
 
         JWS format_example;
         format_example.setPayload("Understanding JWS format");
         format_example.setAlgorithm(JWA::SignatureAlgorithm::hs256);
 
-        std::string compact_jws = format_example.sign(hmac_key_256);
-        std::cout << "\nJWS Compact Format: Header.Payload.Signature" << std::endl;
-        std::cout << "Full JWS: " << compact_jws << std::endl;
+        string compact_jws = format_example.sign(hmac_key_256);
+        cout << "\nJWS Compact Format: Header.Payload.Signature" << endl;
+        cout << "Full JWS: " << compact_jws << endl;
 
         size_t first_dot = compact_jws.find('.');
         size_t second_dot = compact_jws.find('.', first_dot + 1);
 
-        std::cout << "\nComponents:" << std::endl;
-        std::cout << "  Header:    " << compact_jws.substr(0, first_dot) << std::endl;
-        std::cout << "  Payload:   " << compact_jws.substr(first_dot + 1, second_dot - first_dot - 1)
-                  << std::endl;
-        std::cout << "  Signature: " << compact_jws.substr(second_dot + 1) << std::endl;
+        cout << "\nComponents:" << endl;
+        cout << "  Header:    " << compact_jws.substr(0, first_dot) << endl;
+        cout << "  Payload:   " << compact_jws.substr(first_dot + 1, second_dot - first_dot - 1)
+             << endl;
+        cout << "  Signature: " << compact_jws.substr(second_dot + 1) << endl;
 
         // Example 6: Error Handling
-        std::cout << "\n\n6. Error Handling" << std::endl;
-        std::cout << "==========================================" << std::endl;
+        cout << "\n\n6. Error Handling" << endl;
+        cout << "==========================================" << endl;
 
         JWK wrong_key = JWK::generateOct(JWK::Use::signature);
 
-        std::cout << "\nAttempting verification with wrong key..." << std::endl;
+        cout << "\nAttempting verification with wrong key..." << endl;
         bool wrong_verification = JWS::verify(compact_jws, wrong_key);
-        std::cout << "Verification: " << (wrong_verification ? "✓ SUCCESS" : "✗ FAILED")
-                  << std::endl;
-        std::cout << "(Expected failure - wrong key used)" << std::endl;
+        cout << "Verification: " << (wrong_verification ? "✓ SUCCESS" : "✗ FAILED") << endl;
+        cout << "(Expected failure - wrong key used)" << endl;
 
-        std::cout << "\n\n=== JWS Example Complete ===" << std::endl;
+        cout << "\n\n=== JWS Example Complete ===" << endl;
         return 0;
     }
-    catch (const std::exception& e)
+    catch (const exception &e)
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        cerr << "Error: " << e.what() << endl;
         return 1;
     }
 }

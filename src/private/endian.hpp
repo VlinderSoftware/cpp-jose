@@ -31,8 +31,8 @@ inline uint32_t byteSwap32(uint32_t v)
 #if defined(__GNUC__) || defined(__clang__)
     return __builtin_bswap32(v);
 #else
-    return ((v & 0x000000FFU) << 24) | ((v & 0x0000FF00U) << 8) |
-           ((v & 0x00FF0000U) >> 8) | ((v & 0xFF000000U) >> 24);
+    return ((v & 0x000000FFU) << 24) | ((v & 0x0000FF00U) << 8) | ((v & 0x00FF0000U) >> 8) |
+           ((v & 0xFF000000U) >> 24);
 #endif
 }
 

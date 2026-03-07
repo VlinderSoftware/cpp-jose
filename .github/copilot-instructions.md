@@ -26,7 +26,10 @@
     - The outer namespace should be `Vlinder`
     - Inner namespaces follow PascalCase naming
     - Namespace braces stay on the same line (not Allman style)
-    - **`.cpp` files** must open with `using namespace` directives immediately after the `#include` block (e.g. `using namespace std;`, `using namespace Vlinder::JOSE::Private;`). This means names like `vector`, `string`, `unique_ptr` and project types are used unqualified throughout the file.
+  - **`.cpp` files** must open with `using namespace` directives immediately after the `#include` block (e.g. `using namespace std;`, `using namespace Vlinder::JOSE::Private;`).
+  - **In `.cpp` files**, do not qualify names with `std::` (or other imported namespaces) when a corresponding `using namespace`/alias is present. Prefer unqualified names by default.
+  - **Exception:** Keep qualification only where unqualified lookup would be ambiguous or incorrect (for example, to avoid ADL/Koenig lookup pitfalls or symbol collisions).
+  - For project/third-party namespaces used repeatedly in a `.cpp`, prefer a local namespace alias or `using namespace` (for example, `using json = Vlinder::JOSE::Private::json;`) instead of repeated fully qualified names.
     - **Header files** must never contain `using namespace`. All names must be fully qualified (e.g. `std::vector`, `std::unique_ptr`) to avoid polluting includers' namespaces.
 - **Modern C++:**
     - Use `auto` for type deduction when readable.
