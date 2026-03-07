@@ -7,6 +7,10 @@
 
 using namespace std;
 
+#ifndef STATUS_BUFFER_TOO_SMALL
+#define STATUS_BUFFER_TOO_SMALL ((NTSTATUS)0xC0000023L)
+#endif
+
 #pragma comment(lib, "bcrypt.lib")
 #pragma comment(lib, "crypt32.lib")
 

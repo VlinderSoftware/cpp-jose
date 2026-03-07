@@ -1,9 +1,8 @@
-#include <ntstatus.h>
+#define WIN32_NO_STATUS
+#include <windows.h>
+#include <bcrypt.h>
 
 #include "back_end.hpp"
-#define WIN32_NO_STATUS
-#include <bcrypt.h>
-#include <windows.h>
 
 namespace Vlinder {
 namespace JOSE {
