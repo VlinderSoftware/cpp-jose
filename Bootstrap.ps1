@@ -181,6 +181,72 @@ function Add-VisualStudioLlvmToPath
     }
 }
 
+function Add-VisualStudioCMakeToPath
+{
+    param([pscustomobject]$VsInstance)
+
+    if ($env:OS -ne 'Windows_NT')
+    {
+        return
+    }
+
+    if (-not $VsInstance)
+    {
+        return
+    }
+
+    $cmake_bin = Join-Path $VsInstance.installationPath "Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin"
+    if (-not (Test-Path $cmake_bin))
+    {
+        return
+    }
+
+    $path_parts = @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($path_parts -contains $cmake_bin)
+    {
+        return
+    }
+
+    $env:Path = "$cmake_bin;$env:Path"
+    Write-Info "Added Visual Studio CMake to PATH for this session: $cmake_bin"
+}
+
+function Add-OpenSSLToPath
+{
+    if ($env:OS -ne 'Windows_NT')
+    {
+        return
+    }
+
+    if (Get-Command openssl -ErrorAction SilentlyContinue)
+    {
+        return
+    }
+
+    $candidates = @(
+        "C:\Program Files\OpenSSL-Win64\bin",
+        "C:\Program Files (x86)\OpenSSL-Win32\bin"
+    )
+
+    foreach ($candidate in $candidates)
+    {
+        if (-not (Test-Path (Join-Path $candidate "openssl.exe")))
+        {
+            continue
+        }
+
+        $path_parts = @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        if ($path_parts -contains $candidate)
+        {
+            return
+        }
+
+        $env:Path = "$candidate;$env:Path"
+        Write-Info "Added OpenSSL to PATH for this session: $candidate"
+        return
+    }
+}
+
 function Get-LatestVisualStudio
 {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
@@ -308,6 +374,7 @@ if (-not (Test-Path (Join-Path $repoRoot "CMakeLists.txt")))
 }
 
 Add-VisualStudioLlvmToPath
+Add-OpenSSLToPath
 
 if (-not (Test-RequiredTools))
 {
@@ -315,6 +382,7 @@ if (-not (Test-RequiredTools))
 }
 
 $vs = Get-LatestVisualStudio
+Add-VisualStudioCMakeToPath -VsInstance $vs
 $cmakePath = Get-CMakePath -VsInstance $vs
 $generator = Get-VisualStudioGenerator -CMakePath $cmakePath -VsInstance $vs
 
