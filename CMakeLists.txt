@@ -12,13 +12,18 @@ option(BUILD_EXAMPLES "Build examples" ON)
 
 # Set default backend based on platform
 if(WIN32)
-    set(JOSE_BACKEND "CNG" CACHE STRING "Crypto backend: CNG or OpenSSL" FORCE)
+    set(_jose_backend_default "CNG")
 else()
-    set(JOSE_BACKEND "OpenSSL" CACHE STRING "Crypto backend: CNG or OpenSSL" FORCE)
+    set(_jose_backend_default "OpenSSL")
 endif()
 
-# Allow override
-option(JOSE_BACKEND "Crypto backend: CNG or OpenSSL" ${JOSE_BACKEND})
+# Allow override from cache/CLI (for example: -DJOSE_BACKEND=OpenSSL)
+set(JOSE_BACKEND "${_jose_backend_default}" CACHE STRING "Crypto backend: CNG or OpenSSL")
+set_property(CACHE JOSE_BACKEND PROPERTY STRINGS "CNG" "OpenSSL")
+
+if(NOT JOSE_BACKEND STREQUAL "CNG" AND NOT JOSE_BACKEND STREQUAL "OpenSSL")
+    message(FATAL_ERROR "Invalid JOSE_BACKEND='${JOSE_BACKEND}'. Valid values are: CNG, OpenSSL")
+endif()
 
 # Fetch nlohmann/json
 include(FetchContent)
