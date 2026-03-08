@@ -612,6 +612,42 @@ TEST_CASE("JWK RSA import rejects incomplete private parameters",
                         Catch::Matchers::ContainsSubstring("Ill-formed RSA private key"));
 }
 
+TEST_CASE("JWK RSA import accepts private key with n/e/d only",
+          "[jwk][rsa][round-trip][openssl][strict]")
+{
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+    nlohmann::json json = nlohmann::json::parse(original.toJSON(true));
+
+    json.erase("p");
+    json.erase("q");
+    json.erase("dp");
+    json.erase("dq");
+    json.erase("qi");
+
+#if defined(JOSE_USE_CNG)
+    REQUIRE_THROWS_WITH(
+        JWK::fromJSON(json.dump()),
+        Catch::Matchers::ContainsSubstring("CNG RSA import requires either a public key (n, e) or a full private key"));
+#else
+    JWK parsed = JWK::fromJSON(json.dump());
+    REQUIRE(parsed.getKeyType() == JWK::KeyType::rsa);
+    REQUIRE(parsed.hasPrivateKey());
+#endif
+}
+
+TEST_CASE("JWK RSA import rejects d without n/e", "[jwk][rsa][round-trip][strict]")
+{
+    nlohmann::json json = {
+        {"kty", "RSA"},
+        {"use", "sig"},
+        {"alg", "RS256"},
+        {"d", "AQAB"},
+    };
+
+    REQUIRE_THROWS_WITH(JWK::fromJSON(json.dump()),
+                        Catch::Matchers::ContainsSubstring("Missing required RSA parameters"));
+}
+
 TEST_CASE("JWK EC round-trip preserves all properties", "[jwk][round-trip]")
 {
     JWK original = JWK::generateEC(JWK::Use::signature, "P-521");
