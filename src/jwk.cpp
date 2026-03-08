@@ -405,23 +405,23 @@ string JWK::toJSON(bool include_private) const
             {
                 json_obj["d"] = Base64Url::encode(d);
             }
-            if (!d.empty())
+            if (!p.empty())
             {
                 json_obj["p"] = Base64Url::encode(p);
             }
-            if (!d.empty())
+            if (!q.empty())
             {
                 json_obj["q"] = Base64Url::encode(q);
             }
-            if (!d.empty())
+            if (!dp.empty())
             {
                 json_obj["dp"] = Base64Url::encode(dp);
             }
-            if (!d.empty())
+            if (!dq.empty())
             {
                 json_obj["dq"] = Base64Url::encode(dq);
             }
-            if (!d.empty())
+            if (!qi.empty())
             {
                 json_obj["qi"] = Base64Url::encode(qi);
             }
@@ -490,7 +490,7 @@ string JWK::toJSON(bool include_private) const
     return json_obj.dump();
 }
 
-JWK JWK::fromJSON(const string &json_str, bool permissive)
+JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
 {
     json jwk_json = json::parse(json_str);
 
@@ -500,35 +500,9 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
     }
 
     string kty = jwk_json["kty"].get<string>();
-    if (!permissive && kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
+    if (kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
     {
         throw runtime_error("Unsupported key type: " + kty);
-    }
-    if (permissive)
-    {
-        auto lower_kty(kty);
-        // Allow case-insensitive kty values in permissive mode
-        transform(lower_kty.begin(), lower_kty.end(), lower_kty.begin(), ::tolower);
-        if (lower_kty == "rsa")
-        {
-            kty = "RSA";
-        }
-        else if (lower_kty == "ec")
-        {
-            kty = "EC";
-        }
-        else if (lower_kty == "oct")
-        {
-            kty = "oct";
-        }
-        else if (lower_kty == "okp")
-        {
-            kty = "OKP";
-        }
-        else
-        {
-            throw runtime_error("Unsupported key type: " + kty);
-        }
     }
     KeyType key_type;
     bool has_use(jwk_json.contains("use"));
@@ -601,21 +575,45 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             }
             auto n_bytes = Base64Url::decode(jwk_json["n"].get<string>());
             auto e_bytes = Base64Url::decode(jwk_json["e"].get<string>());
-            auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
+            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
                                                   : vector<unsigned char>{};
-            auto p_bytes = jwk_json.contains("p") ? Base64Url::decode(jwk_json["p"].get<string>())
+            auto p_bytes = !ignore_private_if_present && jwk_json.contains("p") ? Base64Url::decode(jwk_json["p"].get<string>())
                                                   : vector<unsigned char>{};
-            auto q_bytes = jwk_json.contains("q") ? Base64Url::decode(jwk_json["q"].get<string>())
+            auto q_bytes = !ignore_private_if_present && jwk_json.contains("q") ? Base64Url::decode(jwk_json["q"].get<string>())
                                                   : vector<unsigned char>{};
-            auto dp_bytes = jwk_json.contains("dp")
+            auto dp_bytes = !ignore_private_if_present && jwk_json.contains("dp")
                                 ? Base64Url::decode(jwk_json["dp"].get<string>())
                                 : vector<unsigned char>{};
-            auto dq_bytes = jwk_json.contains("dq")
+            auto dq_bytes = !ignore_private_if_present && jwk_json.contains("dq")
                                 ? Base64Url::decode(jwk_json["dq"].get<string>())
                                 : vector<unsigned char>{};
-            auto qi_bytes = jwk_json.contains("qi")
+            auto qi_bytes = !ignore_private_if_present && jwk_json.contains("qi")
                                 ? Base64Url::decode(jwk_json["qi"].get<string>())
                                 : vector<unsigned char>{};
+
+            bool const has_d = !d_bytes.empty();
+            bool const has_p = !p_bytes.empty();
+            bool const has_q = !q_bytes.empty();
+            bool const has_dp = !dp_bytes.empty();
+            bool const has_dq = !dq_bytes.empty();
+            bool const has_qi = !qi_bytes.empty();
+            bool const has_any_crt = has_p || has_q || has_dp || has_dq || has_qi;
+            bool const has_full_crt = has_p && has_q && has_dp && has_dq && has_qi;
+
+            if (has_any_crt)
+            {
+                if (!has_d)
+                {
+                    throw runtime_error(
+                        "Ill-formed RSA private key: parameter 'd' is required when CRT parameters are present");
+                }
+                if (!has_full_crt)
+                {
+                    throw runtime_error(
+                        "Ill-formed RSA private key: if any of p, q, dp, dq, qi are present, all must be present");
+                }
+            }
+
             impl.key_ = std::move(back_end->generateRSA(n_bytes,
                                                         e_bytes,
                                                         d_bytes,
@@ -635,7 +633,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
 
             auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
             auto y_bytes = Base64Url::decode(jwk_json["y"].get<string>());
-            auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
+            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
                                                   : vector<unsigned char>{};
 
             impl.key_ = std::move(
@@ -653,7 +651,7 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
             }
 
             auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
-            auto d_bytes = jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
+            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
                                                   : vector<unsigned char>{};
             impl.key_ =
                 std::move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
@@ -662,11 +660,11 @@ JWK JWK::fromJSON(const string &json_str, bool permissive)
 #endif
         case KeyType::oct:
         {
-            if (!jwk_json.contains("k"))
+            if (!ignore_private_if_present && !jwk_json.contains("k"))
             {
                 throw runtime_error("Missing required 'k' parameter for symmetric key");
             }
-            auto k_bytes = Base64Url::decode(jwk_json["k"].get<string>());
+            auto k_bytes = !ignore_private_if_present && jwk_json.contains("k") ? Base64Url::decode(jwk_json["k"].get<string>()) : vector<unsigned char>{};
             impl.key_ = make_unique<Private::OctKey>(k_bytes);
             break;
         }
@@ -732,7 +730,7 @@ JWKSet::JWKSet() : impl_(make_unique<Impl>())
 
 JWKSet::~JWKSet() = default;
 
-JWKSet JWKSet::fromJSON(const string &json_str)
+JWKSet JWKSet::fromJSON(const string &json_str, bool ignore_private_if_present)
 {
     JWKSet set;
     json jwk_set_json = json::parse(json_str);
@@ -751,7 +749,7 @@ JWKSet JWKSet::fromJSON(const string &json_str)
     for (const auto &keyJson : jwk_set_json["keys"])
     {
         string keyJsonStr = keyJson.dump();
-        JWK key = JWK::fromJSON(keyJsonStr);
+        JWK key = JWK::fromJSON(keyJsonStr, ignore_private_if_present);
         set.addKey(key);
     }
 

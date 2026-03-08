@@ -44,7 +44,7 @@ public:
      * @param json JSON string
      * @return JWK object
      */
-    static JWK fromJSON(const std::string &json, bool permissive = false);
+    static JWK fromJSON(const std::string &json, bool ignore_private_if_present = false);
 
     /**
      * @brief Generate a new RSA key
@@ -142,7 +142,7 @@ public:
     /**
      * @brief Parse JWK Set from JSON
      */
-    static JWKSet fromJSON(const std::string &json);
+    static JWKSet fromJSON(const std::string &json, bool ignore_private_if_present = false);
 
     /**
      * @brief Add a key to the set
