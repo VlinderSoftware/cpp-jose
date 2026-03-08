@@ -1,11 +1,113 @@
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
+#include <nlohmann/json.hpp>
 #include <string>
 
 #include "jose/jose.hpp"
 
+#if defined(JOSE_USE_OPENSSL)
+#include <openssl/core_names.h>
+#include <openssl/evp.h>
+#endif
+
 using namespace std;
 
 using namespace Vlinder::JOSE;
+
+#if defined(JOSE_USE_OPENSSL)
+namespace {
+
+void appendDerLength(vector<unsigned char> &out, size_t length)
+{
+    if (length < 0x80)
+    {
+        out.push_back(static_cast<unsigned char>(length));
+        return;
+    }
+
+    unsigned char encoded[sizeof(size_t)] = {};
+    size_t count = 0;
+    size_t value = length;
+    while (value != 0)
+    {
+        encoded[count++] = static_cast<unsigned char>(value & 0xFF);
+        value >>= 8;
+    }
+
+    out.push_back(static_cast<unsigned char>(0x80 | count));
+    for (size_t i = 0; i < count; ++i)
+    {
+        out.push_back(encoded[count - 1 - i]);
+    }
+}
+
+void appendDerInteger(vector<unsigned char> &out, vector<unsigned char> const &value)
+{
+    vector<unsigned char> normalized = value;
+    while (normalized.size() > 1 && normalized[0] == 0)
+    {
+        normalized.erase(normalized.begin());
+    }
+
+    if (normalized.empty())
+    {
+        normalized.push_back(0);
+    }
+
+    if ((normalized[0] & 0x80) != 0)
+    {
+        normalized.insert(normalized.begin(), 0);
+    }
+
+    out.push_back(0x02);
+    appendDerLength(out, normalized.size());
+    out.insert(out.end(), normalized.begin(), normalized.end());
+}
+
+vector<unsigned char> buildRsaPrivateKeyPkcs1DerFromJson(nlohmann::json const &json)
+{
+    auto n = Base64Url::decode(json.at("n").get<string>());
+    auto e = Base64Url::decode(json.at("e").get<string>());
+    auto d = Base64Url::decode(json.at("d").get<string>());
+    auto p = Base64Url::decode(json.at("p").get<string>());
+    auto q = Base64Url::decode(json.at("q").get<string>());
+    auto dp = Base64Url::decode(json.at("dp").get<string>());
+    auto dq = Base64Url::decode(json.at("dq").get<string>());
+    auto qi = Base64Url::decode(json.at("qi").get<string>());
+
+    vector<unsigned char> body;
+    appendDerInteger(body, vector<unsigned char>{0});
+    appendDerInteger(body, n);
+    appendDerInteger(body, e);
+    appendDerInteger(body, d);
+    appendDerInteger(body, p);
+    appendDerInteger(body, q);
+    appendDerInteger(body, dp);
+    appendDerInteger(body, dq);
+    appendDerInteger(body, qi);
+
+    vector<unsigned char> der;
+    der.push_back(0x30);
+    appendDerLength(der, body.size());
+    der.insert(der.end(), body.begin(), body.end());
+    return der;
+}
+
+vector<unsigned char> bnToBytes(BIGNUM *bn)
+{
+    if (bn == nullptr)
+    {
+        return {};
+    }
+
+    int n = BN_num_bytes(bn);
+    vector<unsigned char> out(static_cast<size_t>(n));
+    BN_bn2bin(bn, out.data());
+    return out;
+}
+
+}  // namespace
+#endif
 
 // BDD-style tests for RSA key generation
 SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][generation][bdd]")
@@ -432,6 +534,84 @@ TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
     REQUIRE(original.hasPrivateKey() == parsed.hasPrivateKey());
 }
 
+#if defined(JOSE_USE_OPENSSL)
+TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER",
+          "[jwk][rsa][openssl][der]")
+{
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+    auto json = nlohmann::json::parse(original.toJSON(true));
+
+    vector<unsigned char> der = buildRsaPrivateKeyPkcs1DerFromJson(json);
+    REQUIRE_FALSE(der.empty());
+
+    unsigned char const *der_ptr = der.data();
+    auto pkey = unique_ptr<EVP_PKEY, decltype(&EVP_PKEY_free)>(
+        d2i_AutoPrivateKey(nullptr, &der_ptr, static_cast<long>(der.size())),
+        EVP_PKEY_free);
+    REQUIRE(pkey != nullptr);
+
+    BIGNUM *n_bn = nullptr;
+    BIGNUM *e_bn = nullptr;
+    REQUIRE(EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_N, &n_bn) == 1);
+    REQUIRE(EVP_PKEY_get_bn_param(pkey.get(), OSSL_PKEY_PARAM_RSA_E, &e_bn) == 1);
+
+    auto n_guard = unique_ptr<BIGNUM, decltype(&BN_free)>(n_bn, BN_free);
+    auto e_guard = unique_ptr<BIGNUM, decltype(&BN_free)>(e_bn, BN_free);
+
+    REQUIRE(bnToBytes(n_guard.get()) == Base64Url::decode(json["n"].get<string>()));
+    REQUIRE(bnToBytes(e_guard.get()) == Base64Url::decode(json["e"].get<string>()));
+}
+#endif
+
+TEST_CASE("OpenSSL RSA private round-trip avoids legacy fallback across 1024 runs",
+          "[jwk][rsa][openssl][stress][.]")
+{
+    for (int i = 0; i < 1024; ++i)
+    {
+        JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+        string json = original.toJSON(true);
+        JWK parsed = JWK::fromJSON(json);
+        REQUIRE(parsed.hasPrivateKey());
+    }
+}
+
+TEST_CASE("JWK RSA import rejects missing qi", "[jwk][rsa][round-trip][openssl][strict]")
+{
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+    nlohmann::json json = nlohmann::json::parse(original.toJSON(true));
+
+    json.erase("qi");
+
+    REQUIRE_THROWS_WITH(JWK::fromJSON(json.dump()),
+                        Catch::Matchers::ContainsSubstring("Ill-formed RSA private key"));
+}
+
+TEST_CASE("JWK RSA import rejects missing CRT exponents",
+          "[jwk][rsa][round-trip][openssl][strict]")
+{
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+    nlohmann::json json = nlohmann::json::parse(original.toJSON(true));
+
+    json.erase("dp");
+    json.erase("dq");
+    json.erase("qi");
+
+    REQUIRE_THROWS_WITH(JWK::fromJSON(json.dump()),
+                        Catch::Matchers::ContainsSubstring("Ill-formed RSA private key"));
+}
+
+TEST_CASE("JWK RSA import rejects incomplete private parameters",
+          "[jwk][rsa][round-trip][openssl][strict]")
+{
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+    nlohmann::json json = nlohmann::json::parse(original.toJSON(true));
+
+    json.erase("p");
+
+    REQUIRE_THROWS_WITH(JWK::fromJSON(json.dump()),
+                        Catch::Matchers::ContainsSubstring("Ill-formed RSA private key"));
+}
+
 TEST_CASE("JWK EC round-trip preserves all properties", "[jwk][round-trip]")
 {
     JWK original = JWK::generateEC(JWK::Use::signature, "P-521");
@@ -458,6 +638,59 @@ TEST_CASE("JWK Oct round-trip preserves all properties", "[jwk][round-trip]")
     REQUIRE(original.getKeyType() == parsed.getKeyType());
     REQUIRE(original.getKeyID() == parsed.getKeyID());
     REQUIRE(original.getAlgorithm() == parsed.getAlgorithm());
+}
+
+TEST_CASE("JWK RSA fromJSON can ignore private parameters", "[jwk][rsa][parsing]")
+{
+    JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+    original.setKeyID("rsa-ignore-private");
+
+    string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json, true);
+
+    REQUIRE(parsed.getKeyType() == JWK::KeyType::rsa);
+    REQUIRE(parsed.getKeyID() == "rsa-ignore-private");
+    REQUIRE_FALSE(parsed.hasPrivateKey());
+
+    nlohmann::json parsed_json = nlohmann::json::parse(parsed.toJSON(true));
+    REQUIRE_FALSE(parsed_json.contains("d"));
+    REQUIRE_FALSE(parsed_json.contains("p"));
+    REQUIRE_FALSE(parsed_json.contains("q"));
+    REQUIRE_FALSE(parsed_json.contains("dp"));
+    REQUIRE_FALSE(parsed_json.contains("dq"));
+    REQUIRE_FALSE(parsed_json.contains("qi"));
+}
+
+TEST_CASE("JWK EC fromJSON can ignore private parameters", "[jwk][ec][parsing]")
+{
+    JWK original = JWK::generateEC(JWK::Use::signature, "P-256");
+    original.setKeyID("ec-ignore-private");
+
+    string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json, true);
+
+    REQUIRE(parsed.getKeyType() == JWK::KeyType::ec);
+    REQUIRE(parsed.getKeyID() == "ec-ignore-private");
+    REQUIRE_FALSE(parsed.hasPrivateKey());
+
+    nlohmann::json parsed_json = nlohmann::json::parse(parsed.toJSON(true));
+    REQUIRE_FALSE(parsed_json.contains("d"));
+}
+
+TEST_CASE("JWK Oct fromJSON can ignore private parameters", "[jwk][oct][parsing]")
+{
+    JWK original = JWK::generateOct(JWK::Use::signature, 256);
+    original.setKeyID("oct-ignore-private");
+
+    string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json, true);
+
+    REQUIRE(parsed.getKeyType() == JWK::KeyType::oct);
+    REQUIRE(parsed.getKeyID() == "oct-ignore-private");
+    REQUIRE_FALSE(parsed.hasPrivateKey());
+
+    nlohmann::json parsed_json = nlohmann::json::parse(parsed.toJSON(true));
+    REQUIRE_FALSE(parsed_json.contains("k"));
 }
 
 #if defined(JOSE_USE_OPENSSL)
@@ -502,6 +735,22 @@ TEST_CASE("JWK OKP round-trip preserves key material", "[jwk][okp][openssl][roun
     JWK parsed_public = JWK::fromJSON(public_json);
     REQUIRE(parsed_public.getKeyType() == JWK::KeyType::okp);
     REQUIRE_FALSE(parsed_public.hasPrivateKey());
+}
+
+TEST_CASE("JWK OKP fromJSON can ignore private parameters", "[jwk][okp][openssl][parsing]")
+{
+    JWK original = JWK::generateOKP(JWK::Use::signature, 255, "EdDSA");
+    original.setKeyID("okp-ignore-private");
+
+    string json = original.toJSON(true);
+    JWK parsed = JWK::fromJSON(json, true);
+
+    REQUIRE(parsed.getKeyType() == JWK::KeyType::okp);
+    REQUIRE(parsed.getKeyID() == "okp-ignore-private");
+    REQUIRE_FALSE(parsed.hasPrivateKey());
+
+    nlohmann::json parsed_json = nlohmann::json::parse(parsed.toJSON(true));
+    REQUIRE_FALSE(parsed_json.contains("d"));
 }
 #endif
 
@@ -651,6 +900,44 @@ TEST_CASE("JWKSet round-trip preserves all keys", "[jwk][jwkset][round-trip]")
     JWK retrievedKey2 = parsed.getKey("key2");
     REQUIRE(retrievedKey2.getKeyID() == "key2");
     REQUIRE(retrievedKey2.getAlgorithm() == "ES256");
+}
+
+TEST_CASE("JWKSet fromJSON can ignore private parameters", "[jwk][jwkset][parsing]")
+{
+    JWKSet original;
+
+    JWK rsa_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    rsa_key.setKeyID("set-rsa");
+    original.addKey(rsa_key);
+
+    JWK ec_key = JWK::generateEC(JWK::Use::signature, "P-256");
+    ec_key.setKeyID("set-ec");
+    original.addKey(ec_key);
+
+    JWK oct_key = JWK::generateOct(JWK::Use::signature, 256);
+    oct_key.setKeyID("set-oct");
+    original.addKey(oct_key);
+
+    string json = original.toJSON();
+    JWKSet parsed = JWKSet::fromJSON(json, true);
+
+    REQUIRE_FALSE(parsed.getKey("set-rsa").hasPrivateKey());
+    REQUIRE_FALSE(parsed.getKey("set-ec").hasPrivateKey());
+    REQUIRE_FALSE(parsed.getKey("set-oct").hasPrivateKey());
+}
+
+TEST_CASE("JWK Oct fromJSON ignore-private accepts missing k", "[jwk][oct][parsing]")
+{
+    JWK original = JWK::generateOct(JWK::Use::signature, 256);
+    original.setKeyID("oct-missing-k-ignore-private");
+
+    nlohmann::json json = nlohmann::json::parse(original.toJSON(true));
+    json.erase("k");
+
+    JWK parsed = JWK::fromJSON(json.dump(), true);
+    REQUIRE(parsed.getKeyType() == JWK::KeyType::oct);
+    REQUIRE(parsed.getKeyID() == "oct-missing-k-ignore-private");
+    REQUIRE_FALSE(parsed.hasPrivateKey());
 }
 
 TEST_CASE("JWKSet can contain three keys", "[jwk][jwkset]")
