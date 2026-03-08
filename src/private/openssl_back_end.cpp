@@ -1,15 +1,9 @@
 #include "openssl_back_end.hpp"
 
-#include <openssl/bn.h>
 #include <openssl/core_names.h>
 #include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/params.h>
 #include <openssl/rand.h>
 #include <openssl/x509.h>
-
-#include <algorithm>
-#include <stdexcept>
 
 using namespace std;
 
@@ -18,6 +12,25 @@ namespace JOSE {
 namespace Private {
 
 namespace {
+
+template< typename T, typename Deleter >
+auto makeOpenSSLGuard(T *ptr, Deleter deleter)
+{
+    return unique_ptr<T, Deleter>(ptr, deleter);
+}
+
+string getOpenSSLErrorString()
+{
+    unsigned long error = ERR_get_error();
+    if (error == 0)
+    {
+        return "Unknown OpenSSL error";
+    }
+
+    char buffer[256] = {0};
+    ERR_error_string_n(error, buffer, sizeof(buffer));
+    return buffer;
+}
 
 vector<unsigned char> toDERPublic(EVP_PKEY *pkey)
 {
@@ -87,6 +100,86 @@ vector<unsigned char> bnToPaddedBytes(BIGNUM const *bn, size_t size)
     }
 
     return out;
+}
+
+void appendDerLength(vector<unsigned char> &out, size_t length)
+{
+    if (length < 0x80)
+    {
+        out.push_back(static_cast<unsigned char>(length));
+        return;
+    }
+
+    unsigned char encoded[sizeof(size_t)] = {};
+    size_t count = 0;
+    size_t value = length;
+    while (value != 0)
+    {
+        encoded[count++] = static_cast<unsigned char>(value & 0xFF);
+        value >>= 8;
+    }
+
+    out.push_back(static_cast<unsigned char>(0x80 | count));
+    for (size_t i = 0; i < count; ++i)
+    {
+        out.push_back(encoded[count - 1 - i]);
+    }
+}
+
+void appendDerInteger(vector<unsigned char> &out, vector<unsigned char> const &value)
+{
+    vector<unsigned char> normalized = value;
+    while (normalized.size() > 1 && normalized[0] == 0)
+    {
+        normalized.erase(normalized.begin());
+    }
+
+    if (normalized.empty())
+    {
+        normalized.push_back(0);
+    }
+
+    if ((normalized[0] & 0x80) != 0)
+    {
+        normalized.insert(normalized.begin(), 0);
+    }
+
+    out.push_back(0x02);
+    appendDerLength(out, normalized.size());
+    out.insert(out.end(), normalized.begin(), normalized.end());
+}
+
+vector<unsigned char> buildRsaPrivateKeyPkcs1Der(vector<unsigned char> const &n_bytes,
+                                                 vector<unsigned char> const &e_bytes,
+                                                 vector<unsigned char> const &d_bytes,
+                                                 vector<unsigned char> const &p_bytes,
+                                                 vector<unsigned char> const &q_bytes,
+                                                 vector<unsigned char> const &dp_bytes,
+                                                 vector<unsigned char> const &dq_bytes,
+                                                 vector<unsigned char> const &qi_bytes)
+{
+    if (n_bytes.empty() || e_bytes.empty() || d_bytes.empty() || p_bytes.empty() || q_bytes.empty() ||
+        dp_bytes.empty() || dq_bytes.empty() || qi_bytes.empty())
+    {
+        return {};
+    }
+
+    vector<unsigned char> body;
+    appendDerInteger(body, vector<unsigned char>{0});
+    appendDerInteger(body, n_bytes);
+    appendDerInteger(body, e_bytes);
+    appendDerInteger(body, d_bytes);
+    appendDerInteger(body, p_bytes);
+    appendDerInteger(body, q_bytes);
+    appendDerInteger(body, dp_bytes);
+    appendDerInteger(body, dq_bytes);
+    appendDerInteger(body, qi_bytes);
+
+    vector<unsigned char> der;
+    der.push_back(0x30);
+    appendDerLength(der, body.size());
+    der.insert(der.end(), body.begin(), body.end());
+    return der;
 }
 
 void resolveCurveNames(string const &curve,
@@ -194,35 +287,59 @@ void resolveOkpFromCurve(string const &curve,
     throw runtime_error("Unsupported OKP curve: " + curve);
 }
 
-struct EVPKeyHandle
+void extractRsaComponents(EVP_PKEY *pkey,
+                         vector<unsigned char> &n_bytes,
+                         vector<unsigned char> &e_bytes,
+                         vector<unsigned char> &d_bytes,
+                         vector<unsigned char> &p_bytes,
+                         vector<unsigned char> &q_bytes,
+                         vector<unsigned char> &dp_bytes,
+                         vector<unsigned char> &dq_bytes,
+                         vector<unsigned char> &qi_bytes)
 {
-    explicit EVPKeyHandle(EVP_PKEY *pkey) : pkey_(pkey)
+    BIGNUM *n_raw = nullptr;
+    BIGNUM *e_raw = nullptr;
+    BIGNUM *d_raw = nullptr;
+    BIGNUM *p_raw = nullptr;
+    BIGNUM *q_raw = nullptr;
+    BIGNUM *dp_raw = nullptr;
+    BIGNUM *dq_raw = nullptr;
+    BIGNUM *qi_raw = nullptr;
+
+    if (EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, &n_raw) <= 0 ||
+        EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_E, &e_raw) <= 0)
     {
+        BN_free(n_raw);
+        BN_free(e_raw);
+        throw runtime_error("Failed to read RSA public parameters: " + getOpenSSLErrorString());
     }
 
-    ~EVPKeyHandle()
-    {
-        if (pkey_ != nullptr)
-        {
-            EVP_PKEY_free(pkey_);
-        }
-    }
+    auto n = makeOpenSSLGuard(n_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto e = makeOpenSSLGuard(e_raw, [](BIGNUM *bn) { BN_free(bn); });
 
-    EVP_PKEY *get() const
-    {
-        return pkey_;
-    }
+    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_D, &d_raw);
+    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, &p_raw);
+    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, &q_raw);
+    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp_raw);
+    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq_raw);
+    EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi_raw);
 
-    EVP_PKEY *release()
-    {
-        EVP_PKEY *pkey = pkey_;
-        pkey_ = nullptr;
-        return pkey;
-    }
+    auto d = makeOpenSSLGuard(d_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto p = makeOpenSSLGuard(p_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto q = makeOpenSSLGuard(q_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto dp = makeOpenSSLGuard(dp_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto dq = makeOpenSSLGuard(dq_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto qi = makeOpenSSLGuard(qi_raw, [](BIGNUM *bn) { BN_free(bn); });
 
-private:
-    EVP_PKEY *pkey_ = nullptr;
-};
+    n_bytes = bnToBytes(n.get());
+    e_bytes = bnToBytes(e.get());
+    d_bytes = bnToBytes(d.get());
+    p_bytes = bnToBytes(p.get());
+    q_bytes = bnToBytes(q.get());
+    dp_bytes = bnToBytes(dp.get());
+    dq_bytes = bnToBytes(dq.get());
+    qi_bytes = bnToBytes(qi.get());
+}
 
 }  // namespace
 
@@ -378,7 +495,8 @@ vector<unsigned char> OpenSSLOKPKey::getD() const
 
 unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
 {
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr);
+    auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr),
+                                [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
     if (ctx == nullptr)
     {
         throw runtime_error("Failed to create RSA context: " + getErrorString());
@@ -387,56 +505,25 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
     OSSL_PARAM params[] = {OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_RSA_BITS, &bits),
                            OSSL_PARAM_construct_end()};
 
-    EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_CTX_set_params(ctx, params) <= 0 ||
-        EVP_PKEY_keygen(ctx, &pkey) <= 0)
+    EVP_PKEY *pkey_raw = nullptr;
+    if (EVP_PKEY_keygen_init(ctx.get()) <= 0 || EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0 ||
+        EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
     {
-        EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to generate RSA key: " + getErrorString());
     }
-    EVP_PKEY_CTX_free(ctx);
+    auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
 
-    EVPKeyHandle pkey_guard(pkey);
+    vector<unsigned char> n_bytes;
+    vector<unsigned char> e_bytes;
+    vector<unsigned char> d_bytes;
+    vector<unsigned char> p_bytes;
+    vector<unsigned char> q_bytes;
+    vector<unsigned char> dp_bytes;
+    vector<unsigned char> dq_bytes;
+    vector<unsigned char> qi_bytes;
 
-    BIGNUM *n = nullptr;
-    BIGNUM *e = nullptr;
-    BIGNUM *d = nullptr;
-    BIGNUM *p = nullptr;
-    BIGNUM *q = nullptr;
-    BIGNUM *dp = nullptr;
-    BIGNUM *dq = nullptr;
-    BIGNUM *qi = nullptr;
-
-    if (EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_N, &n) <= 0 ||
-        EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_E, &e) <= 0)
-    {
-        throw runtime_error("Failed to read RSA public parameters: " + getErrorString());
-    }
-
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_D, &d);
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_FACTOR1, &p);
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_FACTOR2, &q);
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_EXPONENT1, &dp);
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_EXPONENT2, &dq);
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_RSA_COEFFICIENT1, &qi);
-
-    vector<unsigned char> n_bytes = bnToBytes(n);
-    vector<unsigned char> e_bytes = bnToBytes(e);
-    vector<unsigned char> d_bytes = bnToBytes(d);
-    vector<unsigned char> p_bytes = bnToBytes(p);
-    vector<unsigned char> q_bytes = bnToBytes(q);
-    vector<unsigned char> dp_bytes = bnToBytes(dp);
-    vector<unsigned char> dq_bytes = bnToBytes(dq);
-    vector<unsigned char> qi_bytes = bnToBytes(qi);
-
-    BN_free(n);
-    BN_free(e);
-    BN_free(d);
-    BN_free(p);
-    BN_free(q);
-    BN_free(dp);
-    BN_free(dq);
-    BN_free(qi);
+    extractRsaComponents(
+        pkey_guard.get(), n_bytes, e_bytes, d_bytes, p_bytes, q_bytes, dp_bytes, dq_bytes, qi_bytes);
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
@@ -467,90 +554,259 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
         throw runtime_error("RSA import requires at least modulus (n) and public exponent (e)");
     }
 
-    bool const has_crt = !d_bytes.empty() && !p_bytes.empty() && !q_bytes.empty() &&
-                         !dp_bytes.empty() && !dq_bytes.empty() && !qi_bytes.empty();
-    if (!d_bytes.empty() && !has_crt)
-    {
-        throw runtime_error("OpenSSL RSA import requires either a public key (n, e) or a full "
-                            "private key with CRT parameters (n, e, d, p, q, dp, dq, qi)");
-    }
+    bool const has_any_private_input = !d_bytes.empty() || !p_bytes.empty() || !q_bytes.empty() ||
+                                       !dp_bytes.empty() || !dq_bytes.empty() || !qi_bytes.empty();
+    bool const has_d = !d_bytes.empty();
+    bool const has_any_crt = !p_bytes.empty() || !q_bytes.empty() || !dp_bytes.empty() ||
+                             !dq_bytes.empty() || !qi_bytes.empty();
+    bool const has_full_crt = !p_bytes.empty() && !q_bytes.empty() && !dp_bytes.empty() &&
+                              !dq_bytes.empty() && !qi_bytes.empty();
 
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr);
-    if (ctx == nullptr)
-    {
-        throw runtime_error("Failed to create RSA import context: " + getErrorString());
-    }
+    vector<unsigned char> active_d_bytes(d_bytes);
+    vector<unsigned char> active_p_bytes(p_bytes);
+    vector<unsigned char> active_q_bytes(q_bytes);
+    vector<unsigned char> active_dp_bytes(dp_bytes);
+    vector<unsigned char> active_dq_bytes(dq_bytes);
+    vector<unsigned char> active_qi_bytes(qi_bytes);
+    vector<string> attempt_errors;
 
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    auto try_import = [&](bool include_d,
+                          bool include_primes,
+                          bool include_crt_exponents,
+                          bool include_qi,
+                          int selection,
+                          string const &attempt_label,
+                          string &last_error) -> EVP_PKEY *
     {
-        EVP_PKEY_CTX_free(ctx);
-        throw runtime_error("Failed to initialize RSA import: " + getErrorString());
-    }
+        auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr),
+                                    [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
+        if (ctx == nullptr)
+        {
+            last_error = "Failed to create RSA import context";
+            return nullptr;
+        }
 
-    OSSL_PARAM params[9] = {OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                                    const_cast<unsigned char *>(n_bytes.data()),
-                                                    n_bytes.size()),
-                            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
-                                                    const_cast<unsigned char *>(e_bytes.data()),
-                                                    e_bytes.size()),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end()};
+        if (EVP_PKEY_fromdata_init(ctx.get()) <= 0)
+        {
+            last_error = "Failed to initialize RSA import: " + getErrorString();
+            return nullptr;
+        }
 
-    size_t param_index = 2;
-    if (has_crt)
-    {
-        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_D,
-                                                        const_cast<unsigned char *>(d_bytes.data()),
-                                                        d_bytes.size());
-        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR1,
-                                                        const_cast<unsigned char *>(p_bytes.data()),
-                                                        p_bytes.size());
-        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR2,
-                                                        const_cast<unsigned char *>(q_bytes.data()),
-                                                        q_bytes.size());
-        params[param_index++] =
-            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1,
-                                    const_cast<unsigned char *>(dp_bytes.data()),
-                                    dp_bytes.size());
-        params[param_index++] =
-            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2,
-                                    const_cast<unsigned char *>(dq_bytes.data()),
-                                    dq_bytes.size());
-        params[param_index++] =
-            OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
-                                    const_cast<unsigned char *>(qi_bytes.data()),
-                                    qi_bytes.size());
-    }
-    params[param_index] = OSSL_PARAM_construct_end();
+        OSSL_PARAM params[9] = {OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end(),
+                                OSSL_PARAM_construct_end()};
+
+        size_t param_index = 0;
+        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
+                                                        const_cast<unsigned char *>(n_bytes.data()),
+                                                        n_bytes.size());
+        params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
+                                                        const_cast<unsigned char *>(e_bytes.data()),
+                                                        e_bytes.size());
+
+        if (include_d)
+        {
+            params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_D,
+                                                            const_cast<unsigned char *>(active_d_bytes.data()),
+                                                            active_d_bytes.size());
+        }
+        if (include_primes)
+        {
+            params[param_index++] =
+                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR1,
+                                        const_cast<unsigned char *>(active_p_bytes.data()),
+                                        active_p_bytes.size());
+            params[param_index++] =
+                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR2,
+                                        const_cast<unsigned char *>(active_q_bytes.data()),
+                                        active_q_bytes.size());
+        }
+        if (include_crt_exponents)
+        {
+            params[param_index++] =
+                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1,
+                                        const_cast<unsigned char *>(active_dp_bytes.data()),
+                                        active_dp_bytes.size());
+            params[param_index++] =
+                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2,
+                                        const_cast<unsigned char *>(active_dq_bytes.data()),
+                                        active_dq_bytes.size());
+        }
+        if (include_qi)
+        {
+            params[param_index++] =
+                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
+                                        const_cast<unsigned char *>(active_qi_bytes.data()),
+                                        active_qi_bytes.size());
+        }
+        params[param_index] = OSSL_PARAM_construct_end();
+
+        EVP_PKEY *candidate = nullptr;
+        if (EVP_PKEY_fromdata(ctx.get(), &candidate, selection, params) <= 0)
+        {
+            last_error = "Failed RSA import attempt (" + attempt_label + "): " + getErrorString();
+            attempt_errors.push_back(last_error);
+            return nullptr;
+        }
+        return candidate;
+    };
 
     EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_fromdata(ctx, &pkey, has_crt ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) <=
-        0)
-    {
-        EVP_PKEY_CTX_free(ctx);
-        throw runtime_error("Failed to import RSA key: " + getErrorString());
-    }
-    EVP_PKEY_CTX_free(ctx);
+    string last_error;
 
-    EVPKeyHandle pkey_guard(pkey);
+    if (!has_any_private_input)
+    {
+        pkey = try_import(false,
+                          false,
+                          false,
+                          false,
+                          EVP_PKEY_PUBLIC_KEY,
+                          "public n/e",
+                          last_error);
+    }
+    else
+    {
+        if (!has_d)
+        {
+            throw runtime_error("RSA private key import requires parameter 'd'");
+        }
+
+        if (!has_any_crt)
+        {
+            pkey = try_import(true,
+                              false,
+                              false,
+                              false,
+                              EVP_PKEY_KEYPAIR,
+                              "private n/e/d",
+                              last_error);
+        }
+        else
+        {
+            if (!has_full_crt)
+            {
+                throw runtime_error(
+                    "Ill-formed RSA private key: if any of p, q, dp, dq, qi are present, all must be present");
+            }
+
+            pkey = try_import(true,
+                              true,
+                              true,
+                              true,
+                              EVP_PKEY_KEYPAIR,
+                              "full CRT n/e/d/p/q/dp/dq/qi",
+                              last_error);
+
+            if (pkey == nullptr)
+            {
+                // OpenSSL providers can reject otherwise-valid CRT tuples; retry without optional CRT exponents.
+                pkey = try_import(true,
+                                  true,
+                                  false,
+                                  false,
+                                  EVP_PKEY_KEYPAIR,
+                                  "private minimum n/e/d/p/q",
+                                  last_error);
+            }
+
+            if (pkey == nullptr)
+            {
+                // Final OpenSSL-provider compatibility fallback: import only n/e/d.
+                pkey = try_import(true,
+                                  false,
+                                  false,
+                                  false,
+                                  EVP_PKEY_KEYPAIR,
+                                  "private n/e/d fallback",
+                                  last_error);
+            }
+
+            if (pkey == nullptr)
+            {
+                vector<unsigned char> der_private = buildRsaPrivateKeyPkcs1Der(n_bytes,
+                                                                                e_bytes,
+                                                                                active_d_bytes,
+                                                                                active_p_bytes,
+                                                                                active_q_bytes,
+                                                                                active_dp_bytes,
+                                                                                active_dq_bytes,
+                                                                                active_qi_bytes);
+                if (!der_private.empty())
+                {
+                    unsigned char const *der_ptr = der_private.data();
+                    EVP_PKEY *der_candidate =
+                        d2i_AutoPrivateKey(nullptr, &der_ptr, static_cast<long>(der_private.size()));
+                    if (der_candidate != nullptr)
+                    {
+                        pkey = der_candidate;
+                    }
+                    else
+                    {
+                        last_error = "Failed RSA import attempt (DER private fallback): " + getErrorString();
+                        attempt_errors.push_back(last_error);
+                    }
+                }
+            }
+
+        }
+    }
+
+    if (pkey == nullptr)
+    {
+        if (!attempt_errors.empty())
+        {
+            string details;
+            for (size_t index = 0; index < attempt_errors.size(); ++index)
+            {
+                if (index != 0)
+                {
+                    details += " | ";
+                }
+                details += attempt_errors[index];
+            }
+            throw runtime_error(details);
+        }
+        throw runtime_error(last_error.empty() ? "Failed to import RSA key" : last_error);
+    }
+
+    auto pkey_guard = makeOpenSSLGuard(pkey, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
+
+    vector<unsigned char> imported_n;
+    vector<unsigned char> imported_e;
+    vector<unsigned char> imported_d;
+    vector<unsigned char> imported_p;
+    vector<unsigned char> imported_q;
+    vector<unsigned char> imported_dp;
+    vector<unsigned char> imported_dq;
+    vector<unsigned char> imported_qi;
+    extractRsaComponents(pkey_guard.get(),
+                         imported_n,
+                         imported_e,
+                         imported_d,
+                         imported_p,
+                         imported_q,
+                         imported_dp,
+                         imported_dq,
+                         imported_qi);
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob =
-        d_bytes.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
+        imported_d.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
 
     return make_unique<OpenSSLRSAKey>(n_bytes,
                                       e_bytes,
-                                      d_bytes,
-                                      p_bytes,
-                                      q_bytes,
-                                      dp_bytes,
-                                      dq_bytes,
-                                      qi_bytes,
+                                      imported_d,
+                                      imported_p,
+                                      imported_q,
+                                      imported_dp,
+                                      imported_dq,
+                                      imported_qi,
                                       public_blob,
                                       private_blob);
 }
@@ -564,7 +820,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
 
     string group_name_param = openssl_curve_name;
 
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
+    auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr),
+                                [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
     if (ctx == nullptr)
     {
         throw runtime_error("Failed to create EC context: " + getErrorString());
@@ -575,37 +832,34 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
                                                             group_name_param.size() + 1),
                            OSSL_PARAM_construct_end()};
 
-    EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_CTX_set_params(ctx, params) <= 0 ||
-        EVP_PKEY_keygen(ctx, &pkey) <= 0)
+    EVP_PKEY *pkey_raw = nullptr;
+    if (EVP_PKEY_keygen_init(ctx.get()) <= 0 || EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0 ||
+        EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
     {
-        EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to generate EC key: " + getErrorString());
     }
-    EVP_PKEY_CTX_free(ctx);
+    auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
 
-    EVPKeyHandle pkey_guard(pkey);
+    BIGNUM *x_raw = nullptr;
+    BIGNUM *y_raw = nullptr;
+    BIGNUM *d_raw = nullptr;
 
-    BIGNUM *x = nullptr;
-    BIGNUM *y = nullptr;
-    BIGNUM *d = nullptr;
-
-    if (EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_EC_PUB_X, &x) <= 0 ||
-        EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_EC_PUB_Y, &y) <= 0)
+    if (EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_EC_PUB_X, &x_raw) <= 0 ||
+        EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_EC_PUB_Y, &y_raw) <= 0)
     {
         throw runtime_error("Failed to read EC public coordinates: " + getErrorString());
     }
 
-    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_PRIV_KEY, &d);
+    auto x = makeOpenSSLGuard(x_raw, [](BIGNUM *bn) { BN_free(bn); });
+    auto y = makeOpenSSLGuard(y_raw, [](BIGNUM *bn) { BN_free(bn); });
 
-    vector<unsigned char> x_bytes = bnToPaddedBytes(x, coordinate_size);
-    vector<unsigned char> y_bytes = bnToPaddedBytes(y, coordinate_size);
+    EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_PRIV_KEY, &d_raw);
+    auto d = makeOpenSSLGuard(d_raw, [](BIGNUM *bn) { BN_free(bn); });
+
+    vector<unsigned char> x_bytes = bnToPaddedBytes(x.get(), coordinate_size);
+    vector<unsigned char> y_bytes = bnToPaddedBytes(y.get(), coordinate_size);
     vector<unsigned char> d_bytes =
-        d == nullptr ? vector<unsigned char>{} : bnToPaddedBytes(d, coordinate_size);
-
-    BN_free(x);
-    BN_free(y);
-    BN_free(d);
+        d == nullptr ? vector<unsigned char>{} : bnToPaddedBytes(d.get(), coordinate_size);
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
@@ -650,15 +904,15 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
     public_point.insert(public_point.end(), x_bytes.begin(), x_bytes.end());
     public_point.insert(public_point.end(), y_bytes.begin(), y_bytes.end());
 
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr);
+    auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr),
+                                [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
     if (ctx == nullptr)
     {
         throw runtime_error("Failed to create EC import context: " + getErrorString());
     }
 
-    if (EVP_PKEY_fromdata_init(ctx) <= 0)
+    if (EVP_PKEY_fromdata_init(ctx.get()) <= 0)
     {
-        EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to initialize EC import: " + getErrorString());
     }
 
@@ -670,15 +924,12 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
                                                              public_point.size()),
                            OSSL_PARAM_construct_end()};
 
-    EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_PUBLIC_KEY, params) <= 0)
+    EVP_PKEY *pkey_raw = nullptr;
+    if (EVP_PKEY_fromdata(ctx.get(), &pkey_raw, EVP_PKEY_PUBLIC_KEY, params) <= 0)
     {
-        EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to import EC key: " + getErrorString());
     }
-    EVP_PKEY_CTX_free(ctx);
-
-    EVPKeyHandle pkey_guard(pkey);
+    auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob;
@@ -725,21 +976,19 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(Use use, unsigned int bits) const
     size_t key_size = 0;
     resolveOkpNames(use, bits, curve_name, openssl_name, key_size);
 
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_from_name(nullptr, openssl_name.c_str(), nullptr);
+    auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, openssl_name.c_str(), nullptr),
+                                [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
     if (ctx == nullptr)
     {
         throw runtime_error("Failed to create OKP context: " + getErrorString());
     }
 
-    EVP_PKEY *pkey = nullptr;
-    if (EVP_PKEY_keygen_init(ctx) <= 0 || EVP_PKEY_keygen(ctx, &pkey) <= 0)
+    EVP_PKEY *pkey_raw = nullptr;
+    if (EVP_PKEY_keygen_init(ctx.get()) <= 0 || EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
     {
-        EVP_PKEY_CTX_free(ctx);
         throw runtime_error("Failed to generate OKP key: " + getErrorString());
     }
-    EVP_PKEY_CTX_free(ctx);
-
-    EVPKeyHandle pkey_guard(pkey);
+    auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
 
     vector<unsigned char> x_bytes(key_size);
     size_t x_len = x_bytes.size();
@@ -786,30 +1035,30 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
         throw runtime_error("OKP private key size does not match curve");
     }
 
-    EVP_PKEY *pkey = nullptr;
+    EVP_PKEY *pkey_raw = nullptr;
     if (!d_bytes.empty())
     {
-        pkey = EVP_PKEY_new_raw_private_key_ex(nullptr,
-                                               openssl_name.c_str(),
-                                               nullptr,
-                                               d_bytes.data(),
-                                               d_bytes.size());
+        pkey_raw = EVP_PKEY_new_raw_private_key_ex(nullptr,
+                                                   openssl_name.c_str(),
+                                                   nullptr,
+                                                   d_bytes.data(),
+                                                   d_bytes.size());
     }
     else
     {
-        pkey = EVP_PKEY_new_raw_public_key_ex(nullptr,
-                                              openssl_name.c_str(),
-                                              nullptr,
-                                              x_bytes.data(),
-                                              x_bytes.size());
+        pkey_raw = EVP_PKEY_new_raw_public_key_ex(nullptr,
+                                                  openssl_name.c_str(),
+                                                  nullptr,
+                                                  x_bytes.data(),
+                                                  x_bytes.size());
     }
 
-    if (pkey == nullptr)
+    if (pkey_raw == nullptr)
     {
         throw runtime_error("Failed to import OKP key: " + getErrorString());
     }
 
-    EVPKeyHandle pkey_guard(pkey);
+    auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
 
     vector<unsigned char> actual_x(key_size);
     size_t x_len = actual_x.size();
@@ -861,7 +1110,7 @@ vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
             throw runtime_error("Unsupported hash algorithm");
     }
 
-    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    auto ctx = makeOpenSSLGuard(EVP_MD_CTX_new(), [](EVP_MD_CTX *md_ctx) { EVP_MD_CTX_free(md_ctx); });
     if (ctx == nullptr)
     {
         throw runtime_error("EVP_MD_CTX_new failed: " + getErrorString());
@@ -870,15 +1119,13 @@ vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
     unsigned int out_size = EVP_MD_size(md);
     vector<unsigned char> digest(static_cast<size_t>(out_size));
 
-    if (EVP_DigestInit_ex(ctx, md, nullptr) != 1 ||
-        EVP_DigestUpdate(ctx, data.data(), data.size()) != 1 ||
-        EVP_DigestFinal_ex(ctx, digest.data(), &out_size) != 1)
+    if (EVP_DigestInit_ex(ctx.get(), md, nullptr) != 1 ||
+        EVP_DigestUpdate(ctx.get(), data.data(), data.size()) != 1 ||
+        EVP_DigestFinal_ex(ctx.get(), digest.data(), &out_size) != 1)
     {
-        EVP_MD_CTX_free(ctx);
         throw runtime_error("EVP digest failed: " + getErrorString());
     }
 
-    EVP_MD_CTX_free(ctx);
     digest.resize(out_size);
     return digest;
 }

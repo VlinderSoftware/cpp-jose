@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "back_end.hpp"
 
 namespace Vlinder {
