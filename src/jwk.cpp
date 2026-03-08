@@ -401,28 +401,18 @@ string JWK::toJSON(bool include_private) const
             auto dp(rsa_key->getDp());
             auto dq(rsa_key->getDq());
             auto qi(rsa_key->getQi());
-            if (!d.empty())
+
+            // Only serialize RSA private fields when we have a complete CRT key.
+            // Partial private material is not portable across backends/providers.
+            bool const has_full_private = !d.empty() && !p.empty() && !q.empty() && !dp.empty() &&
+                                          !dq.empty() && !qi.empty();
+            if (has_full_private)
             {
                 json_obj["d"] = Base64Url::encode(d);
-            }
-            if (!p.empty())
-            {
                 json_obj["p"] = Base64Url::encode(p);
-            }
-            if (!q.empty())
-            {
                 json_obj["q"] = Base64Url::encode(q);
-            }
-            if (!dp.empty())
-            {
                 json_obj["dp"] = Base64Url::encode(dp);
-            }
-            if (!dq.empty())
-            {
                 json_obj["dq"] = Base64Url::encode(dq);
-            }
-            if (!qi.empty())
-            {
                 json_obj["qi"] = Base64Url::encode(qi);
             }
         }

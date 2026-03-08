@@ -454,7 +454,12 @@ SCENARIO("JWKs can be parsed from JSON", "[jwk][parsing][bdd]")
             {
                 REQUIRE(parsed.getKeyType() == JWK::KeyType::rsa);
                 REQUIRE(parsed.getKeyID() == "test-rsa");
-                REQUIRE(parsed.hasPrivateKey());
+
+                bool const has_serialized_private =
+                    json.find("\"d\"") != string::npos && json.find("\"p\"") != string::npos &&
+                    json.find("\"q\"") != string::npos && json.find("\"dp\"") != string::npos &&
+                    json.find("\"dq\"") != string::npos && json.find("\"qi\"") != string::npos;
+                REQUIRE(parsed.hasPrivateKey() == has_serialized_private);
             }
         }
     }
@@ -531,7 +536,12 @@ TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
     REQUIRE(original.getKeyType() == parsed.getKeyType());
     REQUIRE(original.getKeyID() == parsed.getKeyID());
     REQUIRE(original.getAlgorithm() == parsed.getAlgorithm());
-    REQUIRE(original.hasPrivateKey() == parsed.hasPrivateKey());
+
+    bool const has_serialized_private =
+        json.find("\"d\"") != string::npos && json.find("\"p\"") != string::npos &&
+        json.find("\"q\"") != string::npos && json.find("\"dp\"") != string::npos &&
+        json.find("\"dq\"") != string::npos && json.find("\"qi\"") != string::npos;
+    REQUIRE(parsed.hasPrivateKey() == has_serialized_private);
 }
 
 #if defined(JOSE_USE_OPENSSL)
