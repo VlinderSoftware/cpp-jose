@@ -7,6 +7,13 @@
 
 using namespace std;
 
+#ifndef JOSE_RSA_GENERATION_MAX_ATTEMPTS
+#define JOSE_RSA_GENERATION_MAX_ATTEMPTS 8
+#endif
+
+static_assert(JOSE_RSA_GENERATION_MAX_ATTEMPTS > 0,
+              "JOSE_RSA_GENERATION_MAX_ATTEMPTS must be greater than zero");
+
 namespace Vlinder {
 namespace JOSE {
 namespace Private {
@@ -495,49 +502,75 @@ vector<unsigned char> OpenSSLOKPKey::getD() const
 
 unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
 {
-    auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr),
-                                [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
-    if (ctx == nullptr)
+    unsigned int const max_attempts =
+        static_cast<unsigned int>(JOSE_RSA_GENERATION_MAX_ATTEMPTS);
+    string last_reason;
+
+    for (unsigned int attempt = 0; attempt < max_attempts; ++attempt)
     {
-        throw runtime_error("Failed to create RSA context: " + getErrorString());
+        auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr),
+                                    [](EVP_PKEY_CTX *context) { EVP_PKEY_CTX_free(context); });
+        if (ctx == nullptr)
+        {
+            throw runtime_error("Failed to create RSA context: " + getErrorString());
+        }
+
+        OSSL_PARAM params[] = {OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_RSA_BITS, &bits),
+                               OSSL_PARAM_construct_end()};
+
+        EVP_PKEY *pkey_raw = nullptr;
+        if (EVP_PKEY_keygen_init(ctx.get()) <= 0 ||
+            EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0 ||
+            EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
+        {
+            throw runtime_error("Failed to generate RSA key: " + getErrorString());
+        }
+        auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
+
+        vector<unsigned char> n_bytes;
+        vector<unsigned char> e_bytes;
+        vector<unsigned char> d_bytes;
+        vector<unsigned char> p_bytes;
+        vector<unsigned char> q_bytes;
+        vector<unsigned char> dp_bytes;
+        vector<unsigned char> dq_bytes;
+        vector<unsigned char> qi_bytes;
+
+        extractRsaComponents(pkey_guard.get(),
+                             n_bytes,
+                             e_bytes,
+                             d_bytes,
+                             p_bytes,
+                             q_bytes,
+                             dp_bytes,
+                             dq_bytes,
+                             qi_bytes);
+
+        vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
+        vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
+
+        bool const has_full_private = !d_bytes.empty() && !p_bytes.empty() && !q_bytes.empty() &&
+                                      !dp_bytes.empty() && !dq_bytes.empty() && !qi_bytes.empty() &&
+                                      !private_blob.empty();
+        if (has_full_private)
+        {
+            return make_unique<OpenSSLRSAKey>(n_bytes,
+                                              e_bytes,
+                                              d_bytes,
+                                              p_bytes,
+                                              q_bytes,
+                                              dp_bytes,
+                                              dq_bytes,
+                                              qi_bytes,
+                                              public_blob,
+                                              private_blob);
+        }
+
+        last_reason = "incomplete private RSA export from provider";
     }
 
-    OSSL_PARAM params[] = {OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_RSA_BITS, &bits),
-                           OSSL_PARAM_construct_end()};
-
-    EVP_PKEY *pkey_raw = nullptr;
-    if (EVP_PKEY_keygen_init(ctx.get()) <= 0 || EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0 ||
-        EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
-    {
-        throw runtime_error("Failed to generate RSA key: " + getErrorString());
-    }
-    auto pkey_guard = makeOpenSSLGuard(pkey_raw, [](EVP_PKEY *key) { EVP_PKEY_free(key); });
-
-    vector<unsigned char> n_bytes;
-    vector<unsigned char> e_bytes;
-    vector<unsigned char> d_bytes;
-    vector<unsigned char> p_bytes;
-    vector<unsigned char> q_bytes;
-    vector<unsigned char> dp_bytes;
-    vector<unsigned char> dq_bytes;
-    vector<unsigned char> qi_bytes;
-
-    extractRsaComponents(
-        pkey_guard.get(), n_bytes, e_bytes, d_bytes, p_bytes, q_bytes, dp_bytes, dq_bytes, qi_bytes);
-
-    vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
-    vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
-
-    return make_unique<OpenSSLRSAKey>(n_bytes,
-                                      e_bytes,
-                                      d_bytes,
-                                      p_bytes,
-                                      q_bytes,
-                                      dp_bytes,
-                                      dq_bytes,
-                                      qi_bytes,
-                                      public_blob,
-                                      private_blob);
+    throw runtime_error("Failed to generate a complete RSA private key after " +
+                        to_string(max_attempts) + " attempts: " + last_reason);
 }
 
 unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes,

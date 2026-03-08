@@ -9,6 +9,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Options
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
+set(JOSE_RSA_GENERATION_MAX_ATTEMPTS "8" CACHE STRING "Maximum attempts for RSA key generation/export hardening")
+
+if(NOT JOSE_RSA_GENERATION_MAX_ATTEMPTS MATCHES "^[1-9][0-9]*$")
+    message(FATAL_ERROR "JOSE_RSA_GENERATION_MAX_ATTEMPTS must be a positive integer")
+endif()
 
 # Set default backend based on platform
 if(WIN32)
@@ -70,6 +75,8 @@ endif()
 
 # Create library
 add_library(jose ${JOSE_SOURCES})
+
+target_compile_definitions(jose PRIVATE JOSE_RSA_GENERATION_MAX_ATTEMPTS=${JOSE_RSA_GENERATION_MAX_ATTEMPTS})
 
 if(JOSE_BACKEND STREQUAL "OpenSSL")
     target_link_libraries(jose OpenSSL::SSL OpenSSL::Crypto nlohmann_json)

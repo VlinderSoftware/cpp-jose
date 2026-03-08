@@ -7,6 +7,13 @@
 
 using namespace std;
 
+#ifndef JOSE_RSA_GENERATION_MAX_ATTEMPTS
+#define JOSE_RSA_GENERATION_MAX_ATTEMPTS 8
+#endif
+
+static_assert(JOSE_RSA_GENERATION_MAX_ATTEMPTS > 0,
+              "JOSE_RSA_GENERATION_MAX_ATTEMPTS must be greater than zero");
+
 #ifndef STATUS_BUFFER_TOO_SMALL
 #define STATUS_BUFFER_TOO_SMALL ((NTSTATUS)0xC0000023L)
 #endif
@@ -129,217 +136,228 @@ vector<unsigned char> CNGRSAKey::getQi() const
 
 unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
 {
-    BCRYPT_ALG_HANDLE hAlg = nullptr;
-    NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
-    if (!BCRYPT_SUCCESS(status))
-    {
-        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
-    }
-    AlgHandle alg_guard(hAlg);
+    unsigned int const max_attempts =
+        static_cast<unsigned int>(JOSE_RSA_GENERATION_MAX_ATTEMPTS);
+    string last_reason;
 
-    BCRYPT_KEY_HANDLE hKey = nullptr;
-    status = BCryptGenerateKeyPair(alg_guard.get(), &hKey, bits, 0);
-    if (!BCRYPT_SUCCESS(status))
+    for (unsigned int attempt = 0; attempt < max_attempts; ++attempt)
     {
-        throw runtime_error("BCryptGenerateKeyPair failed: " + getErrorString());
-    }
-    KeyHandle key_guard(hKey);
-
-    status = BCryptFinalizeKeyPair(key_guard.get(), 0);
-    if (!BCRYPT_SUCCESS(status))
-    {
-        throw runtime_error("BCryptFinalizeKeyPair failed: " + getErrorString());
-    }
-
-    // Export public key
-    ULONG pub_size = 0;
-    status =
-        BCryptExportKey(key_guard.get(), nullptr, BCRYPT_RSAPUBLIC_BLOB, nullptr, 0, &pub_size, 0);
-    if (!BCRYPT_SUCCESS(status) && status != STATUS_BUFFER_TOO_SMALL)
-    {
-        throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
-    }
-
-    vector<unsigned char> pub_blob(pub_size);
-    ULONG pub_blob_size = static_cast<ULONG>(pub_blob.size());
-    status = BCryptExportKey(key_guard.get(),
-                             nullptr,
-                             BCRYPT_RSAPUBLIC_BLOB,
-                             pub_blob.data(),
-                             pub_blob_size,
-                             &pub_size,
-                             0);
-    if (!BCRYPT_SUCCESS(status))
-    {
-        throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
-    }
-
-    // Parse public blob for n and e
-    vector<unsigned char> n, e;
-    if (pub_blob.size() >= sizeof(BCRYPT_RSAKEY_BLOB))
-    {
-        BCRYPT_RSAKEY_BLOB header{};
-        copy_n(pub_blob.data(), sizeof(header), reinterpret_cast<unsigned char *>(&header));
-
-        // Verify the blob is large enough to hold all fields described by the header
-        size_t const expected_pub_size =
-            sizeof(BCRYPT_RSAKEY_BLOB) + header.cbPublicExp + header.cbModulus;
-        if (pub_blob.size() < expected_pub_size)
+        BCRYPT_ALG_HANDLE hAlg = nullptr;
+        NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
+        if (!BCRYPT_SUCCESS(status))
         {
-            BCryptDestroyKey(hKey);
-            BCryptCloseAlgorithmProvider(hAlg, 0);
-            throw runtime_error("BCryptExportKey returned a truncated public blob");
+            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+        }
+        AlgHandle alg_guard(hAlg);
+
+        BCRYPT_KEY_HANDLE hKey = nullptr;
+        status = BCryptGenerateKeyPair(alg_guard.get(), &hKey, bits, 0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptGenerateKeyPair failed: " + getErrorString());
+        }
+        KeyHandle key_guard(hKey);
+
+        status = BCryptFinalizeKeyPair(key_guard.get(), 0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptFinalizeKeyPair failed: " + getErrorString());
         }
 
-        unsigned char const *ptr = pub_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
-        if (header.cbPublicExp)
-        {
-            e.assign(ptr, ptr + header.cbPublicExp);
-            ptr += header.cbPublicExp;
-        }
-        if (header.cbModulus)
-        {
-            n.assign(ptr, ptr + header.cbModulus);
-            ptr += header.cbModulus;
-        }
-    }
-
-    // Export private key — must use BCRYPT_RSAFULLPRIVATE_BLOB to get all CRT
-    // parameters (dp, dq, iqmp, d). BCRYPT_RSAPRIVATE_BLOB only contains p and q.
-    ULONG priv_size = 0;
-    status = BCryptExportKey(key_guard.get(),
-                             nullptr,
-                             BCRYPT_RSAFULLPRIVATE_BLOB,
-                             nullptr,
-                             0,
-                             &priv_size,
-                             0);
-    vector<unsigned char> priv_blob;
-    if (BCRYPT_SUCCESS(status) || status == STATUS_BUFFER_TOO_SMALL)
-    {
-        priv_blob.resize(priv_size);
-        ULONG priv_blob_size = static_cast<ULONG>(priv_blob.size());
+        // Export public key
+        ULONG pub_size = 0;
         status = BCryptExportKey(key_guard.get(),
                                  nullptr,
-                                 BCRYPT_RSAFULLPRIVATE_BLOB,
-                                 priv_blob.data(),
-                                 priv_blob_size,
-                                 &priv_size,
+                                 BCRYPT_RSAPUBLIC_BLOB,
+                                 nullptr,
+                                 0,
+                                 &pub_size,
+                                 0);
+        if (!BCRYPT_SUCCESS(status) && status != STATUS_BUFFER_TOO_SMALL)
+        {
+            throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
+        }
+
+        vector<unsigned char> pub_blob(pub_size);
+        ULONG pub_blob_size = static_cast<ULONG>(pub_blob.size());
+        status = BCryptExportKey(key_guard.get(),
+                                 nullptr,
+                                 BCRYPT_RSAPUBLIC_BLOB,
+                                 pub_blob.data(),
+                                 pub_blob_size,
+                                 &pub_size,
                                  0);
         if (!BCRYPT_SUCCESS(status))
         {
-            // If private export fails, clear private blob but continue
-            priv_blob.clear();
+            throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
         }
-        else
-        {
-            priv_blob.resize(priv_size);
-        }
-    }
 
-    // Parse private blob for remaining parameters if present
-    vector<unsigned char> d, p, q, dp, dq, iqmp;
-    if (priv_blob.size() >= sizeof(BCRYPT_RSAKEY_BLOB))
-    {
-        BCRYPT_RSAKEY_BLOB header{};
-        copy_n(priv_blob.data(), sizeof(header), reinterpret_cast<unsigned char *>(&header));
+        // Parse public blob for n and e
+        vector<unsigned char> n, e;
+        if (pub_blob.size() >= sizeof(BCRYPT_RSAKEY_BLOB))
+        {
+            BCRYPT_RSAKEY_BLOB header{};
+            copy_n(pub_blob.data(), sizeof(header), reinterpret_cast<unsigned char *>(&header));
 
-        // Full private blob layout (BCRYPT_RSAFULLPRIVATE_BLOB, Magic =
-        // BCRYPT_RSAFULLPRIVATE_MAGIC):
-        //   PublicExponent   (cbPublicExp bytes)
-        //   Modulus          (cbModulus bytes)
-        //   Prime1 / p       (cbPrime1 bytes)
-        //   Prime2 / q       (cbPrime2 bytes)
-        //   Exponent1 / dp   (cbPrime1 bytes)   -- d mod (p-1)
-        //   Exponent2 / dq   (cbPrime2 bytes)   -- d mod (q-1)
-        //   Coefficient/iqmp (cbPrime1 bytes)   -- q^-1 mod p
-        //   PrivateExp / d   (cbModulus bytes)
-        // See:
-        // https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_rsakey_blob
-        size_t const expected_priv_size = sizeof(BCRYPT_RSAKEY_BLOB) + header.cbPublicExp +
-                                          2 * header.cbModulus + 3 * header.cbPrime1 +
-                                          2 * header.cbPrime2;
-        if (priv_blob.size() < expected_priv_size)
-        {
-            // Blob is malformed; discard private material and continue with public key only
-            priv_blob.clear();
-        }
-        else
-        {
-            unsigned char const *ptr = priv_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
-            // skip public exponent and modulus (already read from public blob)
-            ptr += header.cbPublicExp;
-            ptr += header.cbModulus;
-            // prime1 (p)
-            if (header.cbPrime1)
+            // Verify the blob is large enough to hold all fields described by the header
+            size_t const expected_pub_size =
+                sizeof(BCRYPT_RSAKEY_BLOB) + header.cbPublicExp + header.cbModulus;
+            if (pub_blob.size() < expected_pub_size)
             {
-                p.assign(ptr, ptr + header.cbPrime1);
-                ptr += header.cbPrime1;
+                throw runtime_error("BCryptExportKey returned a truncated public blob");
             }
-            // prime2 (q)
-            if (header.cbPrime2)
+
+            unsigned char const *ptr = pub_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
+            if (header.cbPublicExp)
             {
-                q.assign(ptr, ptr + header.cbPrime2);
-                ptr += header.cbPrime2;
+                e.assign(ptr, ptr + header.cbPublicExp);
+                ptr += header.cbPublicExp;
             }
-            // exponent1 (dp = d mod (p-1))
-            if (header.cbPrime1)
-            {
-                dp.assign(ptr, ptr + header.cbPrime1);
-                ptr += header.cbPrime1;
-            }
-            // exponent2 (dq = d mod (q-1))
-            if (header.cbPrime2)
-            {
-                dq.assign(ptr, ptr + header.cbPrime2);
-                ptr += header.cbPrime2;
-            }
-            // coefficient (iqmp = q^-1 mod p, same size as prime1)
-            if (header.cbPrime1)
-            {
-                iqmp.assign(ptr, ptr + header.cbPrime1);
-                ptr += header.cbPrime1;
-            }
-            // private exponent d
             if (header.cbModulus)
             {
-                d.assign(ptr, ptr + header.cbModulus);
+                n.assign(ptr, ptr + header.cbModulus);
                 ptr += header.cbModulus;
             }
         }
+
+        // Export private key — must use BCRYPT_RSAFULLPRIVATE_BLOB to get all CRT
+        // parameters (dp, dq, iqmp, d). BCRYPT_RSAPRIVATE_BLOB only contains p and q.
+        ULONG priv_size = 0;
+        status = BCryptExportKey(key_guard.get(),
+                                 nullptr,
+                                 BCRYPT_RSAFULLPRIVATE_BLOB,
+                                 nullptr,
+                                 0,
+                                 &priv_size,
+                                 0);
+        vector<unsigned char> priv_blob;
+        if (BCRYPT_SUCCESS(status) || status == STATUS_BUFFER_TOO_SMALL)
+        {
+            priv_blob.resize(priv_size);
+            ULONG priv_blob_size = static_cast<ULONG>(priv_blob.size());
+            status = BCryptExportKey(key_guard.get(),
+                                     nullptr,
+                                     BCRYPT_RSAFULLPRIVATE_BLOB,
+                                     priv_blob.data(),
+                                     priv_blob_size,
+                                     &priv_size,
+                                     0);
+            if (!BCRYPT_SUCCESS(status))
+            {
+                priv_blob.clear();
+            }
+            else
+            {
+                priv_blob.resize(priv_size);
+            }
+        }
+
+        // Parse private blob for remaining parameters if present
+        vector<unsigned char> d, p, q, dp, dq, iqmp;
+        if (priv_blob.size() >= sizeof(BCRYPT_RSAKEY_BLOB))
+        {
+            BCRYPT_RSAKEY_BLOB header{};
+            copy_n(priv_blob.data(), sizeof(header), reinterpret_cast<unsigned char *>(&header));
+
+            // Full private blob layout (BCRYPT_RSAFULLPRIVATE_BLOB, Magic =
+            // BCRYPT_RSAFULLPRIVATE_MAGIC):
+            //   PublicExponent   (cbPublicExp bytes)
+            //   Modulus          (cbModulus bytes)
+            //   Prime1 / p       (cbPrime1 bytes)
+            //   Prime2 / q       (cbPrime2 bytes)
+            //   Exponent1 / dp   (cbPrime1 bytes)   -- d mod (p-1)
+            //   Exponent2 / dq   (cbPrime2 bytes)   -- d mod (q-1)
+            //   Coefficient/iqmp (cbPrime1 bytes)   -- q^-1 mod p
+            //   PrivateExp / d   (cbModulus bytes)
+            // See:
+            // https://learn.microsoft.com/en-us/windows/win32/api/bcrypt/ns-bcrypt-bcrypt_rsakey_blob
+               size_t const expected_priv_size = sizeof(BCRYPT_RSAKEY_BLOB) + header.cbPublicExp +
+                                              2 * header.cbModulus + 3 * header.cbPrime1 +
+                                              2 * header.cbPrime2;
+            if (priv_blob.size() < expected_priv_size)
+            {
+                priv_blob.clear();
+            }
+            else
+            {
+                unsigned char const *ptr = priv_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
+                ptr += header.cbPublicExp;
+                ptr += header.cbModulus;
+                if (header.cbPrime1)
+                {
+                    p.assign(ptr, ptr + header.cbPrime1);
+                    ptr += header.cbPrime1;
+                }
+                if (header.cbPrime2)
+                {
+                    q.assign(ptr, ptr + header.cbPrime2);
+                    ptr += header.cbPrime2;
+                }
+                if (header.cbPrime1)
+                {
+                    dp.assign(ptr, ptr + header.cbPrime1);
+                    ptr += header.cbPrime1;
+                }
+                if (header.cbPrime2)
+                {
+                    dq.assign(ptr, ptr + header.cbPrime2);
+                    ptr += header.cbPrime2;
+                }
+                if (header.cbPrime1)
+                {
+                    iqmp.assign(ptr, ptr + header.cbPrime1);
+                    ptr += header.cbPrime1;
+                }
+                if (header.cbModulus)
+                {
+                    d.assign(ptr, ptr + header.cbModulus);
+                    ptr += header.cbModulus;
+                }
+            }
+        }
+
+        // If we didn't get n/e from pub_blob, try to get from priv_blob header
+        if (n.empty() && !priv_blob.empty() && priv_blob.size() >= sizeof(BCRYPT_RSAKEY_BLOB))
+        {
+            auto hdr2 = reinterpret_cast<BCRYPT_RSAKEY_BLOB const *>(priv_blob.data());
+            unsigned char const *ptr2 = priv_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
+            if (hdr2->cbPublicExp)
+            {
+                e.assign(ptr2, ptr2 + hdr2->cbPublicExp);
+                ptr2 += hdr2->cbPublicExp;
+            }
+            if (hdr2->cbModulus)
+            {
+                n.assign(ptr2, ptr2 + hdr2->cbModulus);
+                ptr2 += hdr2->cbModulus;
+            }
+        }
+
+        bool const has_full_private = !d.empty() && !p.empty() && !q.empty() && !dp.empty() &&
+                                      !dq.empty() && !iqmp.empty() && !priv_blob.empty();
+        if (has_full_private)
+        {
+            // Transfer ownership of the CNG handles to the key wrapper.
+            // The CNGRSAKey destructor will clean them up via the guard members.
+            return make_unique<CNGRSAKey>(std::move(n),
+                                          std::move(e),
+                                          std::move(d),
+                                          std::move(p),
+                                          std::move(q),
+                                          std::move(dp),
+                                          std::move(dq),
+                                          std::move(iqmp),
+                                          pub_blob,
+                                          priv_blob,
+                                          key_guard.release(),
+                                          alg_guard.release());
+        }
+
+        last_reason = "incomplete private RSA export from CNG provider";
     }
 
-    // If we didn't get n/e from pub_blob, try to get from priv_blob header
-    if (n.empty() && !priv_blob.empty() && priv_blob.size() >= sizeof(BCRYPT_RSAKEY_BLOB))
-    {
-        auto hdr2 = reinterpret_cast<BCRYPT_RSAKEY_BLOB const *>(priv_blob.data());
-        unsigned char const *ptr2 = priv_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
-        if (hdr2->cbPublicExp)
-        {
-            e.assign(ptr2, ptr2 + hdr2->cbPublicExp);
-            ptr2 += hdr2->cbPublicExp;
-        }
-        if (hdr2->cbModulus)
-        {
-            n.assign(ptr2, ptr2 + hdr2->cbModulus);
-            ptr2 += hdr2->cbModulus;
-        }
-    }
-
-    // Transfer ownership of the CNG handles to the key wrapper.
-    // The CNGRSAKey destructor will clean them up via the guard members.
-    return make_unique<CNGRSAKey>(std::move(n),
-                                  std::move(e),
-                                  std::move(d),
-                                  std::move(p),
-                                  std::move(q),
-                                  std::move(dp),
-                                  std::move(dq),
-                                  std::move(iqmp),
-                                  pub_blob,
-                                  priv_blob,
-                                  key_guard.release(),
-                                  alg_guard.release());
+    throw runtime_error("Failed to generate a complete RSA private key after " +
+                        to_string(max_attempts) + " attempts: " + last_reason);
 }
 
 unique_ptr<Key> CNGBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
