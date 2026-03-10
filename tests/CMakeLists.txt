@@ -20,7 +20,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 add_executable(jose_tests
     test_base64url.cpp
     test_jwk.cpp
-#    test_jwa.cpp
+    test_jwa.cpp
 #    test_jws.cpp
 #    test_jwe.cpp
 #    test_jwt.cpp
