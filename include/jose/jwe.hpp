@@ -32,7 +32,7 @@ public:
      * @brief Set the plaintext payload
      * @param plaintext Plaintext data
      */
-    void setPlaintext(const std::string &plaintext);
+    void setPlaintext(std::string const &plaintext);
 
     /**
      * @brief Set the key encryption algorithm
@@ -50,20 +50,20 @@ public:
      * @brief Set the key ID
      * @param kid Key ID
      */
-    void setKeyID(const std::string &kid);
+    void setKeyID(std::string const &kid);
 
     /**
      * @brief Set the type header
      * @param typ Type
      */
-    void setType(const std::string &typ);
+    void setType(std::string const &typ);
 
     /**
      * @brief Set a custom header parameter
      * @param name Parameter name
      * @param value Parameter value
      */
-    void setHeaderParam(const std::string &name, const std::string &value);
+    void setHeaderParam(std::string const &name, std::string const &value);
 
     /**
      * @brief Encrypt the payload
@@ -78,14 +78,14 @@ public:
      * @param key Decryption key
      * @return Decrypted plaintext
      */
-    static std::string decrypt(const std::string &jwe, const JWK &key);
+    static std::string decrypt(std::string const &jwe, const JWK &key);
 
     /**
      * @brief Parse a JWE without decryption
      * @param jwe JWE in compact serialization format
      * @return JWE object
      */
-    static JWE parse(const std::string &jwe);
+    static JWE parse(std::string const &jwe);
 
     /**
      * @brief Get the plaintext (after parsing or setting)

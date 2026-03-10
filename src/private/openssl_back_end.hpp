@@ -131,6 +131,23 @@ public:
     std::string base64Encode(std::vector<unsigned char> const &data) const override;
     std::vector<unsigned char> base64Decode(std::string const &encoded) const override;
     std::string getErrorString() const override;
+
+protected:
+    std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
+                                     Key *key,
+                                     std::vector<unsigned char> const &data) const override;
+    bool verify_(SignatureAlgorithm algorithm,
+                 Key *key,
+                 std::vector<unsigned char> const &data,
+                 std::vector<unsigned char> const &signature) const override;
+
+private:
+    std::vector<unsigned char>
+    signRsa(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const;
+    std::vector<unsigned char>
+    signEc(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const;
+    std::vector<unsigned char>
+    signOkp(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const;
 };
 
 }  // namespace Private

@@ -72,14 +72,14 @@ TEST_CASE("SignatureAlgorithmFromString", "[jwa][signaturealgorithmfromstring]")
 TEST_CASE("HS256SignAndVerify", "[jwa][hs256signandverify]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string data = "test message";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::hs256, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::hs256, key, data);
 
     REQUIRE_FALSE(signature.empty());
 
-    bool verified = JWA::verify(JWA::SignatureAlgorithm::hs256, key, dataVec, signature);
+    bool verified = JWA::verify(JWA::SignatureAlgorithm::hs256, key, data, signature);
 
     REQUIRE(verified);
 }
@@ -87,25 +87,25 @@ TEST_CASE("HS256SignAndVerify", "[jwa][hs256signandverify]")
 TEST_CASE("HS384SignAndVerify", "[jwa][hs384signandverify]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 384);
-    string data = "test message for HS384";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for HS384";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::hs384, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::hs384, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::hs384, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::hs384, key, data, signature));
 }
 
 TEST_CASE("HS512SignAndVerify", "[jwa][hs512signandverify]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 512);
-    string data = "test message for HS512";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for HS512";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::hs512, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::hs512, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::hs512, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::hs512, key, data, signature));
 }
 
 TEST_CASE("HMACWrongKeyFails", "[jwa][hmacwrongkeyfails]")
@@ -126,54 +126,53 @@ TEST_CASE("HMACWrongKeyFails", "[jwa][hmacwrongkeyfails]")
 TEST_CASE("RS256SignAndVerify", "[jwa][rs256signandverify]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message for RSA";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for RSA";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs256, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs256, key, data, signature));
 }
 
 TEST_CASE("RS384SignAndVerify", "[jwa][rs384signandverify]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message for RS384";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for RS384";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs384, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs384, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs384, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs384, key, data, signature));
 }
 
 TEST_CASE("RS512SignAndVerify", "[jwa][rs512signandverify]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message for RS512";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for RS512";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs512, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs512, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs512, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs512, key, data, signature));
 }
 
 TEST_CASE("RSAPublicKeyVerification", "[jwa][rsapublickeyverification]")
 {
     JWK privateKey = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature =
-        JWA::sign(JWA::SignatureAlgorithm::rs256, privateKey, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, privateKey, data);
 
     // Export public key only
     string publicKeyJson = privateKey.toJSON(false);
     JWK publicKey = JWK::fromJSON(publicKeyJson);
 
     // Verify with public key
-    bool verified = JWA::verify(JWA::SignatureAlgorithm::rs256, publicKey, dataVec, signature);
+    bool verified = JWA::verify(JWA::SignatureAlgorithm::rs256, publicKey, data, signature);
 
     REQUIRE(verified);
 }
@@ -182,84 +181,84 @@ TEST_CASE("RSAPublicKeyVerification", "[jwa][rsapublickeyverification]")
 TEST_CASE("ES256SignAndVerify", "[jwa][es256signandverify]")
 {
     JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
-    string data = "test message for ECDSA";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for ECDSA";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::es256, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::es256, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::es256, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::es256, key, data, signature));
 }
 
 TEST_CASE("ES384SignAndVerify", "[jwa][es384signandverify]")
 {
     JWK key = JWK::generateEC(JWK::Use::signature, "P-384");
-    string data = "test message for ES384";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for ES384";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::es384, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::es384, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::es384, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::es384, key, data, signature));
 }
 
 TEST_CASE("ES512SignAndVerify", "[jwa][es512signandverify]")
 {
     JWK key = JWK::generateEC(JWK::Use::signature, "P-521");
-    string data = "test message for ES512";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for ES512";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::es512, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::es512, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::es512, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::es512, key, data, signature));
 }
 
 // RSA-PSS signature tests (PS256, PS384, PS512)
 TEST_CASE("PS256SignAndVerify", "[jwa][ps256signandverify]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message for PSS";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for PSS";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::ps256, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::ps256, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::ps256, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::ps256, key, data, signature));
 }
 
 TEST_CASE("PS384SignAndVerify", "[jwa][ps384signandverify]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message for PS384";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for PS384";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::ps384, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::ps384, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::ps384, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::ps384, key, data, signature));
 }
 
 TEST_CASE("PS512SignAndVerify", "[jwa][ps512signandverify]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "test message for PS512";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "test message for PS512";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::ps512, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::ps512, key, data);
 
     REQUIRE_FALSE(signature.empty());
-    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::ps512, key, dataVec, signature));
+    REQUIRE(JWA::verify(JWA::SignatureAlgorithm::ps512, key, data, signature));
 }
 
 // Signature tampering detection
 TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "original message";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "original message";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, key, data);
 
     // Tamper with signature
     if (!signature.empty())
@@ -267,7 +266,7 @@ TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
         signature[0] ^= 0xFF;
     }
 
-    bool verified = JWA::verify(JWA::SignatureAlgorithm::rs256, key, dataVec, signature);
+    bool verified = JWA::verify(JWA::SignatureAlgorithm::rs256, key, data, signature);
 
     REQUIRE_FALSE(verified);
 }
@@ -275,10 +274,10 @@ TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
 TEST_CASE("TamperedDataFails", "[jwa][tampereddatafails]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string data = "original message";
-    vector<unsigned char> dataVec(data.begin(), data.end());
+    string data_string = "original message";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
 
-    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, key, dataVec);
+    vector<unsigned char> signature = JWA::sign(JWA::SignatureAlgorithm::rs256, key, data);
 
     // Tamper with data
     string tamperedData = "tampered message";

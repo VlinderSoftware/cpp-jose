@@ -20,7 +20,7 @@ using namespace std;
 
 using namespace Vlinder::JOSE;
 
-void demonstrateAlgorithm(const string &alg_name, JWA::SignatureAlgorithm alg, const JWK &key)
+void demonstrateAlgorithm(string const &alg_name, JWA::SignatureAlgorithm alg, const JWK &key)
 {
     cout << "\n--- " << alg_name << " ---" << endl;
 
@@ -141,7 +141,7 @@ int main()
         cout << "\n\n=== JWS Example Complete ===" << endl;
         return 0;
     }
-    catch (const exception &e)
+    catch (exception const &e)
     {
         cerr << "Error: " << e.what() << endl;
         return 1;

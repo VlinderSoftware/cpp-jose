@@ -32,7 +32,7 @@ public:
      * @brief Set the payload
      * @param payload Payload data
      */
-    void setPayload(const std::string &payload);
+    void setPayload(std::string const &payload);
 
     /**
      * @brief Set the algorithm
@@ -44,20 +44,20 @@ public:
      * @brief Set the key ID
      * @param kid Key ID
      */
-    void setKeyID(const std::string &kid);
+    void setKeyID(std::string const &kid);
 
     /**
      * @brief Set the type header
      * @param typ Type (e.g., "JWT")
      */
-    void setType(const std::string &typ);
+    void setType(std::string const &typ);
 
     /**
      * @brief Set a custom header parameter
      * @param name Parameter name
      * @param value Parameter value
      */
-    void setHeaderParam(const std::string &name, const std::string &value);
+    void setHeaderParam(std::string const &name, std::string const &value);
 
     /**
      * @brief Sign the payload
@@ -72,14 +72,14 @@ public:
      * @param key Verification key
      * @return true if valid, false otherwise
      */
-    static bool verify(const std::string &jws, const JWK &key);
+    static bool verify(std::string const &jws, const JWK &key);
 
     /**
      * @brief Parse a JWS without verification
      * @param jws JWS in compact serialization format
      * @return JWS object
      */
-    static JWS parse(const std::string &jws);
+    static JWS parse(std::string const &jws);
 
     /**
      * @brief Get the payload (after parsing or setting)

@@ -46,7 +46,7 @@ JWS &JWS::operator=(const JWS &other)
 JWS::JWS(JWS &&other) noexcept = default;
 JWS &JWS::operator=(JWS &&other) noexcept = default;
 
-void JWS::setPayload(const string &payload)
+void JWS::setPayload(string const &payload)
 {
     impl_->payload_ = payload;
 }
@@ -56,17 +56,17 @@ void JWS::setAlgorithm(JWA::SignatureAlgorithm algorithm)
     impl_->algorithm_ = algorithm;
 }
 
-void JWS::setKeyID(const string &kid)
+void JWS::setKeyID(string const &kid)
 {
     impl_->kid_ = kid;
 }
 
-void JWS::setType(const string &typ)
+void JWS::setType(string const &typ)
 {
     impl_->typ_ = typ;
 }
 
-void JWS::setHeaderParam(const string &name, const string &value)
+void JWS::setHeaderParam(string const &name, string const &value)
 {
     impl_->header_params_[name] = value;
 }
@@ -88,7 +88,7 @@ string JWS::sign(const JWK &key) const
     }
 
     // Add custom header parameters
-    for (const auto &param : impl_->header_params_)
+    for (auto const &param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }
@@ -118,7 +118,7 @@ string JWS::sign(const JWK &key) const
     return signing_input + "." + encoded_signature;
 }
 
-bool JWS::verify(const string &jws, const JWK &key)
+bool JWS::verify(string const &jws, const JWK &key)
 {
     try
     {
@@ -168,7 +168,7 @@ bool JWS::verify(const string &jws, const JWK &key)
     }
 }
 
-JWS JWS::parse(const string &jws)
+JWS JWS::parse(string const &jws)
 {
     // Split into three parts
     size_t first_dot = jws.find('.');
@@ -237,7 +237,7 @@ string JWS::getHeader() const
         header["kid"] = impl_->kid_;
     }
 
-    for (const auto &param : impl_->header_params_)
+    for (auto const &param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }

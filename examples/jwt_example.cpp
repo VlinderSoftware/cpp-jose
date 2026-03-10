@@ -20,7 +20,7 @@ using namespace std;
 
 using namespace Vlinder::JOSE;
 
-void printTimestamp(const string &label, chrono::system_clock::time_point tp)
+void printTimestamp(string const &label, chrono::system_clock::time_point tp)
 {
     auto time = chrono::system_clock::to_time_t(tp);
     cout << label << ": " << put_time(gmtime(&time), "%Y-%m-%d %H:%M:%S UTC") << endl;
@@ -121,7 +121,7 @@ int main()
         cout << "=== JWT Example Complete ===" << endl;
         return 0;
     }
-    catch (const exception &e)
+    catch (exception const &e)
     {
         cerr << "Error: " << e.what() << endl;
         return 1;

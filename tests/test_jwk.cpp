@@ -188,8 +188,7 @@ SCENARIO("RSA keys can be generated with different bit sizes", "[jwk][rsa][gener
     }
 }
 
-TEST_CASE("Generated RSA keys always serialize full private CRT material",
-          "[jwk][rsa][generation]")
+TEST_CASE("Generated RSA keys always serialize full private CRT material", "[jwk][rsa][generation]")
 {
     for (int i = 0; i < 32; ++i)
     {
@@ -581,8 +580,7 @@ TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
 }
 
 #if defined(JOSE_USE_OPENSSL)
-TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER",
-          "[jwk][rsa][openssl][der]")
+TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER", "[jwk][rsa][openssl][der]")
 {
     JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
     auto json = nlohmann::json::parse(original.toJSON(true));
@@ -631,8 +629,7 @@ TEST_CASE("JWK RSA import rejects missing qi", "[jwk][rsa][round-trip][openssl][
                         Catch::Matchers::ContainsSubstring("Ill-formed RSA private key"));
 }
 
-TEST_CASE("JWK RSA import rejects missing CRT exponents",
-          "[jwk][rsa][round-trip][openssl][strict]")
+TEST_CASE("JWK RSA import rejects missing CRT exponents", "[jwk][rsa][round-trip][openssl][strict]")
 {
     nlohmann::json json = nlohmann::json::parse(k_rsa_private_json_fixture);
 
@@ -669,7 +666,8 @@ TEST_CASE("JWK RSA import accepts private key with n/e/d only",
 #if defined(JOSE_USE_CNG)
     REQUIRE_THROWS_WITH(
         JWK::fromJSON(json.dump()),
-        Catch::Matchers::ContainsSubstring("CNG RSA import requires either a public key (n, e) or a full private key"));
+        Catch::Matchers::ContainsSubstring(
+            "CNG RSA import requires either a public key (n, e) or a full private key"));
 #else
     JWK parsed = JWK::fromJSON(json.dump());
     REQUIRE(parsed.getKeyType() == JWK::KeyType::rsa);

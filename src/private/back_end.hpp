@@ -184,14 +184,15 @@ public:
     virtual std::unique_ptr<Key> generateOkp(std::string const &curve,
                                              std::vector<unsigned char> const &x_bytes,
                                              std::vector<unsigned char> const &d_bytes) const = 0;
-    // virtual std::vector<unsigned char> sign(
-    //    SignatureAlgorithm algorithm, JWK const& key,
-    //    std::vector<unsigned char> const &data) const = 0;
 
-    // virtual bool verify(
-    //     SignatureAlgorithm algorithm, JWK const& key,
-    //     std::vector<unsigned char> const &data,
-    //     std::vector<unsigned char> const& signature) const = 0;
+    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
+                                    JWK const &key,
+                                    std::vector<unsigned char> const &data) const;
+
+    bool verify(SignatureAlgorithm algorithm,
+                JWK const &key,
+                std::vector<unsigned char> const &data,
+                std::vector<unsigned char> const &signature) const;
 
     // virtual std::vector<unsigned char> encrypt(ContentEncryptionAlgorithm algorithm, JWK const&
     // key,
@@ -222,6 +223,13 @@ public:
 
     ///// Get hash algorithm for signature
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;
+protected:
+    virtual std::vector<unsigned char>
+    sign_(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const = 0;
+    virtual bool verify_(SignatureAlgorithm algorithm,
+                         Key *key,
+                         std::vector<unsigned char> const &data,
+                         std::vector<unsigned char> const &signature) const = 0;
 };
 
 }  // namespace Private

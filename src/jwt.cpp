@@ -34,12 +34,12 @@ struct JWT::Impl
 {
     map<string, json> claims_;
 
-    void setClaim(const string &name, const json &value)
+    void setClaim(string const &name, json const &value)
     {
         claims_[name] = value;
     }
 
-    json getClaim(const string &name) const
+    json getClaim(string const &name) const
     {
         auto it = claims_.find(name);
         if (it != claims_.end())
@@ -49,7 +49,7 @@ struct JWT::Impl
         return json();
     }
 
-    bool hasClaim(const string &name) const
+    bool hasClaim(string const &name) const
     {
         return claims_.find(name) != claims_.end();
     }
@@ -77,22 +77,22 @@ JWT &JWT::operator=(const JWT &other)
 JWT::JWT(JWT &&other) noexcept = default;
 JWT &JWT::operator=(JWT &&other) noexcept = default;
 
-void JWT::setIssuer(const string &iss)
+void JWT::setIssuer(string const &iss)
 {
     impl_->setClaim("iss", iss);
 }
 
-void JWT::setSubject(const string &sub)
+void JWT::setSubject(string const &sub)
 {
     impl_->setClaim("sub", sub);
 }
 
-void JWT::setAudience(const string &aud)
+void JWT::setAudience(string const &aud)
 {
     impl_->setClaim("aud", aud);
 }
 
-void JWT::setAudience(const vector<string> &aud)
+void JWT::setAudience(vector<string> const &aud)
 {
     if (aud.empty())
     {
@@ -106,7 +106,7 @@ void JWT::setAudience(const vector<string> &aud)
     else
     {
         json aud_array = json::array();
-        for (const auto &a : aud)
+        for (auto const &a : aud)
         {
             aud_array.push_back(a);
         }
@@ -129,12 +129,12 @@ void JWT::setIssuedAt(chrono::system_clock::time_point iat)
     impl_->setClaim("iat", static_cast<int>(timePointToTimestamp(iat)));
 }
 
-void JWT::setJWTID(const string &jti)
+void JWT::setJWTID(string const &jti)
 {
     impl_->setClaim("jti", jti);
 }
 
-void JWT::setClaim(const string &name, const string &value)
+void JWT::setClaim(string const &name, string const &value)
 {
     impl_->setClaim(name, value);
 }
@@ -171,7 +171,7 @@ vector<string> JWT::getAudience() const
     else if (claim.is_array())
     {
         // Proper array iteration with nlohmann::json
-        for (const auto &elem : claim)
+        for (auto const &elem : claim)
         {
             if (elem.is_string())
             {
@@ -223,7 +223,7 @@ string JWT::getJWTID() const
     return "";
 }
 
-string JWT::getClaim(const string &name) const
+string JWT::getClaim(string const &name) const
 {
     json claim = impl_->getClaim(name);
     if (claim.is_string())
@@ -233,17 +233,17 @@ string JWT::getClaim(const string &name) const
     return "";
 }
 
-bool JWT::hasClaim(const string &name) const
+bool JWT::hasClaim(string const &name) const
 {
     return impl_->hasClaim(name);
 }
 
-string JWT::sign(const JWK &key, const string &algorithm) const
+string JWT::sign(const JWK &key, string const &algorithm) const
 {
     // Build claims JSON
     json claims_json = json::object();
 
-    for (const auto &claim : impl_->claims_)
+    for (auto const &claim : impl_->claims_)
     {
         claims_json[claim.first] = claim.second;
     }
@@ -284,7 +284,7 @@ string JWT::sign(const JWK &key, const string &algorithm) const
     return jws.sign(key);
 }
 
-JWT JWT::verify(const string &jwt, const JWK &key)
+JWT JWT::verify(string const &jwt, const JWK &key)
 {
     // Verify using JWS
     if (!JWS::verify(jwt, key))
@@ -296,7 +296,7 @@ JWT JWT::verify(const string &jwt, const JWK &key)
     return parse(jwt);
 }
 
-JWT JWT::parse(const string &jwt)
+JWT JWT::parse(string const &jwt)
 {
     // Parse as JWS
     JWS jws = JWS::parse(jwt);
@@ -331,7 +331,7 @@ JWT JWT::parse(const string &jwt)
         else if (claims_json["aud"].is_array())
         {
             vector<string> audiences;
-            for (const auto &elem : claims_json["aud"])
+            for (auto const &elem : claims_json["aud"])
             {
                 if (elem.is_string())
                 {
@@ -370,7 +370,7 @@ JWT JWT::parse(const string &jwt)
     return result;
 }
 
-bool JWT::validate(const string &issuer, const string &audience, int leeway) const
+bool JWT::validate(string const &issuer, string const &audience, int leeway) const
 {
     auto now = chrono::system_clock::now();
 
@@ -393,7 +393,7 @@ bool JWT::validate(const string &issuer, const string &audience, int leeway) con
         }
 
         bool found = false;
-        for (const auto &aud : audiences)
+        for (auto const &aud : audiences)
         {
             if (aud == audience)
             {

@@ -74,6 +74,21 @@ public:
     {
         return string();
     }
+
+protected:
+    virtual std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
+                                             Key *key,
+                                             std::vector<unsigned char> const &data) const override
+    {
+        return {};
+    }
+    bool verify_(SignatureAlgorithm algorithm,
+                 Key *key,
+                 std::vector<unsigned char> const &data,
+                 std::vector<unsigned char> const &signature) const override
+    {
+        return false;
+    }
 };
 
 TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output")

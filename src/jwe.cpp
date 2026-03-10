@@ -121,7 +121,7 @@ JWE &JWE::operator=(const JWE &other)
 JWE::JWE(JWE &&other) noexcept = default;
 JWE &JWE::operator=(JWE &&other) noexcept = default;
 
-void JWE::setPlaintext(const string &plaintext)
+void JWE::setPlaintext(string const &plaintext)
 {
     impl_->plaintext_ = plaintext;
 }
@@ -136,17 +136,17 @@ void JWE::setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm algorith
     impl_->content_algorithm_ = algorithm;
 }
 
-void JWE::setKeyID(const string &kid)
+void JWE::setKeyID(string const &kid)
 {
     impl_->kid_ = kid;
 }
 
-void JWE::setType(const string &typ)
+void JWE::setType(string const &typ)
 {
     impl_->typ_ = typ;
 }
 
-void JWE::setHeaderParam(const string &name, const string &value)
+void JWE::setHeaderParam(string const &name, string const &value)
 {
     impl_->header_params_[name] = value;
 }
@@ -169,7 +169,7 @@ string JWE::encrypt(const JWK &key) const
     }
 
     // Add custom header parameters
-    for (const auto &param : impl_->header_params_)
+    for (auto const &param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }
@@ -283,7 +283,7 @@ string JWE::encrypt(const JWK &key) const
            encoded_ciphertext + "." + encoded_auth_tag;
 }
 
-string JWE::decrypt(const string &jwe, const JWK &key)
+string JWE::decrypt(string const &jwe, const JWK &key)
 {
     // Split into five parts
     vector<string> parts;
@@ -408,7 +408,7 @@ string JWE::decrypt(const string &jwe, const JWK &key)
     return string(plaintext.begin(), plaintext.end());
 }
 
-JWE JWE::parse(const string &jwe)
+JWE JWE::parse(string const &jwe)
 {
     // Split into five parts
     vector<string> parts;
@@ -487,7 +487,7 @@ string JWE::getHeader() const
         header["kid"] = impl_->kid_;
     }
 
-    for (const auto &param : impl_->header_params_)
+    for (auto const &param : impl_->header_params_)
     {
         header[param.first] = param.second;
     }

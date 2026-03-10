@@ -289,7 +289,7 @@ TEST_CASE("AllKeyTypesProduceValidThumbprints", "[jwa][allkeytypesproducevalidth
                         JWK::generateOct(JWK::Use::signature, 256),
                         JWK::generateOct(JWK::Use::signature, 512)};
 
-    for (const auto &key : keys)
+    for (auto const &key : keys)
     {
         string thumbprint = JWKThumbprint::compute(key);
         REQUIRE_FALSE(thumbprint.empty());
@@ -309,7 +309,7 @@ TEST_CASE("AllHashAlgorithmsWork", "[jwa][allhashalgorithmswork]")
 
     vector<pair<string, size_t>> algorithms = {{"SHA-256", 43}, {"SHA-384", 64}, {"SHA-512", 86}};
 
-    for (const auto &[alg, expectedLength] : algorithms)
+    for (auto const &[alg, expectedLength] : algorithms)
     {
         string thumbprint = JWKThumbprint::compute(key, alg);
         REQUIRE_FALSE(thumbprint.empty());

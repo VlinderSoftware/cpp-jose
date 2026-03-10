@@ -32,7 +32,7 @@ bool JWA::verify(SignatureAlgorithm algorithm,
 
 vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
                                       const JWK &key,
-                                      const vector<unsigned char> &cek,
+                                      vector<unsigned char> const &cek,
                                       vector<unsigned char> *out_iv,
                                       vector<unsigned char> *out_tag,
                                       JWK *ephemeral_key,
@@ -50,9 +50,9 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
 
 vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
                                       const JWK &key,
-                                      const vector<unsigned char> &encrypted_cek,
-                                      const vector<unsigned char> *in_iv,
-                                      const vector<unsigned char> *in_tag,
+                                      vector<unsigned char> const &encrypted_cek,
+                                      vector<unsigned char> const *in_iv,
+                                      vector<unsigned char> const *in_tag,
                                       const JWK *ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
@@ -68,10 +68,10 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
 
 pair<vector<unsigned char>, vector<unsigned char>>
 JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
-                    const vector<unsigned char> &cek,
-                    const vector<unsigned char> &iv,
-                    const vector<unsigned char> &plaintext,
-                    const vector<unsigned char> &aad)
+                    vector<unsigned char> const &cek,
+                    vector<unsigned char> const &iv,
+                    vector<unsigned char> const &plaintext,
+                    vector<unsigned char> const &aad)
 {
     (void)algorithm;
     (void)cek;
@@ -82,11 +82,11 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
-                                          const vector<unsigned char> &cek,
-                                          const vector<unsigned char> &iv,
-                                          const vector<unsigned char> &ciphertext,
-                                          const vector<unsigned char> &aad,
-                                          const vector<unsigned char> &tag)
+                                          vector<unsigned char> const &cek,
+                                          vector<unsigned char> const &iv,
+                                          vector<unsigned char> const &ciphertext,
+                                          vector<unsigned char> const &aad,
+                                          vector<unsigned char> const &tag)
 {
     (void)algorithm;
     (void)cek;

@@ -105,6 +105,7 @@ PenaltyReturnTypeOnItsOwnLine: 60
 DerivePointerAlignment: false
 PointerAlignment: Right
 ReferenceAlignment: Right
+QualifierAlignment: Right
 
 # Spacing
 SpaceAfterCStyleCast: false

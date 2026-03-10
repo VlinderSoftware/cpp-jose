@@ -18,28 +18,28 @@ public:
      * @param data Data to encode
      * @return Base64URL encoded string
      */
-    static std::string encode(const std::vector<unsigned char> &data);
+    static std::string encode(std::vector<unsigned char> const &data);
 
     /**
      * @brief Encode string to base64url format
      * @param str String to encode
      * @return Base64URL encoded string
      */
-    static std::string encode(const std::string &str);
+    static std::string encode(std::string const &str);
 
     /**
      * @brief Decode base64url string
      * @param encoded Base64URL encoded string
      * @return Decoded data
      */
-    static std::vector<unsigned char> decode(const std::string &encoded);
+    static std::vector<unsigned char> decode(std::string const &encoded);
 
     /**
      * @brief Decode base64url string to string
      * @param encoded Base64URL encoded string
      * @return Decoded string
      */
-    static std::string decodeToString(const std::string &encoded);
+    static std::string decodeToString(std::string const &encoded);
 };
 
 }  // namespace JOSE

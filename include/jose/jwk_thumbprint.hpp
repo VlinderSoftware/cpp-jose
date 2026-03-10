@@ -30,7 +30,7 @@ public:
      * @param algorithm Hash algorithm (e.g., "SHA-256", "SHA-384", "SHA-512")
      * @return Base64URL-encoded thumbprint
      */
-    static std::string compute(const JWK &key, const std::string &algorithm);
+    static std::string compute(const JWK &key, std::string const &algorithm);
 
     /**
      * @brief Compute raw thumbprint bytes
@@ -39,7 +39,7 @@ public:
      * @return Raw thumbprint bytes
      */
     static std::vector<unsigned char> computeRaw(const JWK &key,
-                                                 const std::string &algorithm = "SHA-256");
+                                                 std::string const &algorithm = "SHA-256");
 };
 
 }  // namespace JOSE

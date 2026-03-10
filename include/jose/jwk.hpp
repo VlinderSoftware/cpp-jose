@@ -8,7 +8,9 @@
 
 namespace Vlinder {
 namespace JOSE {
-
+namespace Private {
+class BackEnd;
+}
 /**
  * @brief JSON Web Key (RFC 7517)
  *
@@ -44,7 +46,7 @@ public:
      * @param json JSON string
      * @return JWK object
      */
-    static JWK fromJSON(const std::string &json, bool ignore_private_if_present = false);
+    static JWK fromJSON(std::string const &json, bool ignore_private_if_present = false);
 
     /**
      * @brief Generate a new RSA key
@@ -53,7 +55,7 @@ public:
      * @param alg Optional algorithm. If empty, defaults to RS256 (sig) or RSA-OAEP-256 (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateRSA(Use use, unsigned int bits = 2048, const std::string &alg = {});
+    static JWK generateRSA(Use use, unsigned int bits = 2048, std::string const &alg = {});
 
     /**
      * @brief Generate a new EC key
@@ -62,7 +64,7 @@ public:
      * @param alg Optional algorithm. If empty, defaults based on curve (ES256/ES384/ES512)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateEC(Use use, const std::string &curve = "P-256", const std::string &alg = "");
+    static JWK generateEC(Use use, std::string const &curve = "P-256", std::string const &alg = "");
 
     /**
      * @brief Generate a new symmetric key
@@ -71,10 +73,10 @@ public:
      * @param alg Optional algorithm. If empty, defaults to HS256 (sig) or A256KW (enc)
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
-    static JWK generateOct(Use use, int bits = 256, const std::string &alg = "");
+    static JWK generateOct(Use use, int bits = 256, std::string const &alg = "");
     static JWK generateOKP(Use use,
                            unsigned int bits = 0 /*default depends on use*/,
-                           const std::string &alg = {});
+                           std::string const &alg = {});
 
     /**
      * @brief Serialize to JSON
@@ -91,7 +93,7 @@ public:
     /**
      * @brief Set key ID
      */
-    void setKeyID(const std::string &kid);
+    void setKeyID(std::string const &kid);
 
     /**
      * @brief Get key ID
@@ -106,7 +108,7 @@ public:
     /**
      * @brief Set algorithm
      */
-    void setAlgorithm(const std::string &alg);
+    void setAlgorithm(std::string const &alg);
 
     /**
      * @brief Get algorithm
@@ -124,6 +126,8 @@ private:
     JWK(Impl &&impl);
 
     std::unique_ptr<Impl> impl_;
+
+    friend class Private::BackEnd;
 };
 
 /**
@@ -142,7 +146,7 @@ public:
     /**
      * @brief Parse JWK Set from JSON
      */
-    static JWKSet fromJSON(const std::string &json, bool ignore_private_if_present = false);
+    static JWKSet fromJSON(std::string const &json, bool ignore_private_if_present = false);
 
     /**
      * @brief Add a key to the set
@@ -152,7 +156,7 @@ public:
     /**
      * @brief Get key by ID
      */
-    JWK getKey(const std::string &kid) const;
+    JWK getKey(std::string const &kid) const;
 
     /**
      * @brief Get all keys

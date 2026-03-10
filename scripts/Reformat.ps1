@@ -6,14 +6,51 @@ $ErrorActionPreference = "Stop"
 
 function Get-ClangFormatPath {
     $clangFormatCommand = Get-Command clang-format -ErrorAction SilentlyContinue
-    if ($null -eq $clangFormatCommand) {
-        throw "Unable to locate clang-format. Ensure it is installed and available in PATH."
+    if ($null -ne $clangFormatCommand) {
+        return $clangFormatCommand.Source
     }
 
-    return $clangFormatCommand.Source
+    $fallbackPaths = @(
+        "C:\Program Files\LLVM\bin\clang-format.exe",
+        "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\Llvm\x64\bin\clang-format.exe",
+        "C:\Program Files\Microsoft Visual Studio\2022\Professional\VC\Tools\Llvm\x64\bin\clang-format.exe",
+        "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\Llvm\x64\bin\clang-format.exe",
+        "C:\Program Files\Microsoft Visual Studio\17.0\Community\VC\Tools\Llvm\x64\bin\clang-format.exe",
+        "C:\Program Files\Microsoft Visual Studio\17.0\Professional\VC\Tools\Llvm\x64\bin\clang-format.exe",
+        "C:\Program Files\Microsoft Visual Studio\17.0\Enterprise\VC\Tools\Llvm\x64\bin\clang-format.exe"
+    )
+
+    foreach ($candidate in $fallbackPaths) {
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    throw "Unable to locate clang-format. Ensure it is installed and available in PATH."
 }
 
-$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+function Get-RepoRoot {
+    $current = $PSScriptRoot
+    if ([string]::IsNullOrWhiteSpace($current)) {
+        $current = Split-Path -Parent $PSCommandPath
+    }
+
+    while ($true) {
+        $cmakePath = Join-Path $current "CMakeLists.txt"
+        if (Test-Path $cmakePath) {
+            return $current
+        }
+
+        $parent = Split-Path -Parent $current
+        if ($parent -eq $current) {
+            throw "Unable to locate repository root (CMakeLists.txt not found in parent chain)."
+        }
+
+        $current = $parent
+    }
+}
+
+$repoRoot = Get-RepoRoot
 $clangFormatPath = Get-ClangFormatPath
 
 $roots = @("src", "include", "tests", "examples") |

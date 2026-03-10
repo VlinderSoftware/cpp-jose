@@ -42,7 +42,7 @@ TEST_CASE("JWS_CreateJWSWithAllAlgorithms", "[jws][createjwswithallalgorithms]")
         {JWA::SignatureAlgorithm::ps384, JWK::generateRSA(JWK::Use::signature, 2048)},
         {JWA::SignatureAlgorithm::ps512, JWK::generateRSA(JWK::Use::signature, 2048)}};
 
-    for (const auto &[alg, key] : testCases)
+    for (auto const &[alg, key] : testCases)
     {
         JWS jws;
         jws.setPayload("test");

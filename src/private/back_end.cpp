@@ -1,5 +1,6 @@
 #include "back_end.hpp"
 
+#include "../jwk_impl.hpp"
 #include "endian.hpp"
 
 using namespace std;
@@ -96,6 +97,129 @@ BackEnd::concatKDF(vector<unsigned char> const &shared_secret /* Z in the spec *
     }
     derived_key.resize(key_data_len);
     return derived_key;
+}
+
+vector<unsigned char>
+BackEnd::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data) const
+{
+    auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
+    if (underlying_key == nullptr)
+    {
+        throw runtime_error("Key does not contain valid material");
+    }
+    // validate the key has private part and throw if not
+    if (!key.hasPrivateKey())
+    {
+        throw runtime_error("Key does not contain private material");
+    }
+    // validate the algorithm against the key type and throw if not compatible
+    switch (algorithm)
+    {
+        case SignatureAlgorithm::hs256:
+        case SignatureAlgorithm::hs384:
+        case SignatureAlgorithm::hs512:
+            if (key.getKeyType() != JWK::KeyType::oct ||
+                dynamic_cast<OctKey const *>(underlying_key) == nullptr)
+            {
+                throw runtime_error("Incompatible key type for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::rs256:
+        case SignatureAlgorithm::rs384:
+        case SignatureAlgorithm::rs512:
+        case SignatureAlgorithm::ps256:
+        case SignatureAlgorithm::ps384:
+        case SignatureAlgorithm::ps512:
+            if (key.getKeyType() != JWK::KeyType::rsa)
+            {
+                throw runtime_error("Incompatible key type for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::es256:
+            if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES256")
+            {
+                throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::es384:
+            if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES384")
+            {
+                throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::es512:
+            if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES512")
+            {
+                throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::none:
+            throw runtime_error("Cannot sign with 'none' algorithm");
+    }
+    // Delegate to back-end
+    return this->sign_(algorithm, underlying_key, data);
+}
+
+bool BackEnd::verify(SignatureAlgorithm algorithm,
+                     JWK const &key,
+                     std::vector<unsigned char> const &data,
+                     std::vector<unsigned char> const &signature) const
+{
+    auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
+    if (underlying_key == nullptr)
+    {
+        throw runtime_error("Key does not contain valid material");
+    }
+
+    switch (algorithm)
+    {
+        case SignatureAlgorithm::hs256:
+        case SignatureAlgorithm::hs384:
+        case SignatureAlgorithm::hs512:
+            if (key.getKeyType() != JWK::KeyType::oct ||
+                dynamic_cast<OctKey const *>(underlying_key) == nullptr)
+            {
+                throw runtime_error("Incompatible key type for algorithm");
+            }
+            if (!key.hasPrivateKey())
+            {
+                throw runtime_error("HMAC verification requires symmetric key material");
+            }
+            break;
+        case SignatureAlgorithm::rs256:
+        case SignatureAlgorithm::rs384:
+        case SignatureAlgorithm::rs512:
+        case SignatureAlgorithm::ps256:
+        case SignatureAlgorithm::ps384:
+        case SignatureAlgorithm::ps512:
+            if (key.getKeyType() != JWK::KeyType::rsa)
+            {
+                throw runtime_error("Incompatible key type for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::es256:
+            if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES256")
+            {
+                throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::es384:
+            if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES384")
+            {
+                throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::es512:
+            if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES512")
+            {
+                throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::none:
+            throw runtime_error("Cannot verify with 'none' algorithm");
+    }
+
+    return this->verify_(algorithm, underlying_key, data, signature);
 }
 
 }  // namespace Private

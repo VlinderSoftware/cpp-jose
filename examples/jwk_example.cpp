@@ -160,7 +160,7 @@ int main()
             string ec_thumbprint = JWKThumbprint::compute(ec_key_256);
             cout << "SHA-256: " << ec_thumbprint << endl;
         }
-        catch (const exception &)
+        catch (exception const &)
         {
             cout << "Note: EC key thumbprint computation requires curve parameters" << endl;
             cout << "(Some implementations may not export all required fields)" << endl;
@@ -172,7 +172,7 @@ int main()
             string oct_thumbprint = JWKThumbprint::compute(oct_key_256);
             cout << "SHA-256: " << oct_thumbprint << endl;
         }
-        catch (const exception &)
+        catch (exception const &)
         {
             cout << "Note: Symmetric key thumbprint requires key material" << endl;
             cout << "(Public representation doesn't include key value)" << endl;
@@ -244,7 +244,7 @@ int main()
         cout << "\n\n10. Key Type Identification" << endl;
         cout << "==========================================" << endl;
 
-        auto print_key_type = [](const JWK &key, const string &name)
+        auto print_key_type = [](const JWK &key, string const &name)
         {
             cout << "\n" << name << ":" << endl;
             JWK::KeyType type = key.getKeyType();
@@ -274,7 +274,7 @@ int main()
         cout << "\n\n=== JWK Example Complete ===" << endl;
         return 0;
     }
-    catch (const exception &e)
+    catch (exception const &e)
     {
         cerr << "Error: " << e.what() << endl;
         return 1;

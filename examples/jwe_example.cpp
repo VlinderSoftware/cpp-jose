@@ -181,7 +181,7 @@ int main()
         cout << "\n\n=== JWE Example Complete ===" << endl;
         return 0;
     }
-    catch (const exception &e)
+    catch (exception const &e)
     {
         cerr << "Error: " << e.what() << endl;
         return 1;

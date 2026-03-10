@@ -399,7 +399,7 @@ TEST_CASE("RoundTripWithDifferentAlgorithms", "[jwa][roundtripwithdifferentalgor
         {JWA::SignatureAlgorithm::es256, JWK::generateEC(JWK::Use::signature, "P-256")},
         {JWA::SignatureAlgorithm::ps256, JWK::generateRSA(JWK::Use::signature, 2048)}};
 
-    for (const auto &[alg, key] : testCases)
+    for (auto const &[alg, key] : testCases)
     {
         JWS jws;
         jws.setPayload(payload);

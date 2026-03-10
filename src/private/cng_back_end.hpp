@@ -1,7 +1,8 @@
 #define WIN32_NO_STATUS
+// clang-format off
 #include <windows.h>
 #include <bcrypt.h>
-
+// clang-format on
 #include "back_end.hpp"
 
 namespace Vlinder {
@@ -9,10 +10,9 @@ namespace JOSE {
 namespace Private {
 
 /// RAII guards for CNG opaque handles (both typedef PVOID).
-/// Stateless lambdas are default-constructible in C++20, so they work
-/// directly as unique_ptr deleters without a named functor struct.
 using AlgHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptCloseAlgorithmProvider(h, 0); })>;
 using KeyHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptDestroyKey(h); })>;
+using HashHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptDestroyHash(h); })>;
 
 class CNGRSAKey : public RSAKey
 {
@@ -163,6 +163,15 @@ public:
 
     ///// Get hash algorithm for signature
     // virtual void const* getHashAlgorithm(SignatureAlgorithm signature_algorithm) const override;
+
+protected:
+    std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
+                                     Key *key,
+                                     std::vector<unsigned char> const &data) const override;
+    bool verify_(SignatureAlgorithm algorithm,
+                 Key *key,
+                 std::vector<unsigned char> const &data,
+                 std::vector<unsigned char> const &signature) const override;
 };
 
 }  // namespace Private

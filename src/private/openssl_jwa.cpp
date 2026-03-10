@@ -4,11 +4,11 @@
 #include <map>
 #include <stdexcept>
 
-#include "backend_factory.hpp"
-#include "details/backend.hpp"
+#include "back_end.hpp"
+#include "back_end_factory.hpp"
+#include "endian.hpp"
 #include "jwa.hpp"
 #include "jwk.hpp"
-#include "private/endian.hpp"
 
 using namespace std;
 
@@ -27,7 +27,7 @@ vector<unsigned char> performECDH(Details::KeyRing const &private_key,
     return backend.derive(private_key, public_key);
 }
 
-vector<unsigned char> hmacSign(const void *md, const JWK &key, const vector<unsigned char> &data)
+vector<unsigned char> hmacSign(void const *md, const JWK &key, vector<unsigned char> const &data)
 {
     EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
@@ -70,10 +70,10 @@ vector<unsigned char> hmacSign(const void *md, const JWK &key, const vector<unsi
     return signature;
 }
 
-bool hmacVerify(const void *md,
+bool hmacVerify(void const *md,
                 const JWK &key,
-                const vector<unsigned char> &data,
-                const vector<unsigned char> &signature)
+                vector<unsigned char> const &data,
+                vector<unsigned char> const &signature)
 {
     vector<unsigned char> expected_sig = hmacSign(md, key, data);
 
@@ -85,7 +85,7 @@ bool hmacVerify(const void *md,
     return CRYPTO_memcmp(expected_sig.data(), signature.data(), signature.size()) == 0;
 }
 vector<unsigned char>
-rsaSign(const void *md, const JWK &key, const vector<unsigned char> &data, bool use_pss)
+rsaSign(void const *md, const JWK &key, vector<unsigned char> const &data, bool use_pss)
 {
     EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
@@ -141,10 +141,10 @@ rsaSign(const void *md, const JWK &key, const vector<unsigned char> &data, bool 
     return signature;
 }
 
-bool rsaVerify(const void *md,
+bool rsaVerify(void const *md,
                const JWK &key,
-               const vector<unsigned char> &data,
-               const vector<unsigned char> &signature,
+               vector<unsigned char> const &data,
+               vector<unsigned char> const &signature,
                bool use_pss)
 {
     EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
@@ -189,7 +189,7 @@ bool rsaVerify(const void *md,
     return result == 1;
 }
 
-vector<unsigned char> ecdsaSign(const void *md, const JWK &key, const vector<unsigned char> &data)
+vector<unsigned char> ecdsaSign(void const *md, const JWK &key, vector<unsigned char> const &data)
 {
     EVP_PKEY *pkey = static_cast<EVP_PKEY *>(key.getKey());
     if (!pkey)
@@ -244,7 +244,7 @@ vector<unsigned char> ecdsaSign(const void *md, const JWK &key, const vector<uns
         return signature;
     }
 
-    const unsigned char *p = signature.data();
+    unsigned char const *p = signature.data();
     ECDSA_SIG *ecdsa_sig = d2i_ECDSA_SIG(nullptr, &p, signature.size());
     if (!ecdsa_sig)
     {
@@ -317,10 +317,10 @@ vector<unsigned char> ecdsaSign(const void *md, const JWK &key, const vector<uns
     return signature;
 }
 
-bool ecdsaVerify(const void *md,
+bool ecdsaVerify(void const *md,
                  const JWK &key,
-                 const vector<unsigned char> &data,
-                 const vector<unsigned char> &signature)
+                 vector<unsigned char> const &data,
+                 vector<unsigned char> const &signature)
 {
     if (signature.size() % 2 != 0)
     {
@@ -413,7 +413,7 @@ bool ecdsaVerify(const void *md,
 }
 
 vector<unsigned char> rsaEncrypt(const JWK &key,
-                                 const vector<unsigned char> &plaintext,
+                                 vector<unsigned char> const &plaintext,
                                  int padding,
                                  const EVP_MD *md = nullptr)
 {
@@ -476,7 +476,7 @@ vector<unsigned char> rsaEncrypt(const JWK &key,
 }
 
 vector<unsigned char> rsaDecrypt(const JWK &key,
-                                 const vector<unsigned char> &ciphertext,
+                                 vector<unsigned char> const &ciphertext,
                                  int padding,
                                  const EVP_MD *md = nullptr)
 {
@@ -539,8 +539,8 @@ vector<unsigned char> rsaDecrypt(const JWK &key,
     return plaintext;
 }
 
-vector<unsigned char> aesKeyWrap(const vector<unsigned char> &kek,
-                                 const vector<unsigned char> &plaintext)
+vector<unsigned char> aesKeyWrap(vector<unsigned char> const &kek,
+                                 vector<unsigned char> const &plaintext)
 {
     // Use EVP API for OpenSSL 3.0+
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -590,8 +590,8 @@ vector<unsigned char> aesKeyWrap(const vector<unsigned char> &kek,
     return ciphertext;
 }
 
-vector<unsigned char> aesKeyUnwrap(const vector<unsigned char> &kek,
-                                   const vector<unsigned char> &ciphertext)
+vector<unsigned char> aesKeyUnwrap(vector<unsigned char> const &kek,
+                                   vector<unsigned char> const &ciphertext)
 {
     // Use EVP API for OpenSSL 3.0+
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
@@ -641,8 +641,8 @@ vector<unsigned char> aesKeyUnwrap(const vector<unsigned char> &kek,
     return plaintext;
 }
 
-vector<unsigned char> aesGcmKeyWrap(const vector<unsigned char> &kek,
-                                    const vector<unsigned char> &plaintext,
+vector<unsigned char> aesGcmKeyWrap(vector<unsigned char> const &kek,
+                                    vector<unsigned char> const &plaintext,
                                     vector<unsigned char> &iv,
                                     vector<unsigned char> &tag)
 {
@@ -715,10 +715,10 @@ vector<unsigned char> aesGcmKeyWrap(const vector<unsigned char> &kek,
     return ciphertext;
 }
 
-vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char> &kek,
-                                      const vector<unsigned char> &ciphertext,
-                                      const vector<unsigned char> &iv,
-                                      const vector<unsigned char> &tag)
+vector<unsigned char> aesGcmKeyUnwrap(vector<unsigned char> const &kek,
+                                      vector<unsigned char> const &ciphertext,
+                                      vector<unsigned char> const &iv,
+                                      vector<unsigned char> const &tag)
 {
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
@@ -786,10 +786,10 @@ vector<unsigned char> aesGcmKeyUnwrap(const vector<unsigned char> &kek,
 pair<vector<unsigned char>, vector<unsigned char>>
 aesCbcHmacEncrypt(const EVP_CIPHER *cipher,
                   const EVP_MD *md,
-                  const vector<unsigned char> &cek,
-                  const vector<unsigned char> &iv,
-                  const vector<unsigned char> &plaintext,
-                  const vector<unsigned char> &aad)
+                  vector<unsigned char> const &cek,
+                  vector<unsigned char> const &iv,
+                  vector<unsigned char> const &plaintext,
+                  vector<unsigned char> const &aad)
 {
     size_t key_len = cek.size() / 2;
     vector<unsigned char> mac_key(cek.begin(), cek.begin() + key_len);
@@ -863,11 +863,11 @@ aesCbcHmacEncrypt(const EVP_CIPHER *cipher,
 
 vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER *cipher,
                                         const EVP_MD *md,
-                                        const vector<unsigned char> &cek,
-                                        const vector<unsigned char> &iv,
-                                        const vector<unsigned char> &ciphertext,
-                                        const vector<unsigned char> &aad,
-                                        const vector<unsigned char> &tag)
+                                        vector<unsigned char> const &cek,
+                                        vector<unsigned char> const &iv,
+                                        vector<unsigned char> const &ciphertext,
+                                        vector<unsigned char> const &aad,
+                                        vector<unsigned char> const &tag)
 {
     size_t key_len = cek.size() / 2;
     vector<unsigned char> mac_key(cek.begin(), cek.begin() + key_len);
@@ -947,10 +947,10 @@ vector<unsigned char> aesCbcHmacDecrypt(const EVP_CIPHER *cipher,
 
 pair<vector<unsigned char>, vector<unsigned char>>
 aesGcmEncrypt(const EVP_CIPHER *cipher,
-              const vector<unsigned char> &cek,
-              const vector<unsigned char> &iv,
-              const vector<unsigned char> &plaintext,
-              const vector<unsigned char> &aad)
+              vector<unsigned char> const &cek,
+              vector<unsigned char> const &iv,
+              vector<unsigned char> const &plaintext,
+              vector<unsigned char> const &aad)
 {
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
@@ -1006,11 +1006,11 @@ aesGcmEncrypt(const EVP_CIPHER *cipher,
 }
 
 vector<unsigned char> aesGcmDecrypt(const EVP_CIPHER *cipher,
-                                    const vector<unsigned char> &cek,
-                                    const vector<unsigned char> &iv,
-                                    const vector<unsigned char> &ciphertext,
-                                    const vector<unsigned char> &aad,
-                                    const vector<unsigned char> &tag)
+                                    vector<unsigned char> const &cek,
+                                    vector<unsigned char> const &iv,
+                                    vector<unsigned char> const &ciphertext,
+                                    vector<unsigned char> const &aad,
+                                    vector<unsigned char> const &tag)
 {
     EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
     if (!ctx)
@@ -1136,7 +1136,7 @@ bool JWA::verify(SignatureAlgorithm algorithm,
 
 vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
                                       const JWK &key,
-                                      const vector<unsigned char> &cek,
+                                      vector<unsigned char> const &cek,
                                       vector<unsigned char> *out_iv,
                                       vector<unsigned char> *out_tag,
                                       JWK *ephemeral_key,
@@ -1302,9 +1302,9 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
 
 vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
                                       const JWK &key,
-                                      const vector<unsigned char> &encrypted_cek,
-                                      const vector<unsigned char> *in_iv,
-                                      const vector<unsigned char> *in_tag,
+                                      vector<unsigned char> const &encrypted_cek,
+                                      vector<unsigned char> const *in_iv,
+                                      vector<unsigned char> const *in_tag,
                                       const JWK *ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
@@ -1447,10 +1447,10 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
 
 pair<vector<unsigned char>, vector<unsigned char>>
 JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
-                    const vector<unsigned char> &cek,
-                    const vector<unsigned char> &iv,
-                    const vector<unsigned char> &plaintext,
-                    const vector<unsigned char> &aad)
+                    vector<unsigned char> const &cek,
+                    vector<unsigned char> const &iv,
+                    vector<unsigned char> const &plaintext,
+                    vector<unsigned char> const &aad)
 {
     switch (algorithm)
     {
@@ -1478,11 +1478,11 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
-                                          const vector<unsigned char> &cek,
-                                          const vector<unsigned char> &iv,
-                                          const vector<unsigned char> &ciphertext,
-                                          const vector<unsigned char> &aad,
-                                          const vector<unsigned char> &tag)
+                                          vector<unsigned char> const &cek,
+                                          vector<unsigned char> const &iv,
+                                          vector<unsigned char> const &ciphertext,
+                                          vector<unsigned char> const &aad,
+                                          vector<unsigned char> const &tag)
 {
     switch (algorithm)
     {

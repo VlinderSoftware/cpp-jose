@@ -1,16 +1,91 @@
 #include "jwa.hpp"
 
 #include <map>
+#include <mutex>
 #include <stdexcept>
+
+#include "private/back_end_factory.hpp"
 
 using namespace std;
 
 namespace Vlinder {
 namespace JOSE {
+namespace {
+Private::BackEnd &getBackEnd()
+{
+    static once_flag flag;
+
+    static unique_ptr<Private::BackEnd> back_end;
+    call_once(flag,
+              []()
+              {
+                  Private::BackEndFactory &factory(Private::BackEndFactory::get());
+                  back_end = move(factory.createBackEnd());
+              });
+
+    return *back_end;
+}
+}  // namespace
+vector<unsigned char>
+JWA::sign(SignatureAlgorithm algorithm, const JWK &key, std::vector<unsigned char> const &data)
+{
+    // Delegate to back-end
+    return getBackEnd().sign(algorithm, key, data);
+}
+
+bool JWA::verify(SignatureAlgorithm algorithm,
+                 const JWK &key,
+                 std::vector<unsigned char> const &data,
+                 std::vector<unsigned char> const &signature)
+{
+    return getBackEnd().verify(algorithm, key, data, signature);
+}
+
+vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
+                                      const JWK &key,
+                                      vector<unsigned char> const &cek,
+                                      optional<vector<unsigned char>> const &iv,
+                                      optional<vector<unsigned char>> const &tag,
+                                      optional<JWK> const &ephemeral_key,
+                                      ContentEncryptionAlgorithm content_alg)
+{
+    return {};
+}
+
+vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
+                                      JWK const &key,
+                                      vector<unsigned char> const &encrypted_cek,
+                                      optional<vector<unsigned char>> const &iv,
+                                      optional<vector<unsigned char>> const &tag,
+                                      optional<JWK> const &ephemeral_key,
+                                      ContentEncryptionAlgorithm content_alg)
+{
+    return {};
+}
+
+pair<vector<unsigned char>, vector<unsigned char>>
+JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
+                    vector<unsigned char> const &cek,
+                    vector<unsigned char> const &iv,
+                    vector<unsigned char> const &plaintext,
+                    vector<unsigned char> const &aad)
+{
+    return {};
+}
+
+vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
+                                          vector<unsigned char> const &cek,
+                                          vector<unsigned char> const &iv,
+                                          vector<unsigned char> const &ciphertext,
+                                          vector<unsigned char> const &aad,
+                                          vector<unsigned char> const &tag)
+{
+    return {};
+}
 
 string JWA::toString(SignatureAlgorithm alg)
 {
-    static const map<SignatureAlgorithm, string> alg_map = {{SignatureAlgorithm::hs256, "HS256"},
+    static map<SignatureAlgorithm, string> const alg_map = {{SignatureAlgorithm::hs256, "HS256"},
                                                             {SignatureAlgorithm::hs384, "HS384"},
                                                             {SignatureAlgorithm::hs512, "HS512"},
                                                             {SignatureAlgorithm::rs256, "RS256"},
@@ -35,7 +110,7 @@ string JWA::toString(SignatureAlgorithm alg)
 
 string JWA::toString(KeyEncryptionAlgorithm alg)
 {
-    static const map<KeyEncryptionAlgorithm, string> alg_map = {
+    static map<KeyEncryptionAlgorithm, string> const alg_map = {
         {KeyEncryptionAlgorithm::rsa1_5, "RSA1_5"},
         {KeyEncryptionAlgorithm::rsa_oaep, "RSA-OAEP"},
         {KeyEncryptionAlgorithm::rsa_oaep_256, "RSA-OAEP-256"},
@@ -59,7 +134,7 @@ string JWA::toString(KeyEncryptionAlgorithm alg)
 
 string JWA::toString(ContentEncryptionAlgorithm alg)
 {
-    static const map<ContentEncryptionAlgorithm, string> alg_map = {
+    static map<ContentEncryptionAlgorithm, string> const alg_map = {
         {ContentEncryptionAlgorithm::a128cbc_hs256, "A128CBC-HS256"},
         {ContentEncryptionAlgorithm::a192cbc_hs384, "A192CBC-HS384"},
         {ContentEncryptionAlgorithm::a256cbc_hs512, "A256CBC-HS512"},
@@ -76,9 +151,9 @@ string JWA::toString(ContentEncryptionAlgorithm alg)
     throw runtime_error("Unknown content encryption algorithm");
 }
 
-JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const string &alg)
+JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(string const &alg)
 {
-    static const map<string, SignatureAlgorithm> alg_map = {{"HS256", SignatureAlgorithm::hs256},
+    static map<string, SignatureAlgorithm> const alg_map = {{"HS256", SignatureAlgorithm::hs256},
                                                             {"HS384", SignatureAlgorithm::hs384},
                                                             {"HS512", SignatureAlgorithm::hs512},
                                                             {"RS256", SignatureAlgorithm::rs256},
@@ -101,9 +176,9 @@ JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(const string &alg)
     throw runtime_error("Unknown signature algorithm: " + alg);
 }
 
-JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const string &alg)
+JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(string const &alg)
 {
-    static const map<string, KeyEncryptionAlgorithm> alg_map = {
+    static map<string, KeyEncryptionAlgorithm> const alg_map = {
         {"RSA1_5", KeyEncryptionAlgorithm::rsa1_5},
         {"RSA-OAEP", KeyEncryptionAlgorithm::rsa_oaep},
         {"RSA-OAEP-256", KeyEncryptionAlgorithm::rsa_oaep_256},
@@ -125,9 +200,9 @@ JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(const string &
     throw runtime_error("Unknown key encryption algorithm: " + alg);
 }
 
-JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(const string &alg)
+JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(string const &alg)
 {
-    static const map<string, ContentEncryptionAlgorithm> alg_map = {
+    static map<string, ContentEncryptionAlgorithm> const alg_map = {
         {"A128CBC-HS256", ContentEncryptionAlgorithm::a128cbc_hs256},
         {"A192CBC-HS384", ContentEncryptionAlgorithm::a192cbc_hs384},
         {"A256CBC-HS512", ContentEncryptionAlgorithm::a256cbc_hs512},

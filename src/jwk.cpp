@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "base64url.hpp"
+#include "jwk_impl.hpp"
 #include "jwk_thumbprint.hpp"
 #include "private/back_end_factory.hpp"
 #include "private/json_utils.hpp"
@@ -18,7 +19,7 @@ namespace JOSE {
 namespace {
 
 // Default algorithms for key type + use combinations
-string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string &curve = "")
+string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, string const &curve = "")
 {
     if (key_type == JWK::KeyType::rsa)
     {
@@ -53,24 +54,24 @@ string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, const string &cu
 }
 
 // Validate algorithm for key type + use combination
-void validateAlgorithm(const string &alg, JWK::KeyType key_type, JWK::Use use)
+void validateAlgorithm(string const &alg, JWK::KeyType key_type, JWK::Use use)
 {
-    static const set<string> rsa_sig_algs = {"RS256", "RS384", "RS512", "PS256", "PS384", "PS512"};
-    static const set<string> rsa_enc_algs = {"RSA-OAEP",
+    static set<string> const rsa_sig_algs = {"RS256", "RS384", "RS512", "PS256", "PS384", "PS512"};
+    static set<string> const rsa_enc_algs = {"RSA-OAEP",
                                              "RSA-OAEP-256",
                                              "RSA-OAEP-384",
                                              "RSA-OAEP-512",
                                              "RSA1_5"};
-    static const set<string> ec_sig_algs = {"ES256", "ES384", "ES512", "ES256K"};
-    static const set<string> ec_enc_algs = {"ECDH-ES",
+    static set<string> const ec_sig_algs = {"ES256", "ES384", "ES512", "ES256K"};
+    static set<string> const ec_enc_algs = {"ECDH-ES",
                                             "ECDH-ES+A128KW",
                                             "ECDH-ES+A192KW",
                                             "ECDH-ES+A256KW"};
-    static const set<string> oct_sig_algs = {"HS256", "HS384", "HS512"};
-    static const set<string> oct_enc_algs =
+    static set<string> const oct_sig_algs = {"HS256", "HS384", "HS512"};
+    static set<string> const oct_enc_algs =
         {"A128KW", "A192KW", "A256KW", "A128GCMKW", "A192GCMKW", "A256GCMKW"};
-    static const set<string> okp_sig_algs = {"EdDSA"};
-    static const set<string> okp_enc_algs = {"ECDH-ES",
+    static set<string> const okp_sig_algs = {"EdDSA"};
+    static set<string> const okp_enc_algs = {"ECDH-ES",
                                              "ECDH-ES+A128KW",
                                              "ECDH-ES+A192KW",
                                              "ECDH-ES+A256KW"};
@@ -204,33 +205,6 @@ unsigned int keySizeFromAlg(string const &alg)
 
 }  // anonymous namespace
 
-struct JWK::Impl
-{
-    KeyType key_type_;
-    unique_ptr<Private::Key> key_;
-    string kid_;
-    string alg_;
-    Use use_;
-    bool has_use_ = false;
-
-    ~Impl() = default;
-
-    Impl(KeyType key_type, Use use, string const &alg)
-        : key_type_(key_type), use_(use), alg_(alg), has_use_(true)
-    {
-    }
-
-    Impl(const Impl &other)
-        : key_type_(other.key_type_), kid_(other.kid_), alg_(other.alg_), use_(other.use_),
-          has_use_(other.has_use_)
-    {
-        if (other.key_)
-        {
-            key_ = other.key_->clone();
-        }
-    }
-};
-
 JWK::JWK(Impl &&impl)
 {
     impl_ = make_unique<Impl>(std::move(impl));
@@ -254,7 +228,7 @@ JWK &JWK::operator=(const JWK &other)
 JWK::JWK(JWK &&other) noexcept = default;
 JWK &JWK::operator=(JWK &&other) noexcept = default;
 
-JWK JWK::generateRSA(Use use, unsigned int bits, const string &alg)
+JWK JWK::generateRSA(Use use, unsigned int bits, string const &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::rsa, use) : alg;
@@ -274,7 +248,7 @@ JWK JWK::generateRSA(Use use, unsigned int bits, const string &alg)
     return jwk;
 }
 
-JWK JWK::generateEC(Use use, const string &curve, const string &alg)
+JWK JWK::generateEC(Use use, string const &curve, string const &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::ec, use, curve) : alg;
@@ -294,7 +268,7 @@ JWK JWK::generateEC(Use use, const string &curve, const string &alg)
     return jwk;
 }
 
-JWK JWK::generateOct(Use use, int bits, const string &alg)
+JWK JWK::generateOct(Use use, int bits, string const &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::oct, use) : alg;
@@ -314,7 +288,7 @@ JWK JWK::generateOct(Use use, int bits, const string &alg)
     return jwk;
 }
 
-JWK JWK::generateOKP(Use use, unsigned int bits, const string &alg)
+JWK JWK::generateOKP(Use use, unsigned int bits, string const &alg)
 {
     // Determine algorithm: use provided or default
     string final_alg = alg.empty() ? getDefaultAlgorithm(KeyType::okp, use) : alg;
@@ -404,8 +378,8 @@ string JWK::toJSON(bool include_private) const
 
             // Only serialize RSA private fields when we have a complete CRT key.
             // Partial private material is not portable across backends/providers.
-            bool const has_full_private = !d.empty() && !p.empty() && !q.empty() && !dp.empty() &&
-                                          !dq.empty() && !qi.empty();
+            bool const has_full_private =
+                !d.empty() && !p.empty() && !q.empty() && !dp.empty() && !dq.empty() && !qi.empty();
             if (has_full_private)
             {
                 json_obj["d"] = Base64Url::encode(d);
@@ -480,7 +454,7 @@ string JWK::toJSON(bool include_private) const
     return json_obj.dump();
 }
 
-JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
+JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
 {
     json jwk_json = json::parse(json_str);
 
@@ -565,12 +539,15 @@ JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
             }
             auto n_bytes = Base64Url::decode(jwk_json["n"].get<string>());
             auto e_bytes = Base64Url::decode(jwk_json["e"].get<string>());
-            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
-                                                  : vector<unsigned char>{};
-            auto p_bytes = !ignore_private_if_present && jwk_json.contains("p") ? Base64Url::decode(jwk_json["p"].get<string>())
-                                                  : vector<unsigned char>{};
-            auto q_bytes = !ignore_private_if_present && jwk_json.contains("q") ? Base64Url::decode(jwk_json["q"].get<string>())
-                                                  : vector<unsigned char>{};
+            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
+                               ? Base64Url::decode(jwk_json["d"].get<string>())
+                               : vector<unsigned char>{};
+            auto p_bytes = !ignore_private_if_present && jwk_json.contains("p")
+                               ? Base64Url::decode(jwk_json["p"].get<string>())
+                               : vector<unsigned char>{};
+            auto q_bytes = !ignore_private_if_present && jwk_json.contains("q")
+                               ? Base64Url::decode(jwk_json["q"].get<string>())
+                               : vector<unsigned char>{};
             auto dp_bytes = !ignore_private_if_present && jwk_json.contains("dp")
                                 ? Base64Url::decode(jwk_json["dp"].get<string>())
                                 : vector<unsigned char>{};
@@ -594,13 +571,13 @@ JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
             {
                 if (!has_d)
                 {
-                    throw runtime_error(
-                        "Ill-formed RSA private key: parameter 'd' is required when CRT parameters are present");
+                    throw runtime_error("Ill-formed RSA private key: parameter 'd' is required "
+                                        "when CRT parameters are present");
                 }
                 if (!has_full_crt)
                 {
-                    throw runtime_error(
-                        "Ill-formed RSA private key: if any of p, q, dp, dq, qi are present, all must be present");
+                    throw runtime_error("Ill-formed RSA private key: if any of p, q, dp, dq, qi "
+                                        "are present, all must be present");
                 }
             }
 
@@ -623,8 +600,9 @@ JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
 
             auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
             auto y_bytes = Base64Url::decode(jwk_json["y"].get<string>());
-            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
-                                                  : vector<unsigned char>{};
+            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
+                               ? Base64Url::decode(jwk_json["d"].get<string>())
+                               : vector<unsigned char>{};
 
             impl.key_ = std::move(
                 back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes));
@@ -641,8 +619,9 @@ JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
             }
 
             auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
-            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d") ? Base64Url::decode(jwk_json["d"].get<string>())
-                                                  : vector<unsigned char>{};
+            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
+                               ? Base64Url::decode(jwk_json["d"].get<string>())
+                               : vector<unsigned char>{};
             impl.key_ =
                 std::move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
             break;
@@ -654,7 +633,9 @@ JWK JWK::fromJSON(const string &json_str, bool ignore_private_if_present)
             {
                 throw runtime_error("Missing required 'k' parameter for symmetric key");
             }
-            auto k_bytes = !ignore_private_if_present && jwk_json.contains("k") ? Base64Url::decode(jwk_json["k"].get<string>()) : vector<unsigned char>{};
+            auto k_bytes = !ignore_private_if_present && jwk_json.contains("k")
+                               ? Base64Url::decode(jwk_json["k"].get<string>())
+                               : vector<unsigned char>{};
             impl.key_ = make_unique<Private::OctKey>(k_bytes);
             break;
         }
@@ -670,7 +651,7 @@ JWK::KeyType JWK::getKeyType() const
     return impl_->key_type_;
 }
 
-void JWK::setKeyID(const string &kid)
+void JWK::setKeyID(string const &kid)
 {
     impl_->kid_ = kid;
 }
@@ -686,7 +667,7 @@ void JWK::setUse(Use use)
     impl_->has_use_ = true;
 }
 
-void JWK::setAlgorithm(const string &alg)
+void JWK::setAlgorithm(string const &alg)
 {
     impl_->alg_ = alg;
 }
@@ -720,7 +701,7 @@ JWKSet::JWKSet() : impl_(make_unique<Impl>())
 
 JWKSet::~JWKSet() = default;
 
-JWKSet JWKSet::fromJSON(const string &json_str, bool ignore_private_if_present)
+JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
 {
     JWKSet set;
     json jwk_set_json = json::parse(json_str);
@@ -736,7 +717,7 @@ JWKSet JWKSet::fromJSON(const string &json_str, bool ignore_private_if_present)
     }
 
     // Parse each key in the array
-    for (const auto &keyJson : jwk_set_json["keys"])
+    for (auto const &keyJson : jwk_set_json["keys"])
     {
         string keyJsonStr = keyJson.dump();
         JWK key = JWK::fromJSON(keyJsonStr, ignore_private_if_present);
@@ -751,9 +732,9 @@ void JWKSet::addKey(const JWK &key)
     impl_->keys_.push_back(key);
 }
 
-JWK JWKSet::getKey(const string &kid) const
+JWK JWKSet::getKey(string const &kid) const
 {
-    for (const auto &key : impl_->keys_)
+    for (auto const &key : impl_->keys_)
     {
         if (key.getKeyID() == kid)
         {
@@ -774,7 +755,7 @@ string JWKSet::toJSON() const
 
     json keys_array = json::array();
 
-    for (const auto &key : impl_->keys_)
+    for (auto const &key : impl_->keys_)
     {
         keys_array.push_back(json::parse(key.toJSON(false)));
     }

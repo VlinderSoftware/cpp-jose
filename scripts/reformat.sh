@@ -1,7 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="${script_dir}"
+
+while [[ ! -f "${repo_root}/CMakeLists.txt" ]]; do
+    parent="$(dirname "${repo_root}")"
+    if [[ "${parent}" == "${repo_root}" ]]; then
+        echo "Unable to locate repository root (CMakeLists.txt not found in parent chain)." >&2
+        exit 1
+    fi
+    repo_root="${parent}"
+done
 
 if ! command -v clang-format >/dev/null 2>&1; then
     echo "Unable to locate clang-format. Ensure it is installed and available in PATH." >&2

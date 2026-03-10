@@ -31,22 +31,22 @@ public:
     /**
      * @brief Set issuer claim (iss)
      */
-    void setIssuer(const std::string &iss);
+    void setIssuer(std::string const &iss);
 
     /**
      * @brief Set subject claim (sub)
      */
-    void setSubject(const std::string &sub);
+    void setSubject(std::string const &sub);
 
     /**
      * @brief Set audience claim (aud)
      */
-    void setAudience(const std::string &aud);
+    void setAudience(std::string const &aud);
 
     /**
      * @brief Set audience claim with multiple values
      */
-    void setAudience(const std::vector<std::string> &aud);
+    void setAudience(std::vector<std::string> const &aud);
 
     /**
      * @brief Set expiration time claim (exp)
@@ -66,12 +66,12 @@ public:
     /**
      * @brief Set JWT ID claim (jti)
      */
-    void setJWTID(const std::string &jti);
+    void setJWTID(std::string const &jti);
 
     /**
      * @brief Set a custom claim
      */
-    void setClaim(const std::string &name, const std::string &value);
+    void setClaim(std::string const &name, std::string const &value);
 
     /**
      * @brief Get issuer claim
@@ -111,12 +111,12 @@ public:
     /**
      * @brief Get custom claim
      */
-    std::string getClaim(const std::string &name) const;
+    std::string getClaim(std::string const &name) const;
 
     /**
      * @brief Check if claim exists
      */
-    bool hasClaim(const std::string &name) const;
+    bool hasClaim(std::string const &name) const;
 
     /**
      * @brief Sign and serialize the JWT
@@ -124,7 +124,7 @@ public:
      * @param algorithm Algorithm to use
      * @return JWT string
      */
-    std::string sign(const JWK &key, const std::string &algorithm = "RS256") const;
+    std::string sign(const JWK &key, std::string const &algorithm = "RS256") const;
 
     /**
      * @brief Verify and parse a JWT
@@ -132,14 +132,14 @@ public:
      * @param key Verification key
      * @return JWT object
      */
-    static JWT verify(const std::string &jwt, const JWK &key);
+    static JWT verify(std::string const &jwt, const JWK &key);
 
     /**
      * @brief Parse a JWT without verification
      * @param jwt JWT string
      * @return JWT object
      */
-    static JWT parse(const std::string &jwt);
+    static JWT parse(std::string const &jwt);
 
     /**
      * @brief Validate JWT claims
@@ -148,8 +148,8 @@ public:
      * @param leeway Time leeway in seconds for time-based claims
      * @return true if valid, false otherwise
      */
-    bool validate(const std::string &issuer = "",
-                  const std::string &audience = "",
+    bool validate(std::string const &issuer = "",
+                  std::string const &audience = "",
                   int leeway = 0) const;
 
 private:
