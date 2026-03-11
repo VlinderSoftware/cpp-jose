@@ -20,7 +20,7 @@ Private::BackEnd &getBackEnd()
               []()
               {
                   Private::BackEndFactory &factory(Private::BackEndFactory::get());
-                  back_end = move(factory.createBackEnd());
+                  back_end = std::move(factory.createBackEnd());
               });
 
     return *back_end;
