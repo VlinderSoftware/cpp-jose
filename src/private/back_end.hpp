@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "jwa.hpp"
@@ -194,21 +195,38 @@ public:
                 std::vector<unsigned char> const &data,
                 std::vector<unsigned char> const &signature) const;
 
-    // virtual std::vector<unsigned char> encrypt(ContentEncryptionAlgorithm algorithm, JWK const&
-    // key,
-    //     std::vector<unsigned char> const &plaintext) const = 0;
+    std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm,
+               const JWK &key,
+               std::vector<unsigned char> const &cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               std::optional<JWK> const &ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const;
 
-    // virtual std::vector<unsigned char> decrypt(ContentEncryptionAlgorithm algorithm, JWK const&
-    // key,
-    //     std::vector<unsigned char> const &ciphertext) const = 0;
+    std::vector<unsigned char> decryptKey(KeyEncryptionAlgorithm algorithm,
+               JWK const &key,
+               std::vector<unsigned char> const &encrypted_cek,
+               std::optional<std::vector<unsigned char>> const &iv = {},
+               std::optional<std::vector<unsigned char>> const &tag = {},
+               std::optional<JWK> const &ephemeral_key = {},
+               ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm) const;
+
+    std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    encryptContent(ContentEncryptionAlgorithm algorithm,
+                   std::vector<unsigned char> const &cek,
+                   std::vector<unsigned char> const &iv,
+                   std::vector<unsigned char> const &plaintext,
+                   std::vector<unsigned char> const &aad) const;
+
+    std::vector<unsigned char> decryptContent(ContentEncryptionAlgorithm algorithm,
+                                              std::vector<unsigned char> const &cek,
+                                              std::vector<unsigned char> const &iv,
+                                              std::vector<unsigned char> const &ciphertext,
+                                              std::vector<unsigned char> const &aad,
+                                              std::vector<unsigned char> const &tag) const;
 
     virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                             std::vector<unsigned char> const &data) const = 0;
-
-    // virtual std::vector<unsigned char> derive(JWK const& private_key,
-    //                                           JWK const& peer_key) const = 0;
-
-    // virtual std::vector<unsigned char> randomBytes(size_t size) const = 0;
 
     /// Returns a backend-specific error string (stub for non-OpenSSL backends)
     virtual std::string getErrorString() const
@@ -230,6 +248,32 @@ protected:
                          Key *key,
                          std::vector<unsigned char> const &data,
                          std::vector<unsigned char> const &signature) const = 0;
+    virtual std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
+               Key *key,
+               std::vector<unsigned char> const &cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               Key *ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const = 0;
+    virtual std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
+               Key *key,
+               std::vector<unsigned char> const &encrypted_cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               Key *ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const = 0;
+    virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    encryptContent_(ContentEncryptionAlgorithm algorithm,
+                    std::vector<unsigned char> const &cek,
+                    std::vector<unsigned char> const &iv,
+                    std::vector<unsigned char> const &plaintext,
+                    std::vector<unsigned char> const &aad) const;
+    virtual std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
+                                                       std::vector<unsigned char> const &cek,
+                                                       std::vector<unsigned char> const &iv,
+                                                       std::vector<unsigned char> const &ciphertext,
+                                                       std::vector<unsigned char> const &aad,
+                                                       std::vector<unsigned char> const &tag) const;
 };
 
 }  // namespace Private

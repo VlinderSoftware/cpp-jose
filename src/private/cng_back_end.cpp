@@ -3,6 +3,9 @@
 #include <wincrypt.h>
 
 #include <algorithm>
+#include <array>
+#include <cstdint>
+#include <cwchar>
 #include <stdexcept>
 
 using namespace std;
@@ -219,6 +222,815 @@ vector<unsigned char> buildEcPublicBlob(ECKey const &ec_key, ULONG public_magic)
     blob.insert(blob.end(), x.begin(), x.end());
     blob.insert(blob.end(), y.begin(), y.end());
     return blob;
+}
+
+vector<unsigned char> aesEncryptBlockEcb(vector<unsigned char> const &kek,
+                                         vector<unsigned char> const &block)
+{
+    if (block.size() != 16)
+    {
+        throw runtime_error("AES block encryption requires a 16-byte block");
+    }
+
+    BCRYPT_ALG_HANDLE h_alg(nullptr);
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + to_string(status));
+    }
+    AlgHandle alg_guard(h_alg);
+
+    status = BCryptSetProperty(alg_guard.get(),
+                               BCRYPT_CHAINING_MODE,
+                               reinterpret_cast<PUCHAR>(const_cast<wchar_t *>(BCRYPT_CHAIN_MODE_ECB)),
+                               static_cast<ULONG>((wcslen(BCRYPT_CHAIN_MODE_ECB) + 1) *
+                                                  sizeof(wchar_t)),
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed: " + to_string(status));
+    }
+
+    ULONG key_object_size(0);
+    ULONG result_length(0);
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&key_object_size),
+                               sizeof(key_object_size),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " + to_string(status));
+    }
+
+    vector<unsigned char> key_object(key_object_size);
+    BCRYPT_KEY_HANDLE h_key(nullptr);
+    status = BCryptGenerateSymmetricKey(alg_guard.get(),
+                                        &h_key,
+                                        key_object.empty() ? nullptr : key_object.data(),
+                                        static_cast<ULONG>(key_object.size()),
+                                        const_cast<PUCHAR>(kek.data()),
+                                        static_cast<ULONG>(kek.size()),
+                                        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenerateSymmetricKey failed: " + to_string(status));
+    }
+    KeyHandle key_guard(h_key);
+
+    vector<unsigned char> encrypted(block.size());
+    ULONG encrypted_size(0);
+    status = BCryptEncrypt(key_guard.get(),
+                           const_cast<PUCHAR>(block.data()),
+                           static_cast<ULONG>(block.size()),
+                           nullptr,
+                           nullptr,
+                           0,
+                           encrypted.data(),
+                           static_cast<ULONG>(encrypted.size()),
+                           &encrypted_size,
+                           0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptEncrypt failed: " + to_string(status));
+    }
+
+    encrypted.resize(encrypted_size);
+    return encrypted;
+}
+
+vector<unsigned char> aesDecryptBlockEcb(vector<unsigned char> const &kek,
+                                         vector<unsigned char> const &block)
+{
+    if (block.size() != 16)
+    {
+        throw runtime_error("AES block decryption requires a 16-byte block");
+    }
+
+    BCRYPT_ALG_HANDLE h_alg(nullptr);
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + to_string(status));
+    }
+    AlgHandle alg_guard(h_alg);
+
+    status = BCryptSetProperty(alg_guard.get(),
+                               BCRYPT_CHAINING_MODE,
+                               reinterpret_cast<PUCHAR>(const_cast<wchar_t *>(BCRYPT_CHAIN_MODE_ECB)),
+                               static_cast<ULONG>((wcslen(BCRYPT_CHAIN_MODE_ECB) + 1) *
+                                                  sizeof(wchar_t)),
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed: " + to_string(status));
+    }
+
+    ULONG key_object_size(0);
+    ULONG result_length(0);
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&key_object_size),
+                               sizeof(key_object_size),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " + to_string(status));
+    }
+
+    vector<unsigned char> key_object(key_object_size);
+    BCRYPT_KEY_HANDLE h_key(nullptr);
+    status = BCryptGenerateSymmetricKey(alg_guard.get(),
+                                        &h_key,
+                                        key_object.empty() ? nullptr : key_object.data(),
+                                        static_cast<ULONG>(key_object.size()),
+                                        const_cast<PUCHAR>(kek.data()),
+                                        static_cast<ULONG>(kek.size()),
+                                        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenerateSymmetricKey failed: " + to_string(status));
+    }
+    KeyHandle key_guard(h_key);
+
+    vector<unsigned char> decrypted(block.size());
+    ULONG decrypted_size(0);
+    status = BCryptDecrypt(key_guard.get(),
+                           const_cast<PUCHAR>(block.data()),
+                           static_cast<ULONG>(block.size()),
+                           nullptr,
+                           nullptr,
+                           0,
+                           decrypted.data(),
+                           static_cast<ULONG>(decrypted.size()),
+                           &decrypted_size,
+                           0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDecrypt failed: " + to_string(status));
+    }
+
+    decrypted.resize(decrypted_size);
+    return decrypted;
+}
+
+vector<unsigned char> aesKeyWrap(vector<unsigned char> const &kek,
+                                 vector<unsigned char> const &plaintext)
+{
+    if (plaintext.empty() || (plaintext.size() % 8) != 0 || plaintext.size() < 16)
+    {
+        throw runtime_error("AES Key Wrap requires plaintext length to be a multiple of 8 bytes and at least 16 bytes");
+    }
+
+    size_t const n = plaintext.size() / 8;
+    vector<unsigned char> a(8, 0xA6);  // RFC 3394 default IV
+    vector<vector<unsigned char>> r(n, vector<unsigned char>(8));
+    for (size_t i = 0; i < n; ++i)
+    {
+        copy_n(plaintext.data() + i * 8, 8, r[i].data());
+    }
+
+    for (size_t j = 0; j < 6; ++j)
+    {
+        for (size_t i = 0; i < n; ++i)
+        {
+            vector<unsigned char> block(16);
+            copy_n(a.data(), 8, block.data());
+            copy_n(r[i].data(), 8, block.data() + 8);
+
+            vector<unsigned char> encrypted = aesEncryptBlockEcb(kek, block);
+            if (encrypted.size() != 16)
+            {
+                throw runtime_error("AES block encryption returned unexpected size");
+            }
+
+            copy_n(encrypted.data(), 8, a.data());
+            copy_n(encrypted.data() + 8, 8, r[i].data());
+
+            uint64_t t = static_cast<uint64_t>(n * j + (i + 1));
+            for (size_t byte_index = 0; byte_index < 8; ++byte_index)
+            {
+                a[7 - byte_index] ^= static_cast<unsigned char>((t >> (8 * byte_index)) & 0xFF);
+            }
+        }
+    }
+
+    vector<unsigned char> wrapped;
+    wrapped.reserve((n + 1) * 8);
+    wrapped.insert(wrapped.end(), a.begin(), a.end());
+    for (size_t i = 0; i < n; ++i)
+    {
+        wrapped.insert(wrapped.end(), r[i].begin(), r[i].end());
+    }
+    return wrapped;
+}
+
+vector<unsigned char> aesKeyUnwrap(vector<unsigned char> const &kek,
+                                   vector<unsigned char> const &wrapped)
+{
+    if (wrapped.size() < 24 || (wrapped.size() % 8) != 0)
+    {
+        throw runtime_error("AES Key Unwrap requires input length to be a multiple of 8 bytes and at least 24 bytes");
+    }
+
+    size_t const n = (wrapped.size() / 8) - 1;
+    vector<unsigned char> a(8);
+    copy_n(wrapped.data(), 8, a.data());
+
+    vector<vector<unsigned char>> r(n, vector<unsigned char>(8));
+    for (size_t i = 0; i < n; ++i)
+    {
+        copy_n(wrapped.data() + 8 + i * 8, 8, r[i].data());
+    }
+
+    for (int j = 5; j >= 0; --j)
+    {
+        for (size_t i = n; i > 0; --i)
+        {
+            uint64_t t = static_cast<uint64_t>(n * static_cast<size_t>(j) + i);
+
+            vector<unsigned char> block(16);
+            for (size_t byte_index = 0; byte_index < 8; ++byte_index)
+            {
+                block[byte_index] = static_cast<unsigned char>(
+                    a[byte_index] ^ static_cast<unsigned char>((t >> (8 * (7 - byte_index))) & 0xFF));
+            }
+            copy_n(r[i - 1].data(), 8, block.data() + 8);
+
+            vector<unsigned char> decrypted = aesDecryptBlockEcb(kek, block);
+            if (decrypted.size() != 16)
+            {
+                throw runtime_error("AES block decryption returned unexpected size");
+            }
+
+            copy_n(decrypted.data(), 8, a.data());
+            copy_n(decrypted.data() + 8, 8, r[i - 1].data());
+        }
+    }
+
+    for (unsigned char byte : a)
+    {
+        if (byte != 0xA6)
+        {
+            throw runtime_error("AES key unwrap integrity check failed");
+        }
+    }
+
+    vector<unsigned char> plaintext;
+    plaintext.reserve(n * 8);
+    for (size_t i = 0; i < n; ++i)
+    {
+        plaintext.insert(plaintext.end(), r[i].begin(), r[i].end());
+    }
+    return plaintext;
+}
+
+bool constantTimeEqual(vector<unsigned char> const &lhs, vector<unsigned char> const &rhs)
+{
+    if (lhs.size() != rhs.size())
+    {
+        return false;
+    }
+
+    unsigned char diff = 0;
+    for (size_t index = 0; index < lhs.size(); ++index)
+    {
+        diff |= static_cast<unsigned char>(lhs[index] ^ rhs[index]);
+    }
+    return diff == 0;
+}
+
+vector<unsigned char> computeHmac(wchar_t const *hash_algorithm,
+                                  vector<unsigned char> const &key,
+                                  vector<unsigned char> const &data,
+                                  ULONG expected_hash_size)
+{
+    BCRYPT_ALG_HANDLE h_alg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg,
+                                                  hash_algorithm,
+                                                  nullptr,
+                                                  BCRYPT_ALG_HANDLE_HMAC_FLAG);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed");
+    }
+    AlgHandle alg_guard(h_alg);
+
+    ULONG hash_object_length = 0;
+    ULONG result_length = 0;
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&hash_object_length),
+                               sizeof(hash_object_length),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed");
+    }
+
+    vector<unsigned char> hash_object(hash_object_length);
+    BCRYPT_HASH_HANDLE h_hash = nullptr;
+    status = BCryptCreateHash(alg_guard.get(),
+                              &h_hash,
+                              hash_object.empty() ? nullptr : hash_object.data(),
+                              static_cast<ULONG>(hash_object.size()),
+                              const_cast<PUCHAR>(key.data()),
+                              static_cast<ULONG>(key.size()),
+                              0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptCreateHash failed");
+    }
+    HashHandle hash_guard(h_hash);
+
+    if (!data.empty())
+    {
+        status = BCryptHashData(h_hash,
+                                const_cast<PUCHAR>(data.data()),
+                                static_cast<ULONG>(data.size()),
+                                0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptHashData failed");
+        }
+    }
+
+    vector<unsigned char> digest(expected_hash_size);
+    status = BCryptFinishHash(h_hash, digest.data(), static_cast<ULONG>(digest.size()), 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptFinishHash failed");
+    }
+
+    return digest;
+}
+
+pair<vector<unsigned char>, vector<unsigned char>> aesGcmEncrypt(vector<unsigned char> const &cek,
+                                                                 vector<unsigned char> const &iv,
+                                                                 vector<unsigned char> const &plaintext,
+                                                                 vector<unsigned char> const &aad)
+{
+    BCRYPT_ALG_HANDLE h_alg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed");
+    }
+    AlgHandle alg_guard(h_alg);
+
+    status = BCryptSetProperty(alg_guard.get(),
+                               BCRYPT_CHAINING_MODE,
+                               reinterpret_cast<PUCHAR>(const_cast<wchar_t *>(BCRYPT_CHAIN_MODE_GCM)),
+                               static_cast<ULONG>((wcslen(BCRYPT_CHAIN_MODE_GCM) + 1) *
+                                                  sizeof(wchar_t)),
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed");
+    }
+
+    ULONG key_object_length = 0;
+    ULONG result_length = 0;
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&key_object_length),
+                               sizeof(key_object_length),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed");
+    }
+
+    vector<unsigned char> key_object(key_object_length);
+    BCRYPT_KEY_HANDLE h_key = nullptr;
+    status = BCryptGenerateSymmetricKey(alg_guard.get(),
+                                        &h_key,
+                                        key_object.empty() ? nullptr : key_object.data(),
+                                        static_cast<ULONG>(key_object.size()),
+                                        const_cast<PUCHAR>(cek.data()),
+                                        static_cast<ULONG>(cek.size()),
+                                        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenerateSymmetricKey failed");
+    }
+    KeyHandle key_guard(h_key);
+
+    vector<unsigned char> tag(16);
+    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
+    BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
+    auth_info.pbNonce = const_cast<PUCHAR>(iv.data());
+    auth_info.cbNonce = static_cast<ULONG>(iv.size());
+    auth_info.pbAuthData = aad.empty() ? nullptr : const_cast<PUCHAR>(aad.data());
+    auth_info.cbAuthData = static_cast<ULONG>(aad.size());
+    auth_info.pbTag = tag.data();
+    auth_info.cbTag = static_cast<ULONG>(tag.size());
+
+    ULONG ciphertext_size = 0;
+    status = BCryptEncrypt(key_guard.get(),
+                           plaintext.empty() ? nullptr : const_cast<PUCHAR>(plaintext.data()),
+                           static_cast<ULONG>(plaintext.size()),
+                           &auth_info,
+                           nullptr,
+                           0,
+                           nullptr,
+                           0,
+                           &ciphertext_size,
+                           0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptEncrypt(size query) failed");
+    }
+
+    vector<unsigned char> ciphertext(ciphertext_size);
+    status = BCryptEncrypt(key_guard.get(),
+                           plaintext.empty() ? nullptr : const_cast<PUCHAR>(plaintext.data()),
+                           static_cast<ULONG>(plaintext.size()),
+                           &auth_info,
+                           nullptr,
+                           0,
+                           ciphertext.data(),
+                           static_cast<ULONG>(ciphertext.size()),
+                           &ciphertext_size,
+                           0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptEncrypt failed");
+    }
+
+    ciphertext.resize(ciphertext_size);
+    return {ciphertext, tag};
+}
+
+vector<unsigned char> aesGcmDecrypt(vector<unsigned char> const &cek,
+                                    vector<unsigned char> const &iv,
+                                    vector<unsigned char> const &ciphertext,
+                                    vector<unsigned char> const &aad,
+                                    vector<unsigned char> const &tag)
+{
+    BCRYPT_ALG_HANDLE h_alg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed");
+    }
+    AlgHandle alg_guard(h_alg);
+
+    status = BCryptSetProperty(alg_guard.get(),
+                               BCRYPT_CHAINING_MODE,
+                               reinterpret_cast<PUCHAR>(const_cast<wchar_t *>(BCRYPT_CHAIN_MODE_GCM)),
+                               static_cast<ULONG>((wcslen(BCRYPT_CHAIN_MODE_GCM) + 1) *
+                                                  sizeof(wchar_t)),
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed");
+    }
+
+    ULONG key_object_length = 0;
+    ULONG result_length = 0;
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&key_object_length),
+                               sizeof(key_object_length),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed");
+    }
+
+    vector<unsigned char> key_object(key_object_length);
+    BCRYPT_KEY_HANDLE h_key = nullptr;
+    status = BCryptGenerateSymmetricKey(alg_guard.get(),
+                                        &h_key,
+                                        key_object.empty() ? nullptr : key_object.data(),
+                                        static_cast<ULONG>(key_object.size()),
+                                        const_cast<PUCHAR>(cek.data()),
+                                        static_cast<ULONG>(cek.size()),
+                                        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenerateSymmetricKey failed");
+    }
+    KeyHandle key_guard(h_key);
+
+    vector<unsigned char> mutable_tag(tag);
+    BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO auth_info;
+    BCRYPT_INIT_AUTH_MODE_INFO(auth_info);
+    auth_info.pbNonce = const_cast<PUCHAR>(iv.data());
+    auth_info.cbNonce = static_cast<ULONG>(iv.size());
+    auth_info.pbAuthData = aad.empty() ? nullptr : const_cast<PUCHAR>(aad.data());
+    auth_info.cbAuthData = static_cast<ULONG>(aad.size());
+    auth_info.pbTag = mutable_tag.empty() ? nullptr : mutable_tag.data();
+    auth_info.cbTag = static_cast<ULONG>(mutable_tag.size());
+
+    ULONG plaintext_size = 0;
+    status = BCryptDecrypt(key_guard.get(),
+                           ciphertext.empty() ? nullptr : const_cast<PUCHAR>(ciphertext.data()),
+                           static_cast<ULONG>(ciphertext.size()),
+                           &auth_info,
+                           nullptr,
+                           0,
+                           nullptr,
+                           0,
+                           &plaintext_size,
+                           0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDecrypt(size query) failed");
+    }
+
+    vector<unsigned char> plaintext(plaintext_size);
+    status = BCryptDecrypt(key_guard.get(),
+                           ciphertext.empty() ? nullptr : const_cast<PUCHAR>(ciphertext.data()),
+                           static_cast<ULONG>(ciphertext.size()),
+                           &auth_info,
+                           nullptr,
+                           0,
+                           plaintext.data(),
+                           static_cast<ULONG>(plaintext.size()),
+                           &plaintext_size,
+                           0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDecrypt failed");
+    }
+
+    plaintext.resize(plaintext_size);
+    return plaintext;
+}
+
+pair<vector<unsigned char>, vector<unsigned char>> aesCbcHmacEncrypt(size_t mac_key_size,
+                                                                     size_t enc_key_size,
+                                                                     wchar_t const *hmac_alg,
+                                                                     size_t tag_size,
+                                                                     vector<unsigned char> const &cek,
+                                                                     vector<unsigned char> const &iv,
+                                                                     vector<unsigned char> const &plaintext,
+                                                                     vector<unsigned char> const &aad)
+{
+    if (cek.size() != (mac_key_size + enc_key_size))
+    {
+        throw runtime_error("Invalid CEK size for AES-CBC-HMAC algorithm");
+    }
+
+    vector<unsigned char> mac_key(cek.begin(), cek.begin() + static_cast<ptrdiff_t>(mac_key_size));
+    vector<unsigned char> enc_key(cek.begin() + static_cast<ptrdiff_t>(mac_key_size), cek.end());
+
+    BCRYPT_ALG_HANDLE h_alg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed");
+    }
+    AlgHandle alg_guard(h_alg);
+
+    status = BCryptSetProperty(alg_guard.get(),
+                               BCRYPT_CHAINING_MODE,
+                               reinterpret_cast<PUCHAR>(const_cast<wchar_t *>(BCRYPT_CHAIN_MODE_CBC)),
+                               static_cast<ULONG>((wcslen(BCRYPT_CHAIN_MODE_CBC) + 1) *
+                                                  sizeof(wchar_t)),
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed");
+    }
+
+    ULONG key_object_length = 0;
+    ULONG result_length = 0;
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&key_object_length),
+                               sizeof(key_object_length),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed");
+    }
+
+    vector<unsigned char> key_object(key_object_length);
+    BCRYPT_KEY_HANDLE h_key = nullptr;
+    status = BCryptGenerateSymmetricKey(alg_guard.get(),
+                                        &h_key,
+                                        key_object.empty() ? nullptr : key_object.data(),
+                                        static_cast<ULONG>(key_object.size()),
+                                        const_cast<PUCHAR>(enc_key.data()),
+                                        static_cast<ULONG>(enc_key.size()),
+                                        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenerateSymmetricKey failed");
+    }
+    KeyHandle key_guard(h_key);
+
+    vector<unsigned char> mutable_iv(iv);
+    ULONG ciphertext_size = 0;
+    status = BCryptEncrypt(key_guard.get(),
+                           plaintext.empty() ? nullptr : const_cast<PUCHAR>(plaintext.data()),
+                           static_cast<ULONG>(plaintext.size()),
+                           nullptr,
+                           mutable_iv.empty() ? nullptr : mutable_iv.data(),
+                           static_cast<ULONG>(mutable_iv.size()),
+                           nullptr,
+                           0,
+                           &ciphertext_size,
+                           BCRYPT_BLOCK_PADDING);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptEncrypt(size query) failed");
+    }
+
+    mutable_iv = iv;
+    vector<unsigned char> ciphertext(ciphertext_size);
+    status = BCryptEncrypt(key_guard.get(),
+                           plaintext.empty() ? nullptr : const_cast<PUCHAR>(plaintext.data()),
+                           static_cast<ULONG>(plaintext.size()),
+                           nullptr,
+                           mutable_iv.empty() ? nullptr : mutable_iv.data(),
+                           static_cast<ULONG>(mutable_iv.size()),
+                           ciphertext.data(),
+                           static_cast<ULONG>(ciphertext.size()),
+                           &ciphertext_size,
+                           BCRYPT_BLOCK_PADDING);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptEncrypt failed");
+    }
+    ciphertext.resize(ciphertext_size);
+
+    array<unsigned char, 8> al{};
+    uint64_t aad_bits = static_cast<uint64_t>(aad.size()) * 8ULL;
+    for (size_t index = 0; index < al.size(); ++index)
+    {
+        al[al.size() - 1 - index] = static_cast<unsigned char>((aad_bits >> (index * 8)) & 0xFF);
+    }
+
+    vector<unsigned char> mac_input;
+    mac_input.reserve(aad.size() + iv.size() + ciphertext.size() + al.size());
+    mac_input.insert(mac_input.end(), aad.begin(), aad.end());
+    mac_input.insert(mac_input.end(), iv.begin(), iv.end());
+    mac_input.insert(mac_input.end(), ciphertext.begin(), ciphertext.end());
+    mac_input.insert(mac_input.end(), al.begin(), al.end());
+
+    ULONG hash_size = 32;
+    if (hmac_alg == BCRYPT_SHA384_ALGORITHM)
+    {
+        hash_size = 48;
+    }
+    else if (hmac_alg == BCRYPT_SHA512_ALGORITHM)
+    {
+        hash_size = 64;
+    }
+
+    vector<unsigned char> full_tag(computeHmac(hmac_alg, mac_key, mac_input, hash_size));
+    vector<unsigned char> truncated_tag(full_tag.begin(),
+                                        full_tag.begin() + static_cast<ptrdiff_t>(tag_size));
+    return {ciphertext, truncated_tag};
+}
+
+vector<unsigned char> aesCbcHmacDecrypt(size_t mac_key_size,
+                                        size_t enc_key_size,
+                                        wchar_t const *hmac_alg,
+                                        size_t tag_size,
+                                        vector<unsigned char> const &cek,
+                                        vector<unsigned char> const &iv,
+                                        vector<unsigned char> const &ciphertext,
+                                        vector<unsigned char> const &aad,
+                                        vector<unsigned char> const &tag)
+{
+    if (cek.size() != (mac_key_size + enc_key_size))
+    {
+        throw runtime_error("Invalid CEK size for AES-CBC-HMAC algorithm");
+    }
+    if (tag.size() != tag_size)
+    {
+        throw runtime_error("Invalid tag size for AES-CBC-HMAC algorithm");
+    }
+
+    vector<unsigned char> mac_key(cek.begin(), cek.begin() + static_cast<ptrdiff_t>(mac_key_size));
+    vector<unsigned char> enc_key(cek.begin() + static_cast<ptrdiff_t>(mac_key_size), cek.end());
+
+    array<unsigned char, 8> al{};
+    uint64_t aad_bits = static_cast<uint64_t>(aad.size()) * 8ULL;
+    for (size_t index = 0; index < al.size(); ++index)
+    {
+        al[al.size() - 1 - index] = static_cast<unsigned char>((aad_bits >> (index * 8)) & 0xFF);
+    }
+
+    vector<unsigned char> mac_input;
+    mac_input.reserve(aad.size() + iv.size() + ciphertext.size() + al.size());
+    mac_input.insert(mac_input.end(), aad.begin(), aad.end());
+    mac_input.insert(mac_input.end(), iv.begin(), iv.end());
+    mac_input.insert(mac_input.end(), ciphertext.begin(), ciphertext.end());
+    mac_input.insert(mac_input.end(), al.begin(), al.end());
+
+    ULONG hash_size = 32;
+    if (hmac_alg == BCRYPT_SHA384_ALGORITHM)
+    {
+        hash_size = 48;
+    }
+    else if (hmac_alg == BCRYPT_SHA512_ALGORITHM)
+    {
+        hash_size = 64;
+    }
+
+    vector<unsigned char> full_tag(computeHmac(hmac_alg, mac_key, mac_input, hash_size));
+    vector<unsigned char> expected_tag(full_tag.begin(),
+                                       full_tag.begin() + static_cast<ptrdiff_t>(tag_size));
+    if (!constantTimeEqual(expected_tag, tag))
+    {
+        throw runtime_error("AES-CBC-HMAC authentication tag verification failed");
+    }
+
+    BCRYPT_ALG_HANDLE h_alg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider failed");
+    }
+    AlgHandle alg_guard(h_alg);
+
+    status = BCryptSetProperty(alg_guard.get(),
+                               BCRYPT_CHAINING_MODE,
+                               reinterpret_cast<PUCHAR>(const_cast<wchar_t *>(BCRYPT_CHAIN_MODE_CBC)),
+                               static_cast<ULONG>((wcslen(BCRYPT_CHAIN_MODE_CBC) + 1) *
+                                                  sizeof(wchar_t)),
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed");
+    }
+
+    ULONG key_object_length = 0;
+    ULONG result_length = 0;
+    status = BCryptGetProperty(alg_guard.get(),
+                               BCRYPT_OBJECT_LENGTH,
+                               reinterpret_cast<PUCHAR>(&key_object_length),
+                               sizeof(key_object_length),
+                               &result_length,
+                               0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed");
+    }
+
+    vector<unsigned char> key_object(key_object_length);
+    BCRYPT_KEY_HANDLE h_key = nullptr;
+    status = BCryptGenerateSymmetricKey(alg_guard.get(),
+                                        &h_key,
+                                        key_object.empty() ? nullptr : key_object.data(),
+                                        static_cast<ULONG>(key_object.size()),
+                                        const_cast<PUCHAR>(enc_key.data()),
+                                        static_cast<ULONG>(enc_key.size()),
+                                        0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenerateSymmetricKey failed");
+    }
+    KeyHandle key_guard(h_key);
+
+    vector<unsigned char> mutable_iv(iv);
+    ULONG plaintext_size = 0;
+    status = BCryptDecrypt(key_guard.get(),
+                           ciphertext.empty() ? nullptr : const_cast<PUCHAR>(ciphertext.data()),
+                           static_cast<ULONG>(ciphertext.size()),
+                           nullptr,
+                           mutable_iv.empty() ? nullptr : mutable_iv.data(),
+                           static_cast<ULONG>(mutable_iv.size()),
+                           nullptr,
+                           0,
+                           &plaintext_size,
+                           BCRYPT_BLOCK_PADDING);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDecrypt(size query) failed");
+    }
+
+    mutable_iv = iv;
+    vector<unsigned char> plaintext(plaintext_size);
+    status = BCryptDecrypt(key_guard.get(),
+                           ciphertext.empty() ? nullptr : const_cast<PUCHAR>(ciphertext.data()),
+                           static_cast<ULONG>(ciphertext.size()),
+                           nullptr,
+                           mutable_iv.empty() ? nullptr : mutable_iv.data(),
+                           static_cast<ULONG>(mutable_iv.size()),
+                           plaintext.data(),
+                           static_cast<ULONG>(plaintext.size()),
+                           &plaintext_size,
+                           BCRYPT_BLOCK_PADDING);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDecrypt failed");
+    }
+
+    plaintext.resize(plaintext_size);
+    return plaintext;
 }
 
 }  // namespace
@@ -1395,6 +2207,414 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
     }
 
     throw runtime_error("Unsupported signature algorithm");
+}
+
+vector<unsigned char> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,
+            Key *key,
+            vector<unsigned char> const &cek,
+            optional<vector<unsigned char>> const &iv,
+            optional<vector<unsigned char>> const &tag,
+            Key *ephemeral_key,
+            ContentEncryptionAlgorithm content_alg) const
+{
+    (void)iv;
+    (void)tag;
+    (void)ephemeral_key;
+    (void)content_alg;
+
+    if (key == nullptr)
+    {
+        throw runtime_error("Key does not contain valid material");
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::dir)
+    {
+        return cek;
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::rsa1_5 || algorithm == KeyEncryptionAlgorithm::rsa_oaep ||
+        algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+    {
+        auto rsa_key(dynamic_cast<RSAKey *>(key));
+        if (rsa_key == nullptr)
+        {
+            throw runtime_error("RSA key encryption requires an RSA key");
+        }
+
+        vector<unsigned char> public_blob;
+        auto cng_rsa_key(dynamic_cast<CNGRSAKey *>(key));
+        if (cng_rsa_key != nullptr)
+        {
+            public_blob = cng_rsa_key->getPublicBlob();
+        }
+        if (public_blob.empty())
+        {
+            public_blob = buildRsaPublicBlob(*rsa_key);
+        }
+
+        BCRYPT_ALG_HANDLE h_alg(nullptr);
+        NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+        }
+        AlgHandle alg_guard(h_alg);
+
+        BCRYPT_KEY_HANDLE h_key(nullptr);
+        status = BCryptImportKeyPair(alg_guard.get(),
+                                     nullptr,
+                                     BCRYPT_RSAPUBLIC_BLOB,
+                                     &h_key,
+                                     public_blob.data(),
+                                     static_cast<ULONG>(public_blob.size()),
+                                     0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+        }
+        KeyHandle key_guard(h_key);
+
+        ULONG encrypted_size(0);
+        ULONG flags(0);
+        void *padding_info(nullptr);
+        BCRYPT_OAEP_PADDING_INFO oaep_padding_info{};
+
+        if (algorithm == KeyEncryptionAlgorithm::rsa1_5)
+        {
+            flags = BCRYPT_PAD_PKCS1;
+        }
+        else
+        {
+            oaep_padding_info.pszAlgId = (algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+                                             ? BCRYPT_SHA256_ALGORITHM
+                                             : BCRYPT_SHA1_ALGORITHM;
+            oaep_padding_info.pbLabel = nullptr;
+            oaep_padding_info.cbLabel = 0;
+            padding_info = &oaep_padding_info;
+            flags = BCRYPT_PAD_OAEP;
+        }
+
+        status = BCryptEncrypt(key_guard.get(),
+                               cek.empty() ? nullptr : const_cast<PUCHAR>(cek.data()),
+                               static_cast<ULONG>(cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               nullptr,
+                               0,
+                               &encrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptEncrypt(size query) failed: " + getErrorString());
+        }
+
+        vector<unsigned char> encrypted(encrypted_size);
+        status = BCryptEncrypt(key_guard.get(),
+                               cek.empty() ? nullptr : const_cast<PUCHAR>(cek.data()),
+                               static_cast<ULONG>(cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               encrypted.data(),
+                               static_cast<ULONG>(encrypted.size()),
+                               &encrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptEncrypt failed: " + getErrorString());
+        }
+
+        encrypted.resize(encrypted_size);
+        return encrypted;
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::a128kw || algorithm == KeyEncryptionAlgorithm::a192kw ||
+        algorithm == KeyEncryptionAlgorithm::a256kw)
+    {
+        auto oct_key(dynamic_cast<OctKey *>(key));
+        if (oct_key == nullptr)
+        {
+            throw runtime_error("AES key wrap requires an octet key");
+        }
+
+        vector<unsigned char> kek(oct_key->getK());
+        size_t expected_kek_size = 0;
+        if (algorithm == KeyEncryptionAlgorithm::a128kw)
+        {
+            expected_kek_size = 16;
+        }
+        else if (algorithm == KeyEncryptionAlgorithm::a192kw)
+        {
+            expected_kek_size = 24;
+        }
+        else
+        {
+            expected_kek_size = 32;
+        }
+
+        if (kek.size() != expected_kek_size)
+        {
+            throw runtime_error("AES key wrap key size does not match algorithm");
+        }
+
+        return aesKeyWrap(kek, cek);
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
+    {
+        throw runtime_error("ECDH-ES key agreement is not implemented for CNG back-end yet");
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::a128gcmkw || algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
+        algorithm == KeyEncryptionAlgorithm::a256gcmkw)
+    {
+        throw runtime_error("AES-GCM key wrap is not implemented for CNG back-end yet");
+    }
+
+    throw runtime_error("Unsupported key encryption algorithm");
+}
+
+vector<unsigned char> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
+            Key *key,
+            vector<unsigned char> const &encrypted_cek,
+            optional<vector<unsigned char>> const &iv,
+            optional<vector<unsigned char>> const &tag,
+            Key *ephemeral_key,
+            ContentEncryptionAlgorithm content_alg) const
+{
+    (void)iv;
+    (void)tag;
+    (void)ephemeral_key;
+    (void)content_alg;
+
+    if (key == nullptr)
+    {
+        throw runtime_error("Key does not contain valid material");
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::dir)
+    {
+        return encrypted_cek;
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::rsa1_5 || algorithm == KeyEncryptionAlgorithm::rsa_oaep ||
+        algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+    {
+        auto rsa_key(dynamic_cast<RSAKey *>(key));
+        if (rsa_key == nullptr)
+        {
+            throw runtime_error("RSA key decryption requires an RSA key");
+        }
+
+        vector<unsigned char> private_blob;
+        auto cng_rsa_key(dynamic_cast<CNGRSAKey *>(key));
+        if (cng_rsa_key != nullptr)
+        {
+            private_blob = cng_rsa_key->getPrivateBlob();
+        }
+        if (private_blob.empty())
+        {
+            private_blob = buildRsaFullPrivateBlob(*rsa_key);
+        }
+
+        BCRYPT_ALG_HANDLE h_alg(nullptr);
+        NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+        }
+        AlgHandle alg_guard(h_alg);
+
+        BCRYPT_KEY_HANDLE h_key(nullptr);
+        status = BCryptImportKeyPair(alg_guard.get(),
+                                     nullptr,
+                                     BCRYPT_RSAFULLPRIVATE_BLOB,
+                                     &h_key,
+                                     private_blob.data(),
+                                     static_cast<ULONG>(private_blob.size()),
+                                     0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+        }
+        KeyHandle key_guard(h_key);
+
+        ULONG decrypted_size(0);
+        ULONG flags(0);
+        void *padding_info(nullptr);
+        BCRYPT_OAEP_PADDING_INFO oaep_padding_info{};
+
+        if (algorithm == KeyEncryptionAlgorithm::rsa1_5)
+        {
+            flags = BCRYPT_PAD_PKCS1;
+        }
+        else
+        {
+            oaep_padding_info.pszAlgId = (algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+                                             ? BCRYPT_SHA256_ALGORITHM
+                                             : BCRYPT_SHA1_ALGORITHM;
+            oaep_padding_info.pbLabel = nullptr;
+            oaep_padding_info.cbLabel = 0;
+            padding_info = &oaep_padding_info;
+            flags = BCRYPT_PAD_OAEP;
+        }
+
+        status = BCryptDecrypt(key_guard.get(),
+                               encrypted_cek.empty() ? nullptr : const_cast<PUCHAR>(encrypted_cek.data()),
+                               static_cast<ULONG>(encrypted_cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               nullptr,
+                               0,
+                               &decrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptDecrypt(size query) failed: " + getErrorString());
+        }
+
+        vector<unsigned char> decrypted(decrypted_size);
+        status = BCryptDecrypt(key_guard.get(),
+                               encrypted_cek.empty() ? nullptr : const_cast<PUCHAR>(encrypted_cek.data()),
+                               static_cast<ULONG>(encrypted_cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               decrypted.data(),
+                               static_cast<ULONG>(decrypted.size()),
+                               &decrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            throw runtime_error("BCryptDecrypt failed: " + getErrorString());
+        }
+
+        decrypted.resize(decrypted_size);
+        return decrypted;
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::a128kw || algorithm == KeyEncryptionAlgorithm::a192kw ||
+        algorithm == KeyEncryptionAlgorithm::a256kw)
+    {
+        auto oct_key(dynamic_cast<OctKey *>(key));
+        if (oct_key == nullptr)
+        {
+            throw runtime_error("AES key unwrap requires an octet key");
+        }
+
+        vector<unsigned char> kek(oct_key->getK());
+        size_t expected_kek_size = 0;
+        if (algorithm == KeyEncryptionAlgorithm::a128kw)
+        {
+            expected_kek_size = 16;
+        }
+        else if (algorithm == KeyEncryptionAlgorithm::a192kw)
+        {
+            expected_kek_size = 24;
+        }
+        else
+        {
+            expected_kek_size = 32;
+        }
+
+        if (kek.size() != expected_kek_size)
+        {
+            throw runtime_error("AES key unwrap key size does not match algorithm");
+        }
+
+        return aesKeyUnwrap(kek, encrypted_cek);
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
+    {
+        throw runtime_error("ECDH-ES key agreement is not implemented for CNG back-end yet");
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::a128gcmkw || algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
+        algorithm == KeyEncryptionAlgorithm::a256gcmkw)
+    {
+        throw runtime_error("AES-GCM key unwrap is not implemented for CNG back-end yet");
+    }
+
+    throw runtime_error("Unsupported key encryption algorithm");
+}
+
+pair<vector<unsigned char>, vector<unsigned char>>
+CNGBackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
+                            vector<unsigned char> const &cek,
+                            vector<unsigned char> const &iv,
+                            vector<unsigned char> const &plaintext,
+                            vector<unsigned char> const &aad) const
+{
+    switch (algorithm)
+    {
+        case ContentEncryptionAlgorithm::a128gcm:
+            if (cek.size() != 16)
+            {
+                throw runtime_error("A128GCM requires a 128-bit CEK");
+            }
+            return aesGcmEncrypt(cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::a192gcm:
+            if (cek.size() != 24)
+            {
+                throw runtime_error("A192GCM requires a 192-bit CEK");
+            }
+            return aesGcmEncrypt(cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::a256gcm:
+            if (cek.size() != 32)
+            {
+                throw runtime_error("A256GCM requires a 256-bit CEK");
+            }
+            return aesGcmEncrypt(cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::a128cbc_hs256:
+            return aesCbcHmacEncrypt(16, 16, BCRYPT_SHA256_ALGORITHM, 16, cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::a192cbc_hs384:
+            return aesCbcHmacEncrypt(24, 24, BCRYPT_SHA384_ALGORITHM, 24, cek, iv, plaintext, aad);
+        case ContentEncryptionAlgorithm::a256cbc_hs512:
+            return aesCbcHmacEncrypt(32, 32, BCRYPT_SHA512_ALGORITHM, 32, cek, iv, plaintext, aad);
+        default:
+            throw runtime_error("Unsupported content encryption algorithm");
+    }
+}
+
+vector<unsigned char> CNGBackEnd::decryptContent_(ContentEncryptionAlgorithm algorithm,
+                                                   vector<unsigned char> const &cek,
+                                                   vector<unsigned char> const &iv,
+                                                   vector<unsigned char> const &ciphertext,
+                                                   vector<unsigned char> const &aad,
+                                                   vector<unsigned char> const &tag) const
+{
+    switch (algorithm)
+    {
+        case ContentEncryptionAlgorithm::a128gcm:
+            if (cek.size() != 16)
+            {
+                throw runtime_error("A128GCM requires a 128-bit CEK");
+            }
+            return aesGcmDecrypt(cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::a192gcm:
+            if (cek.size() != 24)
+            {
+                throw runtime_error("A192GCM requires a 192-bit CEK");
+            }
+            return aesGcmDecrypt(cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::a256gcm:
+            if (cek.size() != 32)
+            {
+                throw runtime_error("A256GCM requires a 256-bit CEK");
+            }
+            return aesGcmDecrypt(cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::a128cbc_hs256:
+            return aesCbcHmacDecrypt(16, 16, BCRYPT_SHA256_ALGORITHM, 16, cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::a192cbc_hs384:
+            return aesCbcHmacDecrypt(24, 24, BCRYPT_SHA384_ALGORITHM, 24, cek, iv, ciphertext, aad, tag);
+        case ContentEncryptionAlgorithm::a256cbc_hs512:
+            return aesCbcHmacDecrypt(32, 32, BCRYPT_SHA512_ALGORITHM, 32, cek, iv, ciphertext, aad, tag);
+        default:
+            throw runtime_error("Unsupported content encryption algorithm");
+    }
 }
 
 vector<unsigned char> CNGBackEnd::hash(HashAlgorithm algorithm,

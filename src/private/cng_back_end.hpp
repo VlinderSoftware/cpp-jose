@@ -129,29 +129,8 @@ public:
                 std::vector<unsigned char> const &x_bytes,
                 std::vector<unsigned char> const &d_bytes) const override;
 
-    // virtual std::vector<unsigned char> sign(SignatureAlgorithm algorithm, JWK const& key,
-    //                                         std::vector<unsigned char> const& data) const
-    //                                         override;
-
-    // virtual bool verify(SignatureAlgorithm algorithm, JWK const& key,
-    //                     std::vector<unsigned char> const& data,
-    //                     std::vector<unsigned char> const& signature) const override;
-
-    // virtual std::vector<unsigned char>
-    // encrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
-    //         std::vector<unsigned char> const& plaintext) const override;
-
-    // virtual std::vector<unsigned char>
-    // decrypt(ContentEncryptionAlgorithm algorithm, JWK const& key,
-    //         std::vector<unsigned char> const& ciphertext) const override;
-
     virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                             std::vector<unsigned char> const &data) const override;
-
-    // virtual std::vector<unsigned char> derive(JWK const& private_key,
-    //                                           JWK const& peer_key) const override;
-
-    // virtual std::vector<unsigned char> randomBytes(size_t size) const override;
 
     /// Base64 encode
     virtual std::string base64Encode(std::vector<unsigned char> const &data) const override;
@@ -161,9 +140,6 @@ public:
     /// Backend-specific error string
     virtual std::string getErrorString() const override;
 
-    ///// Get hash algorithm for signature
-    // virtual void const* getHashAlgorithm(SignatureAlgorithm signature_algorithm) const override;
-
 protected:
     std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
                                      Key *key,
@@ -172,6 +148,32 @@ protected:
                  Key *key,
                  std::vector<unsigned char> const &data,
                  std::vector<unsigned char> const &signature) const override;
+   std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
+               Key *key,
+               std::vector<unsigned char> const &cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               Key *ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const override;
+    std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
+               Key *key,
+               std::vector<unsigned char> const &encrypted_cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               Key *ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const override;
+    std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    encryptContent_(ContentEncryptionAlgorithm algorithm,
+                    std::vector<unsigned char> const &cek,
+                    std::vector<unsigned char> const &iv,
+                    std::vector<unsigned char> const &plaintext,
+                    std::vector<unsigned char> const &aad) const override;
+    std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
+                                               std::vector<unsigned char> const &cek,
+                                               std::vector<unsigned char> const &iv,
+                                               std::vector<unsigned char> const &ciphertext,
+                                               std::vector<unsigned char> const &aad,
+                                               std::vector<unsigned char> const &tag) const override;
 };
 
 }  // namespace Private

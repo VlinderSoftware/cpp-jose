@@ -89,6 +89,40 @@ protected:
     {
         return false;
     }
+    std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
+                                           Key *key,
+                                           std::vector<unsigned char> const &cek,
+                                           std::optional<std::vector<unsigned char>> const &iv,
+                                           std::optional<std::vector<unsigned char>> const &tag,
+                                           Key *ephemeral_key,
+                                           ContentEncryptionAlgorithm content_alg) const override
+    {
+        (void)algorithm;
+        (void)key;
+        (void)cek;
+        (void)iv;
+        (void)tag;
+        (void)ephemeral_key;
+        (void)content_alg;
+        return {};
+    }
+    std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
+                                           Key *key,
+                                           std::vector<unsigned char> const &encrypted_cek,
+                                           std::optional<std::vector<unsigned char>> const &iv,
+                                           std::optional<std::vector<unsigned char>> const &tag,
+                                           Key *ephemeral_key,
+                                           ContentEncryptionAlgorithm content_alg) const override
+    {
+        (void)algorithm;
+        (void)key;
+        (void)encrypted_cek;
+        (void)iv;
+        (void)tag;
+        (void)ephemeral_key;
+        (void)content_alg;
+        return {};
+    }
 };
 
 TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output")

@@ -222,6 +222,91 @@ bool BackEnd::verify(SignatureAlgorithm algorithm,
     return this->verify_(algorithm, underlying_key, data, signature);
 }
 
+vector<unsigned char> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
+            const JWK &key,
+            vector<unsigned char> const &cek,
+            optional<vector<unsigned char>> const &iv,
+            optional<vector<unsigned char>> const &tag,
+            optional<JWK> const &ephemeral_key,
+            ContentEncryptionAlgorithm content_alg) const
+{
+    auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
+    if (underlying_key == nullptr)
+    {
+        throw runtime_error("Key does not contain valid material");
+    }
+    auto underlying_ephemeral_key = ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr : nullptr;
+    return this->encryptKey_(algorithm, underlying_key, cek, iv, tag, underlying_ephemeral_key, content_alg);
+}
+
+vector<unsigned char> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
+            JWK const &key,
+            vector<unsigned char> const &encrypted_cek,
+            optional<vector<unsigned char>> const &iv,
+            optional<vector<unsigned char>> const &tag,
+            optional<JWK> const &ephemeral_key,
+            ContentEncryptionAlgorithm content_alg) const
+{
+    auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
+    if (underlying_key == nullptr)
+    {
+        throw runtime_error("Key does not contain valid material");
+    }
+    auto underlying_ephemeral_key = ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr : nullptr;
+    return this->decryptKey_(algorithm, underlying_key, encrypted_cek, iv, tag, underlying_ephemeral_key, content_alg);
+}
+
+pair<vector<unsigned char>, vector<unsigned char>>
+BackEnd::encryptContent(ContentEncryptionAlgorithm algorithm,
+                        vector<unsigned char> const &cek,
+                        vector<unsigned char> const &iv,
+                        vector<unsigned char> const &plaintext,
+                        vector<unsigned char> const &aad) const
+{
+    return this->encryptContent_(algorithm, cek, iv, plaintext, aad);
+}
+
+vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorithm,
+                                              vector<unsigned char> const &cek,
+                                              vector<unsigned char> const &iv,
+                                              vector<unsigned char> const &ciphertext,
+                                              vector<unsigned char> const &aad,
+                                              vector<unsigned char> const &tag) const
+{
+    return this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
+}
+
+pair<vector<unsigned char>, vector<unsigned char>>
+BackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
+                         vector<unsigned char> const &cek,
+                         vector<unsigned char> const &iv,
+                         vector<unsigned char> const &plaintext,
+                         vector<unsigned char> const &aad) const
+{
+    (void)algorithm;
+    (void)cek;
+    (void)iv;
+    (void)plaintext;
+    (void)aad;
+    throw runtime_error("Content encryption is not implemented for this backend");
+}
+
+vector<unsigned char> BackEnd::decryptContent_(ContentEncryptionAlgorithm algorithm,
+                                               vector<unsigned char> const &cek,
+                                               vector<unsigned char> const &iv,
+                                               vector<unsigned char> const &ciphertext,
+                                               vector<unsigned char> const &aad,
+                                               vector<unsigned char> const &tag) const
+{
+    (void)algorithm;
+    (void)cek;
+    (void)iv;
+    (void)ciphertext;
+    (void)aad;
+    (void)tag;
+    throw runtime_error("Content decryption is not implemented for this backend");
+}
+
 }  // namespace Private
 }  // namespace JOSE
 }  // namespace Vlinder

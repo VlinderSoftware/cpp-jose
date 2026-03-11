@@ -26,10 +26,10 @@ Private::BackEnd &getBackEnd()
     return *back_end;
 }
 }  // namespace
+
 vector<unsigned char>
 JWA::sign(SignatureAlgorithm algorithm, const JWK &key, std::vector<unsigned char> const &data)
 {
-    // Delegate to back-end
     return getBackEnd().sign(algorithm, key, data);
 }
 
@@ -49,7 +49,7 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return {};
+    return getBackEnd().encryptKey(algorithm, key, cek, iv, tag, ephemeral_key, content_alg);
 }
 
 vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
@@ -60,7 +60,7 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return {};
+    return getBackEnd().decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
@@ -70,7 +70,7 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
                     vector<unsigned char> const &plaintext,
                     vector<unsigned char> const &aad)
 {
-    return {};
+    return getBackEnd().encryptContent(algorithm, cek, iv, plaintext, aad);
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
@@ -80,7 +80,7 @@ vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
                                           vector<unsigned char> const &aad,
                                           vector<unsigned char> const &tag)
 {
-    return {};
+    return getBackEnd().decryptContent(algorithm, cek, iv, ciphertext, aad, tag);
 }
 
 string JWA::toString(SignatureAlgorithm alg)

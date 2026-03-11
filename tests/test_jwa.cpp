@@ -8,6 +8,90 @@ using namespace std;
 
 using namespace Vlinder::JOSE;
 
+namespace {
+void verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm algorithm,
+                                                           JWK const &original_private_key,
+                                                           vector<unsigned char> const &data)
+{
+    JWK original_public_key = JWK::fromJSON(original_private_key.toJSON(false));
+
+    string private_key_json = original_private_key.toJSON(true);
+    string public_key_json = original_private_key.toJSON(false);
+
+    JWK deserialized_private_key = JWK::fromJSON(private_key_json);
+    JWK deserialized_public_key = JWK::fromJSON(public_key_json);
+
+    vector<unsigned char> signature_from_original_private =
+        JWA::sign(algorithm, original_private_key, data);
+    REQUIRE_FALSE(signature_from_original_private.empty());
+    REQUIRE(JWA::verify(algorithm, original_public_key, data, signature_from_original_private));
+    REQUIRE(JWA::verify(algorithm, deserialized_public_key, data, signature_from_original_private));
+
+    vector<unsigned char> signature_from_deserialized_private =
+        JWA::sign(algorithm, deserialized_private_key, data);
+    REQUIRE_FALSE(signature_from_deserialized_private.empty());
+    REQUIRE(JWA::verify(algorithm, original_public_key, data, signature_from_deserialized_private));
+    REQUIRE(
+        JWA::verify(algorithm, deserialized_public_key, data, signature_from_deserialized_private));
+}
+
+void verifyRsaKeyEncryptionSerializedDeserializedCombinations(
+    JWA::KeyEncryptionAlgorithm algorithm,
+    vector<unsigned char> const &cek)
+{
+    JWK original_private_key = JWK::generateRSA(JWK::Use::encryption, 2048);
+    JWK original_public_key = JWK::fromJSON(original_private_key.toJSON(false));
+
+    JWK deserialized_private_key = JWK::fromJSON(original_private_key.toJSON(true));
+    JWK deserialized_public_key = JWK::fromJSON(original_private_key.toJSON(false));
+
+    vector<unsigned char> encrypted = JWA::encryptKey(algorithm, original_public_key, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek != encrypted);
+    REQUIRE(cek == JWA::decryptKey(algorithm, original_private_key, encrypted));
+
+    encrypted = JWA::encryptKey(algorithm, original_public_key, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek != encrypted);
+    REQUIRE(cek == JWA::decryptKey(algorithm, deserialized_private_key, encrypted));
+
+    encrypted = JWA::encryptKey(algorithm, deserialized_public_key, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek != encrypted);
+    REQUIRE(cek == JWA::decryptKey(algorithm, original_private_key, encrypted));
+
+    encrypted = JWA::encryptKey(algorithm, deserialized_public_key, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek != encrypted);
+    REQUIRE(cek == JWA::decryptKey(algorithm, deserialized_private_key, encrypted));
+}
+
+void verifySymmetricKeyWrapSerializedDeserializedCombinations(
+    JWA::KeyEncryptionAlgorithm algorithm,
+    unsigned int key_size_bits,
+    vector<unsigned char> const &cek)
+{
+    JWK original_kek = JWK::generateOct(JWK::Use::encryption, key_size_bits);
+    JWK deserialized_kek = JWK::fromJSON(original_kek.toJSON(true));
+
+    vector<unsigned char> encrypted = JWA::encryptKey(algorithm, original_kek, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek == JWA::decryptKey(algorithm, original_kek, encrypted));
+
+    encrypted = JWA::encryptKey(algorithm, original_kek, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek == JWA::decryptKey(algorithm, deserialized_kek, encrypted));
+
+    encrypted = JWA::encryptKey(algorithm, deserialized_kek, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek == JWA::decryptKey(algorithm, original_kek, encrypted));
+
+    encrypted = JWA::encryptKey(algorithm, deserialized_kek, cek);
+    REQUIRE_FALSE(encrypted.empty());
+    REQUIRE(cek == JWA::decryptKey(algorithm, deserialized_kek, encrypted));
+}
+}  // namespace
+
 // Algorithm string conversion tests
 TEST_CASE("SignatureAlgorithmToString", "[jwa][signaturealgorithmtostring]")
 {
@@ -175,6 +259,157 @@ TEST_CASE("RSAPublicKeyVerification", "[jwa][rsapublickeyverification]")
     bool verified = JWA::verify(JWA::SignatureAlgorithm::rs256, publicKey, data, signature);
 
     REQUIRE(verified);
+}
+
+TEST_CASE("RSASerializedDeserializedKeyCombinations",
+          "[jwa][rsakeyserialization][rs256signandverify]")
+{
+    JWK private_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWK public_key = JWK::fromJSON(private_key.toJSON(false));
+
+    string private_key_json = private_key.toJSON(true);
+    string public_key_json = private_key.toJSON(false);
+
+    JWK deserialized_private_key = JWK::fromJSON(private_key_json);
+    JWK deserialized_public_key = JWK::fromJSON(public_key_json);
+
+    string data_string = "test message for serialized/deserialized RSA key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    SECTION("Original private key signs, original public key verifies")
+    {
+        vector<unsigned char> signature =
+            JWA::sign(JWA::SignatureAlgorithm::rs256, private_key, data);
+
+        REQUIRE_FALSE(signature.empty());
+        REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs256, public_key, data, signature));
+    }
+
+    SECTION("Serialized/deserialized private key signs, original public key verifies")
+    {
+        vector<unsigned char> signature =
+            JWA::sign(JWA::SignatureAlgorithm::rs256, deserialized_private_key, data);
+
+        REQUIRE_FALSE(signature.empty());
+        REQUIRE(JWA::verify(JWA::SignatureAlgorithm::rs256, public_key, data, signature));
+    }
+
+    SECTION("Original private key signs, serialized/deserialized public key verifies")
+    {
+        vector<unsigned char> signature =
+            JWA::sign(JWA::SignatureAlgorithm::rs256, private_key, data);
+
+        REQUIRE_FALSE(signature.empty());
+        REQUIRE(
+            JWA::verify(JWA::SignatureAlgorithm::rs256, deserialized_public_key, data, signature));
+    }
+
+    SECTION(
+        "Serialized/deserialized private key signs, serialized/deserialized public key verifies")
+    {
+        vector<unsigned char> signature =
+            JWA::sign(JWA::SignatureAlgorithm::rs256, deserialized_private_key, data);
+
+        REQUIRE_FALSE(signature.empty());
+        REQUIRE(
+            JWA::verify(JWA::SignatureAlgorithm::rs256, deserialized_public_key, data, signature));
+    }
+}
+
+TEST_CASE("RS384SerializedDeserializedKeyCombinations",
+          "[jwa][rsakeyserialization][rs384signandverify]")
+{
+    JWK private_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string data_string = "test message for RS384 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::rs384,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("RS512SerializedDeserializedKeyCombinations",
+          "[jwa][rsakeyserialization][rs512signandverify]")
+{
+    JWK private_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string data_string = "test message for RS512 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::rs512,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("PS256SerializedDeserializedKeyCombinations",
+          "[jwa][rsakeyserialization][ps256signandverify]")
+{
+    JWK private_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string data_string = "test message for PS256 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::ps256,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("PS384SerializedDeserializedKeyCombinations",
+          "[jwa][rsakeyserialization][ps384signandverify]")
+{
+    JWK private_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string data_string = "test message for PS384 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::ps384,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("PS512SerializedDeserializedKeyCombinations",
+          "[jwa][rsakeyserialization][ps512signandverify]")
+{
+    JWK private_key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string data_string = "test message for PS512 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::ps512,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("ES256SerializedDeserializedKeyCombinations",
+          "[jwa][eckeyserialization][es256signandverify]")
+{
+    JWK private_key = JWK::generateEC(JWK::Use::signature, "P-256");
+    string data_string = "test message for ES256 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::es256,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("ES384SerializedDeserializedKeyCombinations",
+          "[jwa][eckeyserialization][es384signandverify]")
+{
+    JWK private_key = JWK::generateEC(JWK::Use::signature, "P-384");
+    string data_string = "test message for ES384 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::es384,
+                                                          private_key,
+                                                          data);
+}
+
+TEST_CASE("ES512SerializedDeserializedKeyCombinations",
+          "[jwa][eckeyserialization][es512signandverify]")
+{
+    JWK private_key = JWK::generateEC(JWK::Use::signature, "P-521");
+    string data_string = "test message for ES512 serialized/deserialized key combinations";
+    vector<unsigned char> data(data_string.begin(), data_string.end());
+
+    verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorithm::es512,
+                                                          private_key,
+                                                          data);
 }
 
 // ECDSA signature tests (ES256, ES384, ES512)
@@ -352,6 +587,50 @@ TEST_CASE("A256KW_EncryptDecrypt", "[jwa][a256kw-encryptdecrypt]")
         JWA::decryptKey(JWA::KeyEncryptionAlgorithm::a256kw, kek, encrypted);
 
     REQUIRE(cek == decrypted);
+}
+
+TEST_CASE("RSA_OAEP_SerializedDeserializedKeyCombinations",
+          "[jwa][rsa-key-serialization][rsa-oaep-encryptdecrypt]")
+{
+    vector<unsigned char> cek(32, 0x2A);
+    verifyRsaKeyEncryptionSerializedDeserializedCombinations(JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                                                             cek);
+}
+
+TEST_CASE("RSA_OAEP_256_SerializedDeserializedKeyCombinations",
+          "[jwa][rsa-key-serialization][rsa-oaep-256-encryptdecrypt]")
+{
+    vector<unsigned char> cek(32, 0x3C);
+    verifyRsaKeyEncryptionSerializedDeserializedCombinations(
+        JWA::KeyEncryptionAlgorithm::rsa_oaep_256,
+        cek);
+}
+
+TEST_CASE("A128KW_SerializedDeserializedKeyCombinations",
+          "[jwa][symmetric-key-serialization][a128kw-encryptdecrypt]")
+{
+    vector<unsigned char> cek(16, 0x6A);
+    verifySymmetricKeyWrapSerializedDeserializedCombinations(JWA::KeyEncryptionAlgorithm::a128kw,
+                                                             128,
+                                                             cek);
+}
+
+TEST_CASE("A192KW_SerializedDeserializedKeyCombinations",
+          "[jwa][symmetric-key-serialization][a192kw-encryptdecrypt]")
+{
+    vector<unsigned char> cek(24, 0x6E);
+    verifySymmetricKeyWrapSerializedDeserializedCombinations(JWA::KeyEncryptionAlgorithm::a192kw,
+                                                             192,
+                                                             cek);
+}
+
+TEST_CASE("A256KW_SerializedDeserializedKeyCombinations",
+          "[jwa][symmetric-key-serialization][a256kw-encryptdecrypt]")
+{
+    vector<unsigned char> cek(32, 0x7B);
+    verifySymmetricKeyWrapSerializedDeserializedCombinations(JWA::KeyEncryptionAlgorithm::a256kw,
+                                                             256,
+                                                             cek);
 }
 
 // Content encryption tests
