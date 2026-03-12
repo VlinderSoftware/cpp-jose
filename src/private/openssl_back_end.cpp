@@ -1,6 +1,7 @@
 #include "openssl_back_end.hpp"
 
 #include <openssl/core_names.h>
+#include <openssl/decoder.h>
 #include <openssl/ecdsa.h>
 #include <openssl/err.h>
 #include <openssl/hmac.h>
@@ -110,6 +111,38 @@ vector<unsigned char> bnToPaddedBytes(BIGNUM const *bn, size_t size)
     }
 
     return out;
+}
+
+/// Convert a big-endian byte buffer (as produced by BN_bn2bin / BN_bn2binpad)
+/// into the platform-native byte order required by OSSL_PARAM_construct_BN /
+/// OSSL_PARAM_get_BN, which internally use BN_native2bn / BN_bn2nativepad.
+/// On little-endian hosts (x86-64 / ARM LE) this reverses the bytes; on
+/// big-endian hosts the result is identical to the input.
+vector<unsigned char> bnBytesToNative(vector<unsigned char> const &big_endian)
+{
+    if (big_endian.empty())
+    {
+        return {};
+    }
+    auto bn = makeOpenSSLGuard(BN_bin2bn(big_endian.data(),
+                                          static_cast<int>(big_endian.size()),
+                                          nullptr),
+                                [](BIGNUM *b)
+                                {
+                                    BN_free(b);
+                                });
+    if (bn == nullptr)
+    {
+        return {};
+    }
+    int const byte_count = BN_num_bytes(bn.get());
+    if (byte_count <= 0)
+    {
+        return {};
+    }
+    vector<unsigned char> native(static_cast<size_t>(byte_count));
+    BN_bn2nativepad(bn.get(), native.data(), static_cast<int>(native.size()));
+    return native;
 }
 
 void appendDerLength(vector<unsigned char> &out, size_t length)
@@ -669,6 +702,18 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
             return nullptr;
         }
 
+        // OSSL_PARAM_get_BN / BN_native2bn expects native (platform) byte order,
+        // but our component bytes are big-endian (from BN_bn2bin / JWK base64url).
+        // Convert each component to native byte order before building the param array.
+        auto n_native  = bnBytesToNative(n_bytes);
+        auto e_native  = bnBytesToNative(e_bytes);
+        auto d_native  = include_d              ? bnBytesToNative(active_d_bytes)  : vector<unsigned char>{};
+        auto p_native  = include_primes         ? bnBytesToNative(active_p_bytes)  : vector<unsigned char>{};
+        auto q_native  = include_primes         ? bnBytesToNative(active_q_bytes)  : vector<unsigned char>{};
+        auto dp_native = include_crt_exponents  ? bnBytesToNative(active_dp_bytes) : vector<unsigned char>{};
+        auto dq_native = include_crt_exponents  ? bnBytesToNative(active_dq_bytes) : vector<unsigned char>{};
+        auto qi_native = include_qi             ? bnBytesToNative(active_qi_bytes) : vector<unsigned char>{};
+
         OSSL_PARAM params[9] = {OSSL_PARAM_construct_end(),
                                 OSSL_PARAM_construct_end(),
                                 OSSL_PARAM_construct_end(),
@@ -681,47 +726,47 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
 
         size_t param_index = 0;
         params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                                        const_cast<unsigned char *>(n_bytes.data()),
-                                                        n_bytes.size());
+                                                        n_native.data(),
+                                                        n_native.size());
         params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
-                                                        const_cast<unsigned char *>(e_bytes.data()),
-                                                        e_bytes.size());
+                                                        e_native.data(),
+                                                        e_native.size());
 
         if (include_d)
         {
             params[param_index++] =
                 OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_D,
-                                        const_cast<unsigned char *>(active_d_bytes.data()),
-                                        active_d_bytes.size());
+                                        d_native.data(),
+                                        d_native.size());
         }
         if (include_primes)
         {
             params[param_index++] =
                 OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR1,
-                                        const_cast<unsigned char *>(active_p_bytes.data()),
-                                        active_p_bytes.size());
+                                        p_native.data(),
+                                        p_native.size());
             params[param_index++] =
                 OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR2,
-                                        const_cast<unsigned char *>(active_q_bytes.data()),
-                                        active_q_bytes.size());
+                                        q_native.data(),
+                                        q_native.size());
         }
         if (include_crt_exponents)
         {
             params[param_index++] =
                 OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1,
-                                        const_cast<unsigned char *>(active_dp_bytes.data()),
-                                        active_dp_bytes.size());
+                                        dp_native.data(),
+                                        dp_native.size());
             params[param_index++] =
                 OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2,
-                                        const_cast<unsigned char *>(active_dq_bytes.data()),
-                                        active_dq_bytes.size());
+                                        dq_native.data(),
+                                        dq_native.size());
         }
         if (include_qi)
         {
             params[param_index++] =
                 OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
-                                        const_cast<unsigned char *>(active_qi_bytes.data()),
-                                        active_qi_bytes.size());
+                                        qi_native.data(),
+                                        qi_native.size());
         }
         params[param_index] = OSSL_PARAM_construct_end();
 
@@ -1395,11 +1440,6 @@ EVP_PKEY *importRsaKey(RSAKey const &rsa_key, bool require_private)
     auto n_bytes = rsa_key.getN();
     auto e_bytes = rsa_key.getE();
     auto d_bytes = rsa_key.getD();
-    auto p_bytes = rsa_key.getP();
-    auto q_bytes = rsa_key.getQ();
-    auto dp_bytes = rsa_key.getDp();
-    auto dq_bytes = rsa_key.getDq();
-    auto qi_bytes = rsa_key.getQi();
 
     if (n_bytes.empty() || e_bytes.empty())
     {
@@ -1410,6 +1450,67 @@ EVP_PKEY *importRsaKey(RSAKey const &rsa_key, bool require_private)
         throw runtime_error("RSA private key material is required");
     }
 
+    // Prefer DER blob import. The blobs are serialised directly from a live
+    // EVP_PKEY so they never suffer the CRT-consistency issues that arise when
+    // EVP_PKEY_fromdata receives pre-computed CRT parameters whose ordering
+    // may not match OpenSSL 3's internal expectations, causing lazy key
+    // validation to fail with "bignum routines::no inverse" at sign/decrypt time.
+    auto tryDerImport = [](vector<unsigned char> const &blob,
+                           char const *structure,
+                           int selection) -> EVP_PKEY *
+    {
+        if (blob.empty())
+        {
+            return nullptr;
+        }
+        EVP_PKEY *pkey = nullptr;
+        unsigned char const *der_data = blob.data();
+        size_t der_len = blob.size();
+        auto dctx = makeOpenSSLGuard(
+            OSSL_DECODER_CTX_new_for_pkey(
+                &pkey, "DER", structure, "RSA", selection, nullptr, nullptr),
+            [](OSSL_DECODER_CTX *ctx)
+            {
+                OSSL_DECODER_CTX_free(ctx);
+            });
+        if (dctx != nullptr &&
+            OSSL_DECODER_from_data(dctx.get(), &der_data, &der_len) == 1 &&
+            pkey != nullptr)
+        {
+            return pkey;
+        }
+        if (pkey != nullptr)
+        {
+            EVP_PKEY_free(pkey);
+        }
+        ERR_clear_error();
+        return nullptr;
+    };
+
+    if (require_private)
+    {
+        EVP_PKEY *pkey =
+            tryDerImport(rsa_key.getPrivateBlob(), "type-specific", EVP_PKEY_KEYPAIR);
+        if (pkey != nullptr)
+        {
+            return pkey;
+        }
+    }
+    else
+    {
+        EVP_PKEY *pkey =
+            tryDerImport(rsa_key.getPublicBlob(), "SubjectPublicKeyInfo", EVP_PKEY_PUBLIC_KEY);
+        if (pkey != nullptr)
+        {
+            return pkey;
+        }
+    }
+
+    // Component-based fallback: supply only n/e/d — never CRT parameters.
+    // Passing pre-computed p, q, dp, dq, qi to EVP_PKEY_fromdata can produce
+    // a key object that OpenSSL 3 accepts at creation but rejects at first use
+    // with "bignum routines::no inverse". With only n/e/d, OpenSSL owns all
+    // internal CRT decisions and the key is always operationally consistent.
     auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "RSA", nullptr),
                                 [](EVP_PKEY_CTX *context)
                                 {
@@ -1425,63 +1526,33 @@ EVP_PKEY *importRsaKey(RSAKey const &rsa_key, bool require_private)
         throw runtime_error("Failed to initialize RSA import: " + getOpenSSLErrorString());
     }
 
-    OSSL_PARAM params[9] = {OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
-                            OSSL_PARAM_construct_end(),
+    // OSSL_PARAM_get_BN / BN_native2bn expects native (platform) byte order, but
+    // our component bytes are big-endian.  Convert before building the param array.
+    auto n_native = bnBytesToNative(n_bytes);
+    auto e_native = bnBytesToNative(e_bytes);
+    auto d_native = bnBytesToNative(d_bytes);  // empty when d_bytes is empty
+
+    OSSL_PARAM params[4] = {OSSL_PARAM_construct_end(),
                             OSSL_PARAM_construct_end(),
                             OSSL_PARAM_construct_end(),
                             OSSL_PARAM_construct_end()};
     size_t param_index = 0;
 
     params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_N,
-                                                    const_cast<unsigned char *>(n_bytes.data()),
-                                                    n_bytes.size());
+                                                    n_native.data(),
+                                                    n_native.size());
     params[param_index++] = OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_E,
-                                                    const_cast<unsigned char *>(e_bytes.data()),
-                                                    e_bytes.size());
+                                                    e_native.data(),
+                                                    e_native.size());
 
     int selection = EVP_PKEY_PUBLIC_KEY;
-    if (!d_bytes.empty())
+    if (!d_native.empty())
     {
         selection = EVP_PKEY_KEYPAIR;
         params[param_index++] =
             OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_D,
-                                    const_cast<unsigned char *>(d_bytes.data()),
-                                    d_bytes.size());
-
-        if (!p_bytes.empty() && !q_bytes.empty())
-        {
-            params[param_index++] =
-                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR1,
-                                        const_cast<unsigned char *>(p_bytes.data()),
-                                        p_bytes.size());
-            params[param_index++] =
-                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_FACTOR2,
-                                        const_cast<unsigned char *>(q_bytes.data()),
-                                        q_bytes.size());
-
-            if (!dp_bytes.empty() && !dq_bytes.empty())
-            {
-                params[param_index++] =
-                    OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT1,
-                                            const_cast<unsigned char *>(dp_bytes.data()),
-                                            dp_bytes.size());
-                params[param_index++] =
-                    OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_EXPONENT2,
-                                            const_cast<unsigned char *>(dq_bytes.data()),
-                                            dq_bytes.size());
-            }
-            if (!qi_bytes.empty())
-            {
-                params[param_index++] =
-                    OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_RSA_COEFFICIENT1,
-                                            const_cast<unsigned char *>(qi_bytes.data()),
-                                            qi_bytes.size());
-            }
-        }
+                                    d_native.data(),
+                                    d_native.size());
     }
     params[param_index] = OSSL_PARAM_construct_end();
 
