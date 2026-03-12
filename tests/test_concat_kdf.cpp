@@ -123,6 +123,35 @@ protected:
         (void)content_alg;
         return {};
     }
+    virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    encryptContent_(ContentEncryptionAlgorithm algorithm,
+                    std::vector<unsigned char> const &cek,
+                    std::vector<unsigned char> const &iv,
+                    std::vector<unsigned char> const &plaintext,
+                    std::vector<unsigned char> const &aad) const override
+    {
+        (void)algorithm;
+        (void)cek;
+        (void)iv;
+        (void)plaintext;
+        (void)aad;
+        return {{}, {}};
+    }    
+    virtual std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
+                                                       std::vector<unsigned char> const &cek,
+                                                       std::vector<unsigned char> const &iv,
+                                                       std::vector<unsigned char> const &ciphertext,
+                                                       std::vector<unsigned char> const &aad,
+                                                       std::vector<unsigned char> const &tag) const override
+    {
+        (void)algorithm;
+        (void)cek;
+        (void)iv;
+        (void)ciphertext;
+        (void)aad;
+        (void)tag;
+        return {};
+    }
 };
 
 TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output")

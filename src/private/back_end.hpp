@@ -267,13 +267,13 @@ protected:
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,
                     std::vector<unsigned char> const &plaintext,
-                    std::vector<unsigned char> const &aad) const;
+                    std::vector<unsigned char> const &aad) const = 0;
     virtual std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
                                                        std::vector<unsigned char> const &cek,
                                                        std::vector<unsigned char> const &iv,
                                                        std::vector<unsigned char> const &ciphertext,
                                                        std::vector<unsigned char> const &aad,
-                                                       std::vector<unsigned char> const &tag) const;
+                                                       std::vector<unsigned char> const &tag) const = 0;
 };
 
 }  // namespace Private

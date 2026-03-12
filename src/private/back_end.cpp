@@ -276,37 +276,6 @@ vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorit
     return this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
 }
 
-pair<vector<unsigned char>, vector<unsigned char>>
-BackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
-                         vector<unsigned char> const &cek,
-                         vector<unsigned char> const &iv,
-                         vector<unsigned char> const &plaintext,
-                         vector<unsigned char> const &aad) const
-{
-    (void)algorithm;
-    (void)cek;
-    (void)iv;
-    (void)plaintext;
-    (void)aad;
-    throw runtime_error("Content encryption is not implemented for this backend");
-}
-
-vector<unsigned char> BackEnd::decryptContent_(ContentEncryptionAlgorithm algorithm,
-                                               vector<unsigned char> const &cek,
-                                               vector<unsigned char> const &iv,
-                                               vector<unsigned char> const &ciphertext,
-                                               vector<unsigned char> const &aad,
-                                               vector<unsigned char> const &tag) const
-{
-    (void)algorithm;
-    (void)cek;
-    (void)iv;
-    (void)ciphertext;
-    (void)aad;
-    (void)tag;
-    throw runtime_error("Content decryption is not implemented for this backend");
-}
-
 }  // namespace Private
 }  // namespace JOSE
 }  // namespace Vlinder
