@@ -1085,6 +1085,44 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob;
 
+    // When a private scalar is provided, build the full keypair EVP_PKEY so
+    // we can derive and store the private DER blob.  This avoids falling back
+    // to a component-based import (with its OSSL_PARAM endianness hazard) on
+    // every subsequent sign operation.
+    if (!d_bytes.empty())
+    {
+        auto d_native = bnBytesToNative(d_bytes);
+        auto kp_ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr),
+                                        [](EVP_PKEY_CTX *c)
+                                        {
+                                            EVP_PKEY_CTX_free(c);
+                                        });
+        EVP_PKEY *kp_raw = nullptr;
+        if (kp_ctx != nullptr && EVP_PKEY_fromdata_init(kp_ctx.get()) > 0)
+        {
+            OSSL_PARAM kp_params[] = {
+                OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                                 group_name_param.data(),
+                                                 group_name_param.size() + 1),
+                OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+                                                  public_point.data(),
+                                                  public_point.size()),
+                OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_PRIV_KEY,
+                                        d_native.data(),
+                                        d_native.size()),
+                OSSL_PARAM_construct_end()};
+            if (EVP_PKEY_fromdata(kp_ctx.get(), &kp_raw, EVP_PKEY_KEYPAIR, kp_params) > 0)
+            {
+                auto kp_guard = makeOpenSSLGuard(kp_raw,
+                                                 [](EVP_PKEY *k)
+                                                 {
+                                                     EVP_PKEY_free(k);
+                                                 });
+                private_blob = toDERPrivate(kp_guard.get());
+            }
+        }
+    }
+
     return make_unique<OpenSSLECKey>(canonical_curve,
                                      x_bytes,
                                      y_bytes,
@@ -1584,13 +1622,69 @@ EVP_PKEY *importEcKey(ECKey const &ec_key, bool require_private)
         throw runtime_error("EC private key material is required");
     }
 
+    // Prefer DER blob import — avoids OSSL_PARAM_BN endianness issues entirely.
+    auto tryDerImport = [](vector<unsigned char> const &blob,
+                           char const *structure,
+                           int selection) -> EVP_PKEY *
+    {
+        if (blob.empty())
+        {
+            return nullptr;
+        }
+        EVP_PKEY *pkey = nullptr;
+        unsigned char const *der_data = blob.data();
+        size_t der_len = blob.size();
+        auto dctx = makeOpenSSLGuard(
+            OSSL_DECODER_CTX_new_for_pkey(
+                &pkey, "DER", structure, "EC", selection, nullptr, nullptr),
+            [](OSSL_DECODER_CTX *ctx)
+            {
+                OSSL_DECODER_CTX_free(ctx);
+            });
+        if (dctx != nullptr &&
+            OSSL_DECODER_from_data(dctx.get(), &der_data, &der_len) == 1 &&
+            pkey != nullptr)
+        {
+            return pkey;
+        }
+        if (pkey != nullptr)
+        {
+            EVP_PKEY_free(pkey);
+        }
+        ERR_clear_error();
+        return nullptr;
+    };
+
+    if (require_private)
+    {
+        EVP_PKEY *pkey =
+            tryDerImport(ec_key.getPrivateBlob(), "type-specific", EVP_PKEY_KEYPAIR);
+        if (pkey != nullptr)
+        {
+            return pkey;
+        }
+    }
+    else
+    {
+        EVP_PKEY *pkey =
+            tryDerImport(ec_key.getPublicBlob(), "SubjectPublicKeyInfo", EVP_PKEY_PUBLIC_KEY);
+        if (pkey != nullptr)
+        {
+            return pkey;
+        }
+    }
+
+    // Component-based fallback.
+    // OSSL_PARAM_get_BN / BN_native2bn expects native (platform) byte order,
+    // but our component bytes are big-endian.  Convert d before use.
+    string group_name = openssl_curve_name;
+
     vector<unsigned char> public_point;
     public_point.reserve(1 + x_bytes.size() + y_bytes.size());
     public_point.push_back(0x04);
     public_point.insert(public_point.end(), x_bytes.begin(), x_bytes.end());
     public_point.insert(public_point.end(), y_bytes.begin(), y_bytes.end());
 
-    string group_name = openssl_curve_name;
     auto ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new_from_name(nullptr, "EC", nullptr),
                                 [](EVP_PKEY_CTX *context)
                                 {
@@ -1606,31 +1700,10 @@ EVP_PKEY *importEcKey(ECKey const &ec_key, bool require_private)
         throw runtime_error("Failed to initialize EC import: " + getOpenSSLErrorString());
     }
 
-    OSSL_PARAM params[] = {
-        OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
-                                         group_name.data(),
-                                         group_name.size() + 1),
-        OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
-                                          public_point.data(),
-                                          public_point.size()),
-        OSSL_PARAM_construct_end()};
-
     EVP_PKEY *pkey = nullptr;
     if (require_private)
     {
-        BIGNUM *d_bn = BN_bin2bn(d_bytes.data(), static_cast<int>(d_bytes.size()), nullptr);
-        if (d_bn == nullptr)
-        {
-            throw runtime_error("Failed to import EC private key scalar");
-        }
-
-        auto d_guard = makeOpenSSLGuard(d_bn,
-                                        [](BIGNUM *bn)
-                                        {
-                                            BN_free(bn);
-                                        });
-
-        auto d_param = bnToBytes(d_guard.get());
+        auto d_native = bnBytesToNative(d_bytes);
         OSSL_PARAM private_params[] = {
             OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
                                              group_name.data(),
@@ -1639,8 +1712,8 @@ EVP_PKEY *importEcKey(ECKey const &ec_key, bool require_private)
                                               public_point.data(),
                                               public_point.size()),
             OSSL_PARAM_construct_BN(OSSL_PKEY_PARAM_PRIV_KEY,
-                                    const_cast<unsigned char *>(d_param.data()),
-                                    d_param.size()),
+                                    d_native.data(),
+                                    d_native.size()),
             OSSL_PARAM_construct_end()};
 
         if (EVP_PKEY_fromdata(ctx.get(), &pkey, EVP_PKEY_KEYPAIR, private_params) <= 0)
@@ -1650,6 +1723,15 @@ EVP_PKEY *importEcKey(ECKey const &ec_key, bool require_private)
     }
     else
     {
+        OSSL_PARAM params[] = {
+            OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
+                                             group_name.data(),
+                                             group_name.size() + 1),
+            OSSL_PARAM_construct_octet_string(OSSL_PKEY_PARAM_PUB_KEY,
+                                              public_point.data(),
+                                              public_point.size()),
+            OSSL_PARAM_construct_end()};
+
         if (EVP_PKEY_fromdata(ctx.get(), &pkey, EVP_PKEY_PUBLIC_KEY, params) <= 0)
         {
             throw runtime_error("Failed to import EC public key: " + getOpenSSLErrorString());
