@@ -18,6 +18,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Test executable
 add_executable(jose_tests
+    test_backend_factory.cpp
     test_base64url.cpp
     test_jwk.cpp
     test_jwa.cpp

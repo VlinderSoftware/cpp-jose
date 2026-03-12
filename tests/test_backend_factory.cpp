@@ -1,29 +1,30 @@
-#include <gtest/gtest.h>
+#include <catch2/catch_test_macros.hpp>
 
-#include "backend_factory.hpp"
-#include "cng_factory.cpp"
-#include "details/backend.hpp"
-#include "openssl_factory.cpp"
+#include "../src/private/back_end_factory.hpp"
+#include "../src/private/cng_back_end.hpp"
+#include "../src/private/openssl_back_end.hpp"
 
 using namespace std;
 
 using namespace Vlinder::JOSE;
-using namespace Vlinder::JOSE::Details;
+using namespace Vlinder::JOSE::Private;
 
-TEST(BackendFactoryTest, OpenSSLFactoryCreatesBackend)
+#if defined(JOSE_USE_OPENSSL)
+TEST_CASE("BackendFactoryTest, OpenSSLFactoryCreatesBackend")
 {
-    OpenSSLFactory factory;
-    auto backend = factory.createBackend();
-    ASSERT_NE(backend, nullptr);
-    auto openssl_backend = dynamic_cast<OpenSSLBackend *>(backend.get());
-    ASSERT_NE(openssl_backend, nullptr);
+    auto &factory = BackEndFactory::get();
+    auto backend = std::move(factory.createBackEnd());
+    REQUIRE(backend);
+    auto openssl_backend = dynamic_cast<OpenSSLBackEnd *>(backend.get());
+    REQUIRE(openssl_backend != nullptr);
 }
-
-TEST(BackendFactoryTest, CNGFactoryCreatesBackend)
+#elif defined(JOSE_USE_CNG)
+TEST_CASE("BackendFactoryTest, CNGFactoryCreatesBackend")
 {
-    CNGFactory factory;
-    auto backend = factory.createBackend();
-    ASSERT_NE(backend, nullptr);
+    auto &factory = BackEndFactory::get();
+    auto backend = std::move(factory.createBackEnd());
+    REQUIRE(backend);
     auto cng_backend = dynamic_cast<CNGBackEnd *>(backend.get());
-    ASSERT_NE(cng_backend, nullptr);
+    REQUIRE(cng_backend != nullptr);
 }
+#endif
