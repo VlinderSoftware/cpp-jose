@@ -162,7 +162,7 @@ public:
                                          size_t key_data_len,
                                          std::string const &algorithm,
                                          std::vector<unsigned char> const &apu = {},
-                                         std::vector<unsigned char> const &apv = {});
+                                         std::vector<unsigned char> const &apv = {}) const;
 
     virtual std::unique_ptr<Key> generateRSA(unsigned int bits) const = 0;
     virtual std::unique_ptr<Key> generateRSA(std::vector<unsigned char> const &n_bytes,

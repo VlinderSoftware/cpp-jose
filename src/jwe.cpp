@@ -219,13 +219,23 @@ string JWE::encrypt(const JWK &key) const
 
         if (is_gcm_kw)
         {
-            encrypted_key = JWA::encryptKey(impl_->key_algorithm_,
-                                            key,
-                                            cek,
-                                            kek_iv,
-                                            kek_tag,
-                                            {},
-                                            impl_->content_algorithm_);
+            // The backend returns [IV(12 bytes)][ciphertext][tag(16 bytes)] concatenated.
+            auto raw = JWA::encryptKey(impl_->key_algorithm_,
+                                       key,
+                                       cek,
+                                       {},
+                                       {},
+                                       {},
+                                       impl_->content_algorithm_);
+            constexpr size_t kGcmIvSize = 12;
+            constexpr size_t kGcmTagSize = 16;
+            if (raw.size() < kGcmIvSize + kGcmTagSize)
+            {
+                throw runtime_error("AES-GCM key wrap returned insufficient data");
+            }
+            kek_iv.assign(raw.begin(), raw.begin() + kGcmIvSize);
+            kek_tag.assign(raw.end() - kGcmTagSize, raw.end());
+            encrypted_key.assign(raw.begin() + kGcmIvSize, raw.end() - kGcmTagSize);
         }
         else
         {

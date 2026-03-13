@@ -13,6 +13,7 @@ namespace Private {
 using AlgHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptCloseAlgorithmProvider(h, 0); })>;
 using KeyHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptDestroyKey(h); })>;
 using HashHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptDestroyHash(h); })>;
+using SecretHandle = std::unique_ptr<void, decltype([](void *h) noexcept { BCryptDestroySecret(h); })>;
 
 class CNGRSAKey : public RSAKey
 {

@@ -765,6 +765,180 @@ vector<unsigned char> aesGcmDecrypt(vector<unsigned char> const &cek,
     return plaintext;
 }
 
+/// Import an EC key for ECDH key agreement using the BCRYPT_ECDH_Pxxx algorithm provider.
+KeyHandle importECDHKey(ECKey const &ec_key, bool require_private)
+{
+    auto const &curve_name = ec_key.getCurveName();
+    wchar_t const *alg_name = nullptr;
+    ULONG private_magic = 0;
+    ULONG public_magic = 0;
+
+    if (curve_name == "P-256")
+    {
+        alg_name = BCRYPT_ECDH_P256_ALGORITHM;
+        private_magic = BCRYPT_ECDH_PRIVATE_P256_MAGIC;
+        public_magic = BCRYPT_ECDH_PUBLIC_P256_MAGIC;
+    }
+    else if (curve_name == "P-384")
+    {
+        alg_name = BCRYPT_ECDH_P384_ALGORITHM;
+        private_magic = BCRYPT_ECDH_PRIVATE_P384_MAGIC;
+        public_magic = BCRYPT_ECDH_PUBLIC_P384_MAGIC;
+    }
+    else if (curve_name == "P-521")
+    {
+        alg_name = BCRYPT_ECDH_P521_ALGORITHM;
+        private_magic = BCRYPT_ECDH_PRIVATE_P521_MAGIC;
+        public_magic = BCRYPT_ECDH_PUBLIC_P521_MAGIC;
+    }
+    else
+    {
+        throw runtime_error("Unsupported EC curve for ECDH: " + curve_name);
+    }
+
+    BCRYPT_ALG_HANDLE h_alg = nullptr;
+    NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, alg_name, nullptr, 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptOpenAlgorithmProvider (ECDH) failed");
+    }
+    AlgHandle alg_guard(h_alg);
+
+    vector<unsigned char> blob;
+    LPCWSTR blob_type = nullptr;
+    if (require_private)
+    {
+        blob = buildEcPrivateBlob(ec_key, private_magic);
+        blob_type = BCRYPT_ECCPRIVATE_BLOB;
+    }
+    else
+    {
+        blob = buildEcPublicBlob(ec_key, public_magic);
+        blob_type = BCRYPT_ECCPUBLIC_BLOB;
+    }
+
+    BCRYPT_KEY_HANDLE h_key = nullptr;
+    status = BCryptImportKeyPair(alg_guard.get(),
+                                 nullptr,
+                                 blob_type,
+                                 &h_key,
+                                 blob.data(),
+                                 static_cast<ULONG>(blob.size()),
+                                 0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptImportKeyPair (ECDH) failed");
+    }
+    return KeyHandle(h_key);
+}
+
+/// Perform ECDH key agreement and return the shared secret as a big-endian byte vector.
+/// private_key must be an ECKey with private material; public_key must be an ECKey.
+vector<unsigned char> computeECDHSharedSecret(Key *private_key, Key *public_key)
+{
+    auto ec_private = dynamic_cast<ECKey *>(private_key);
+    auto ec_public = dynamic_cast<ECKey *>(public_key);
+    if (!ec_private || !ec_public)
+    {
+        throw runtime_error("ECDH key agreement requires EC keys");
+    }
+
+    KeyHandle priv_handle = importECDHKey(*ec_private, true);
+    KeyHandle pub_handle = importECDHKey(*ec_public, false);
+
+    BCRYPT_SECRET_HANDLE h_secret = nullptr;
+    NTSTATUS status = BCryptSecretAgreement(static_cast<BCRYPT_KEY_HANDLE>(priv_handle.get()),
+                                            static_cast<BCRYPT_KEY_HANDLE>(pub_handle.get()),
+                                            &h_secret,
+                                            0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptSecretAgreement failed");
+    }
+    SecretHandle secret_guard(h_secret);
+
+    ULONG derived_size = 0;
+    status = BCryptDeriveKey(static_cast<BCRYPT_SECRET_HANDLE>(secret_guard.get()),
+                             BCRYPT_KDF_RAW_SECRET,
+                             nullptr,
+                             nullptr,
+                             0,
+                             &derived_size,
+                             0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDeriveKey (size query) failed");
+    }
+
+    vector<unsigned char> shared_secret(derived_size);
+    status = BCryptDeriveKey(static_cast<BCRYPT_SECRET_HANDLE>(secret_guard.get()),
+                             BCRYPT_KDF_RAW_SECRET,
+                             nullptr,
+                             shared_secret.data(),
+                             static_cast<ULONG>(shared_secret.size()),
+                             &derived_size,
+                             0);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptDeriveKey failed");
+    }
+    shared_secret.resize(derived_size);
+
+    // CNG returns the raw ECDH secret in little-endian byte order.
+    // JOSE (RFC 7518) requires big-endian, so reverse the bytes.
+    reverse(shared_secret.begin(), shared_secret.end());
+    return shared_secret;
+}
+
+/// AES-GCM key wrap: returns [IV (12 bytes)][ciphertext][tag (16 bytes)].
+vector<unsigned char> aesGcmKeyWrapHelper(vector<unsigned char> const &kek,
+                                          vector<unsigned char> const &cek)
+{
+    vector<unsigned char> iv(12);
+    NTSTATUS status = BCryptGenRandom(nullptr,
+                                      iv.data(),
+                                      static_cast<ULONG>(iv.size()),
+                                      BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    if (!BCRYPT_SUCCESS(status))
+    {
+        throw runtime_error("BCryptGenRandom failed");
+    }
+
+    auto [ciphertext, tag] = aesGcmEncrypt(kek, iv, cek, {});
+
+    vector<unsigned char> result;
+    result.reserve(iv.size() + ciphertext.size() + tag.size());
+    result.insert(result.end(), iv.begin(), iv.end());
+    result.insert(result.end(), ciphertext.begin(), ciphertext.end());
+    result.insert(result.end(), tag.begin(), tag.end());
+    return result;
+}
+
+/// AES-GCM key unwrap.
+/// If iv_opt and tag_opt are present they are used directly; otherwise iv and tag are
+/// extracted from the first 12 / last 16 bytes of wrapped_cek.
+vector<unsigned char> aesGcmKeyUnwrapHelper(vector<unsigned char> const &kek,
+                                             vector<unsigned char> const &wrapped_cek,
+                                             optional<vector<unsigned char>> const &iv_opt,
+                                             optional<vector<unsigned char>> const &tag_opt)
+{
+    if (iv_opt.has_value() && tag_opt.has_value())
+    {
+        return aesGcmDecrypt(kek, *iv_opt, wrapped_cek, {}, *tag_opt);
+    }
+
+    constexpr size_t iv_size = 12;
+    constexpr size_t tag_size = 16;
+    if (wrapped_cek.size() < iv_size + tag_size)
+    {
+        throw runtime_error("AES-GCM key unwrap: wrapped data too short");
+    }
+    vector<unsigned char> iv(wrapped_cek.begin(), wrapped_cek.begin() + iv_size);
+    vector<unsigned char> tag(wrapped_cek.end() - tag_size, wrapped_cek.end());
+    vector<unsigned char> ciphertext(wrapped_cek.begin() + iv_size, wrapped_cek.end() - tag_size);
+    return aesGcmDecrypt(kek, iv, ciphertext, {}, tag);
+}
+
 pair<vector<unsigned char>, vector<unsigned char>> aesCbcHmacEncrypt(size_t mac_key_size,
                                                                      size_t enc_key_size,
                                                                      wchar_t const *hmac_alg,
@@ -2219,8 +2393,6 @@ vector<unsigned char> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,
 {
     (void)iv;
     (void)tag;
-    (void)ephemeral_key;
-    (void)content_alg;
 
     if (key == nullptr)
     {
@@ -2363,13 +2535,32 @@ vector<unsigned char> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,
 
     if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
     {
-        throw runtime_error("ECDH-ES key agreement is not implemented for CNG back-end yet");
+        auto ec_eph = dynamic_cast<ECKey *>(ephemeral_key);
+        if (ec_eph == nullptr)
+        {
+            throw runtime_error("ECDH-ES requires an ephemeral EC key");
+        }
+        auto shared_secret = computeECDHSharedSecret(ec_eph, key);
+        return concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
     }
 
     if (algorithm == KeyEncryptionAlgorithm::a128gcmkw || algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
         algorithm == KeyEncryptionAlgorithm::a256gcmkw)
     {
-        throw runtime_error("AES-GCM key wrap is not implemented for CNG back-end yet");
+        auto oct_key = dynamic_cast<OctKey *>(key);
+        if (oct_key == nullptr)
+        {
+            throw runtime_error("AES-GCM key wrap requires an octet key");
+        }
+        size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw) ? 16
+                                   : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24 : 32;
+        vector<unsigned char> kek = oct_key->getK();
+        if (kek.size() != expected_kek_size)
+        {
+            throw runtime_error("AES-GCM key wrap key size does not match algorithm");
+        }
+        // Returns [IV(12)][ciphertext][tag(16)] — jwe.cpp splits these out.
+        return aesGcmKeyWrapHelper(kek, cek);
     }
 
     throw runtime_error("Unsupported key encryption algorithm");
@@ -2383,11 +2574,6 @@ vector<unsigned char> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
             Key *ephemeral_key,
             ContentEncryptionAlgorithm content_alg) const
 {
-    (void)iv;
-    (void)tag;
-    (void)ephemeral_key;
-    (void)content_alg;
-
     if (key == nullptr)
     {
         throw runtime_error("Key does not contain valid material");
@@ -2529,13 +2715,53 @@ vector<unsigned char> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
 
     if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
     {
-        throw runtime_error("ECDH-ES key agreement is not implemented for CNG back-end yet");
+        auto ec_key = dynamic_cast<ECKey *>(key);
+        auto ec_eph = dynamic_cast<ECKey *>(ephemeral_key);
+        if (ec_key == nullptr || ec_eph == nullptr)
+        {
+            throw runtime_error("ECDH-ES key agreement requires EC keys");
+        }
+        // shared secret: recipient_private × ephemeral_public
+        auto shared_secret = computeECDHSharedSecret(key, ephemeral_key);
+
+        // Derive the CEK — its length depends on the content algorithm.
+        size_t derived_key_len = 0;
+        switch (content_alg)
+        {
+            case ContentEncryptionAlgorithm::a128gcm:
+            case ContentEncryptionAlgorithm::a128cbc_hs256:
+                derived_key_len = 16;
+                break;
+            case ContentEncryptionAlgorithm::a192gcm:
+            case ContentEncryptionAlgorithm::a192cbc_hs384:
+                derived_key_len = 24;
+                break;
+            case ContentEncryptionAlgorithm::a256gcm:
+            case ContentEncryptionAlgorithm::a256cbc_hs512:
+                derived_key_len = 32;
+                break;
+            default:
+                throw runtime_error("Unsupported content algorithm for ECDH-ES");
+        }
+        return concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
     }
 
     if (algorithm == KeyEncryptionAlgorithm::a128gcmkw || algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
         algorithm == KeyEncryptionAlgorithm::a256gcmkw)
     {
-        throw runtime_error("AES-GCM key unwrap is not implemented for CNG back-end yet");
+        auto oct_key = dynamic_cast<OctKey *>(key);
+        if (oct_key == nullptr)
+        {
+            throw runtime_error("AES-GCM key unwrap requires an octet key");
+        }
+        size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw) ? 16
+                                   : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24 : 32;
+        vector<unsigned char> kek = oct_key->getK();
+        if (kek.size() != expected_kek_size)
+        {
+            throw runtime_error("AES-GCM key unwrap key size does not match algorithm");
+        }
+        return aesGcmKeyUnwrapHelper(kek, encrypted_cek, iv, tag);
     }
 
     throw runtime_error("Unsupported key encryption algorithm");
