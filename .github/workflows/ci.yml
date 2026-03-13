@@ -8,74 +8,293 @@ on:
 
 jobs:
   build-and-test:
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        build_type: [Debug, Release]
-        
+        include:
+          # ── Linux GCC ─────────────────────────────────────────────────────
+          - name: "Linux GCC Debug"
+            os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: lcov-gcov
+          - name: "Linux GCC Release"
+            os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── Linux Clang ───────────────────────────────────────────────────
+          - name: "Linux Clang Debug"
+            os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: lcov-llvm
+          - name: "Linux Clang Release"
+            os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── macOS Clang ───────────────────────────────────────────────────
+          - name: "macOS Clang Debug"
+            os: macos-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: lcov-llvm
+          - name: "macOS Clang Release"
+            os: macos-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── Windows MSVC ──────────────────────────────────────────────────
+          - name: "Windows MSVC CNG Debug"
+            os: windows-latest
+            compiler: msvc
+            backend: CNG
+            build_type: Debug
+            coverage: true
+            coverage_tool: opencppcoverage
+          - name: "Windows MSVC CNG Release"
+            os: windows-latest
+            compiler: msvc
+            backend: CNG
+            build_type: Release
+            coverage: false
+          - name: "Windows MSVC OpenSSL Debug"
+            os: windows-latest
+            compiler: msvc
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: opencppcoverage
+          - name: "Windows MSVC OpenSSL Release"
+            os: windows-latest
+            compiler: msvc
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── Windows ClangCL ───────────────────────────────────────────────
+          - name: "Windows ClangCL CNG Debug"
+            os: windows-latest
+            compiler: clang-cl
+            backend: CNG
+            build_type: Debug
+            coverage: true
+            coverage_tool: llvm-cov-instr
+          - name: "Windows ClangCL CNG Release"
+            os: windows-latest
+            compiler: clang-cl
+            backend: CNG
+            build_type: Release
+            coverage: false
+          - name: "Windows ClangCL OpenSSL Debug"
+            os: windows-latest
+            compiler: clang-cl
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: llvm-cov-instr
+          - name: "Windows ClangCL OpenSSL Release"
+            os: windows-latest
+            compiler: clang-cl
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install dependencies (Ubuntu)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cmake ninja-build libssl-dev lcov
-        
-    - name: Install dependencies (macOS)
-      if: runner.os == 'macOS'
-      run: |
-        brew install cmake ninja openssl@3 lcov
-        
-    - name: Install GoogleTest
-      run: |
-        git clone https://github.com/google/googletest.git -b release-1.12.1
-        cd googletest
-        cmake -B build -DCMAKE_BUILD_TYPE=Release
-        cmake --build build
-        sudo cmake --install build
-        
-    - name: Configure CMake
-      run: |
-        cmake -B build -G Ninja \
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-          -DBUILD_TESTS=ON \
-          -DBUILD_EXAMPLES=ON \
-          -DCMAKE_CXX_FLAGS="--coverage"
-          
-    - name: Build
-      run: cmake --build build --config ${{ matrix.build_type }}
-      
-    - name: Run tests
-      run: |
-        cd build
-        ctest --output-on-failure -C ${{ matrix.build_type }}
-        
-    - name: Generate coverage report (Debug only)
-      if: matrix.build_type == 'Debug' && runner.os == 'Linux'
-      run: |
-        cd build
-        lcov --capture --directory . --output-file coverage.info
-        lcov --remove coverage.info '/usr/*' '*/googletest/*' --output-file coverage.info
-        lcov --list coverage.info
-        
-    - name: Upload coverage to Codecov
-      if: matrix.build_type == 'Debug' && runner.os == 'Linux'
-      uses: codecov/codecov-action@v3
-      with:
-        files: ./build/coverage.info
-        fail_ci_if_error: false
-        
+      - uses: actions/checkout@v6
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev lcov clang llvm
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install ninja openssl@3 lcov llvm
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
+          echo "LLVM_PREFIX=$(brew --prefix llvm)" >> "$GITHUB_ENV"
+
+      - name: Set up MSVC environment (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Locate OpenSSL (Windows)
+        if: ${{ runner.os == 'Windows' && matrix.backend == 'OpenSSL' }}
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "C:\Program Files\OpenSSL",
+            "C:\Program Files\OpenSSL-Win64",
+            "C:\OpenSSL-Win64"
+          )
+          $root = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $root) {
+            choco install openssl -y --no-progress
+            $root = "C:\Program Files\OpenSSL-Win64"
+          }
+          "OPENSSL_ROOT_DIR=$root" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Install OpenCppCoverage (Windows MSVC)
+        if: matrix.coverage_tool == 'opencppcoverage'
+        shell: pwsh
+        run: choco install opencppcoverage -y --no-progress
+
+      - name: Configure CMake
+        shell: bash
+        run: |
+          [[ -n "${{ matrix.cc }}" ]] && export CC="${{ matrix.cc }}"
+          [[ -n "${{ matrix.cxx }}" ]] && export CXX="${{ matrix.cxx }}"
+
+          EXTRA_ARGS=""
+          [[ "${{ matrix.compiler }}" == "clang-cl" ]] && \
+            EXTRA_ARGS+=" -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl"
+          [[ -n "$OPENSSL_ROOT_DIR" ]] && \
+            EXTRA_ARGS+=" -DOPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR"
+
+          # Coverage instrumentation flags (not needed for opencppcoverage — it instruments at run time)
+          case "${{ matrix.coverage_tool }}" in
+            lcov-gcov|lcov-llvm)
+              EXTRA_ARGS+=" -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage"
+              ;;
+            llvm-cov-instr)
+              EXTRA_ARGS+=" -DCMAKE_CXX_FLAGS='/clang:-fprofile-instr-generate /clang:-fcoverage-mapping'"
+              EXTRA_ARGS+=" -DCMAKE_EXE_LINKER_FLAGS='/clang:-fprofile-instr-generate'"
+              ;;
+          esac
+
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DJOSE_BACKEND=${{ matrix.backend }} \
+            -DBUILD_TESTS=ON \
+            -DBUILD_EXAMPLES=ON \
+            $EXTRA_ARGS
+
+      - name: Build
+        run: cmake --build build --config ${{ matrix.build_type }}
+
+      # Normal test run for all non-opencppcoverage configurations
+      - name: Test
+        if: matrix.coverage_tool != 'opencppcoverage'
+        shell: bash
+        run: |
+          [[ "${{ matrix.coverage_tool }}" == "llvm-cov-instr" ]] && \
+            export LLVM_PROFILE_FILE="%p-%m.profraw"
+          ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
+
+      # OpenCppCoverage wraps the test executable directly
+      - name: Test (OpenCppCoverage)
+        if: matrix.coverage_tool == 'opencppcoverage'
+        shell: pwsh
+        run: |
+          $testExe = Get-ChildItem -Path build -Recurse -Filter jose_tests.exe |
+                     Select-Object -First 1 -ExpandProperty FullName
+          & "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe" `
+              --export_type cobertura:build/coverage.xml `
+              --sources src `
+              --sources include `
+              -- $testExe
+
+      # ── Coverage report generation ────────────────────────────────────────
+
+      - name: Coverage report (GCC / lcov)
+        if: matrix.coverage_tool == 'lcov-gcov'
+        run: |
+          lcov --capture --directory build --output-file build/coverage.info
+          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --output-file build/coverage.info
+          lcov --list build/coverage.info
+          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+
+      - name: Coverage report (Clang / llvm-cov, Linux)
+        if: matrix.coverage_tool == 'lcov-llvm' && runner.os == 'Linux'
+        run: |
+          printf '#!/bin/sh\nexec llvm-cov gcov "$@"\n' > /tmp/llvm-gcov.sh
+          chmod +x /tmp/llvm-gcov.sh
+          lcov --capture --directory build \
+               --gcov-tool /tmp/llvm-gcov.sh \
+               --output-file build/coverage.info
+          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --output-file build/coverage.info
+          lcov --list build/coverage.info
+          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+
+      - name: Coverage report (Clang / llvm-cov, macOS)
+        if: matrix.coverage_tool == 'lcov-llvm' && runner.os == 'macOS'
+        run: |
+          printf '#!/bin/sh\nexec "%s/bin/llvm-cov" gcov "$@"\n' "$LLVM_PREFIX" \
+            > /tmp/llvm-gcov.sh
+          chmod +x /tmp/llvm-gcov.sh
+          lcov --capture --directory build \
+               --gcov-tool /tmp/llvm-gcov.sh \
+               --output-file build/coverage.info
+          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --output-file build/coverage.info
+          lcov --list build/coverage.info
+          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+
+      - name: Coverage report (ClangCL / llvm-cov instrumentation)
+        if: matrix.coverage_tool == 'llvm-cov-instr'
+        shell: pwsh
+        run: |
+          $profrawFiles = Get-ChildItem -Path . -Recurse -Filter "*.profraw" |
+                          Select-Object -ExpandProperty FullName
+          $testExe = Get-ChildItem -Path build -Recurse -Filter jose_tests.exe |
+                     Select-Object -First 1 -ExpandProperty FullName
+          llvm-profdata merge -sparse $profrawFiles -o build/coverage.profdata
+          llvm-cov export $testExe `
+            -instr-profile=build/coverage.profdata `
+            -format=lcov `
+            "--ignore-filename-regex=(build[\\/]_deps|tests)[\\/]" `
+            > build/coverage.lcov
+          "COVERAGE_FILE=build/coverage.lcov" | `
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Set coverage file (OpenCppCoverage)
+        if: matrix.coverage_tool == 'opencppcoverage'
+        shell: bash
+        run: echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
+
+      - name: Upload coverage to Codecov
+        if: matrix.coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ${{ env.COVERAGE_FILE }}
+          fail_ci_if_error: false
+
   format-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Install clang-format
-      run: sudo apt-get install -y clang-format
-      
-    - name: Check formatting
-      run: |
-        find include src tests examples -name "*.cpp" -o -name "*.hpp" | \
-          xargs clang-format --dry-run --Werror
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          find include src tests examples -name "*.cpp" -o -name "*.hpp" | \
+            xargs clang-format --dry-run --Werror
