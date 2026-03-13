@@ -1,15 +1,16 @@
-#include "jose/jws.hpp"
+#include "jws.hpp"
 
 #include <map>
 #include <sstream>
 #include <stdexcept>
 
-#include "jose/base64url.hpp"
-#include "jose/json_utils.hpp"
-#include "jose/jwa.hpp"
-#include "jose/jwk.hpp"
+#include "base64url.hpp"
+#include "private/json_utils.hpp"
+#include "jwa.hpp"
+#include "jwk.hpp"
 
 using namespace std;
+using json = Vlinder::JOSE::Private::json;
 
 namespace Vlinder {
 namespace JOSE {
