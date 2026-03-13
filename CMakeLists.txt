@@ -56,7 +56,7 @@ set(JOSE_SOURCES
     src/jwk.cpp
     src/jwa.cpp
     src/jws.cpp
-#    src/jwe.cpp
+    src/jwe.cpp
 #    src/jwt.cpp
     src/jwk_thumbprint.cpp
     "src/private/back_end.cpp"

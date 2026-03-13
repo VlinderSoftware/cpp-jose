@@ -23,7 +23,7 @@ add_executable(jose_tests
     test_jwk.cpp
     test_jwa.cpp
     test_jws.cpp
-#    test_jwe.cpp
+    test_jwe.cpp
 #    test_jwt.cpp
     test_jwk_thumbprint.cpp
 #    test_rfc7520_examples.cpp

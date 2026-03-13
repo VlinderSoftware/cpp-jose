@@ -879,11 +879,11 @@ pair<vector<unsigned char>, vector<unsigned char>> aesCbcHmacEncrypt(size_t mac_
     mac_input.insert(mac_input.end(), al.begin(), al.end());
 
     ULONG hash_size = 32;
-    if (hmac_alg == BCRYPT_SHA384_ALGORITHM)
+    if (wcscmp(hmac_alg, BCRYPT_SHA384_ALGORITHM) == 0)
     {
         hash_size = 48;
     }
-    else if (hmac_alg == BCRYPT_SHA512_ALGORITHM)
+    else if (wcscmp(hmac_alg, BCRYPT_SHA512_ALGORITHM) == 0)
     {
         hash_size = 64;
     }
@@ -931,11 +931,11 @@ vector<unsigned char> aesCbcHmacDecrypt(size_t mac_key_size,
     mac_input.insert(mac_input.end(), al.begin(), al.end());
 
     ULONG hash_size = 32;
-    if (hmac_alg == BCRYPT_SHA384_ALGORITHM)
+    if (wcscmp(hmac_alg, BCRYPT_SHA384_ALGORITHM) == 0)
     {
         hash_size = 48;
     }
-    else if (hmac_alg == BCRYPT_SHA512_ALGORITHM)
+    else if (wcscmp(hmac_alg, BCRYPT_SHA512_ALGORITHM) == 0)
     {
         hash_size = 64;
     }

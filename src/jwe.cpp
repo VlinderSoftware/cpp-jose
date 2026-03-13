@@ -1,17 +1,17 @@
-#include "jose/jwe.hpp"
+#include "jwe.hpp"
 
 #include <map>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 
-#include "jose/base64url.hpp"
-#include "jose/json_utils.hpp"
-#include "jose/jwa.hpp"
-#include "jose/jwk.hpp"
+#include "base64url.hpp"
+#include "private/json_utils.hpp"
+#include "jwa.hpp"
+#include "jwk.hpp"
 
 using namespace std;
-
+using json = Vlinder::JOSE::Private::json;
 namespace Vlinder {
 namespace JOSE {
 
@@ -201,9 +201,9 @@ string JWE::encrypt(const JWK &key) const
         cek = JWA::encryptKey(impl_->key_algorithm_,
                               key,
                               dummy_cek,
-                              nullptr,
-                              nullptr,
-                              &ephemeral_key.value(),
+                              {},
+                              {},
+                              ephemeral_key,
                               impl_->content_algorithm_);
     }
     else
@@ -222,9 +222,9 @@ string JWE::encrypt(const JWK &key) const
             encrypted_key = JWA::encryptKey(impl_->key_algorithm_,
                                             key,
                                             cek,
-                                            &kek_iv,
-                                            &kek_tag,
-                                            nullptr,
+                                            kek_iv,
+                                            kek_tag,
+                                            {},
                                             impl_->content_algorithm_);
         }
         else
@@ -232,9 +232,9 @@ string JWE::encrypt(const JWK &key) const
             encrypted_key = JWA::encryptKey(impl_->key_algorithm_,
                                             key,
                                             cek,
-                                            nullptr,
-                                            nullptr,
-                                            nullptr,
+                                            {},
+                                            {},
+                                            {},
                                             impl_->content_algorithm_);
         }
     }
@@ -348,9 +348,9 @@ string JWE::decrypt(string const &jwe, const JWK &key)
         cek = JWA::decryptKey(key_alg,
                               key,
                               encrypted_key,
-                              nullptr,
-                              nullptr,
-                              &ephemeral_key,
+                              {},
+                              {},
+                              ephemeral_key,
                               content_alg);
     }
     else
@@ -376,9 +376,9 @@ string JWE::decrypt(string const &jwe, const JWK &key)
             cek = JWA::decryptKey(key_alg,
                                   key,
                                   encrypted_key,
-                                  &kek_iv,
-                                  &kek_tag,
-                                  nullptr,
+                                  kek_iv,
+                                  kek_tag,
+                                  {},
                                   content_alg);
         }
         else
@@ -386,9 +386,9 @@ string JWE::decrypt(string const &jwe, const JWK &key)
             cek = JWA::decryptKey(key_alg,
                                   key,
                                   encrypted_key,
-                                  nullptr,
-                                  nullptr,
-                                  nullptr,
+                                  {},
+                                  {},
+                                  {},
                                   content_alg);
         }
     }
