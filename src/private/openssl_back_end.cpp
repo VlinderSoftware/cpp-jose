@@ -2672,8 +2672,6 @@ vector<unsigned char> OpenSSLBackEnd::encryptKey_(KeyEncryptionAlgorithm algorit
 {
     (void)iv;
     (void)tag;
-    (void)ephemeral_key;
-    (void)content_alg;
 
     switch (algorithm)
     {
@@ -2711,10 +2709,58 @@ vector<unsigned char> OpenSSLBackEnd::encryptKey_(KeyEncryptionAlgorithm algorit
         case KeyEncryptionAlgorithm::a256kw:
             return aesKeyWrap(getOctKeyBytes(key), cek);
         case KeyEncryptionAlgorithm::ecdh_es:
+        {
+            auto priv_pkey = makeOpenSSLGuard(importPkeyFromKey(ephemeral_key, true),
+                                              [](EVP_PKEY *p) { EVP_PKEY_free(p); });
+            auto pub_pkey  = makeOpenSSLGuard(importPkeyFromKey(key, false),
+                                              [](EVP_PKEY *p) { EVP_PKEY_free(p); });
+
+            auto derive_ctx = makeOpenSSLGuard(
+                EVP_PKEY_CTX_new(priv_pkey.get(), nullptr),
+                [](EVP_PKEY_CTX *c) { EVP_PKEY_CTX_free(c); });
+            if (!derive_ctx)
+                throw runtime_error("EVP_PKEY_CTX_new failed: " + getOpenSSLErrorString());
+            if (EVP_PKEY_derive_init(derive_ctx.get()) <= 0)
+                throw runtime_error("EVP_PKEY_derive_init failed: " + getOpenSSLErrorString());
+            if (EVP_PKEY_derive_set_peer(derive_ctx.get(), pub_pkey.get()) <= 0)
+                throw runtime_error("EVP_PKEY_derive_set_peer failed: " + getOpenSSLErrorString());
+
+            size_t secret_len = 0;
+            if (EVP_PKEY_derive(derive_ctx.get(), nullptr, &secret_len) <= 0)
+                throw runtime_error("EVP_PKEY_derive (size) failed: " + getOpenSSLErrorString());
+            vector<unsigned char> shared_secret(secret_len);
+            if (EVP_PKEY_derive(derive_ctx.get(), shared_secret.data(), &secret_len) <= 0)
+                throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
+            shared_secret.resize(secret_len);
+
+            return concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
+        }
         case KeyEncryptionAlgorithm::a128gcmkw:
         case KeyEncryptionAlgorithm::a192gcmkw:
         case KeyEncryptionAlgorithm::a256gcmkw:
-            throw runtime_error("Key encryption algorithm is not implemented for OpenSSL backend");
+        {
+            size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw) ? 16
+                                       : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24 : 32;
+            auto kek = getOctKeyBytes(key);
+            if (kek.size() != expected_kek_size)
+                throw runtime_error("AES-GCM key wrap key size does not match algorithm");
+
+            vector<unsigned char> gcm_iv(12);
+            if (RAND_bytes(gcm_iv.data(), static_cast<int>(gcm_iv.size())) != 1)
+                throw runtime_error("RAND_bytes failed");
+
+            auto cipher = (kek.size() == 16) ? EVP_aes_128_gcm()
+                          : (kek.size() == 24) ? EVP_aes_192_gcm() : EVP_aes_256_gcm();
+            auto [wrapped_cek, gcm_tag] = aesGcmEncrypt(cipher, kek, gcm_iv, cek, {});
+
+            // Return [IV(12)][ciphertext][tag(16)] — jwe.cpp splits these out.
+            vector<unsigned char> result;
+            result.reserve(gcm_iv.size() + wrapped_cek.size() + gcm_tag.size());
+            result.insert(result.end(), gcm_iv.begin(), gcm_iv.end());
+            result.insert(result.end(), wrapped_cek.begin(), wrapped_cek.end());
+            result.insert(result.end(), gcm_tag.begin(), gcm_tag.end());
+            return result;
+        }
         default:
             throw runtime_error("Unsupported key encryption algorithm");
     }
@@ -2728,11 +2774,6 @@ vector<unsigned char> OpenSSLBackEnd::decryptKey_(KeyEncryptionAlgorithm algorit
                                                   Key *ephemeral_key,
                                                   ContentEncryptionAlgorithm content_alg) const
 {
-    (void)iv;
-    (void)tag;
-    (void)ephemeral_key;
-    (void)content_alg;
-
     switch (algorithm)
     {
         case KeyEncryptionAlgorithm::dir:
@@ -2769,10 +2810,76 @@ vector<unsigned char> OpenSSLBackEnd::decryptKey_(KeyEncryptionAlgorithm algorit
         case KeyEncryptionAlgorithm::a256kw:
             return aesKeyUnwrap(getOctKeyBytes(key), encrypted_cek);
         case KeyEncryptionAlgorithm::ecdh_es:
+        {
+            auto priv_pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+                                              [](EVP_PKEY *p) { EVP_PKEY_free(p); });
+            auto pub_pkey  = makeOpenSSLGuard(importPkeyFromKey(ephemeral_key, false),
+                                              [](EVP_PKEY *p) { EVP_PKEY_free(p); });
+
+            auto derive_ctx = makeOpenSSLGuard(
+                EVP_PKEY_CTX_new(priv_pkey.get(), nullptr),
+                [](EVP_PKEY_CTX *c) { EVP_PKEY_CTX_free(c); });
+            if (!derive_ctx)
+                throw runtime_error("EVP_PKEY_CTX_new failed: " + getOpenSSLErrorString());
+            if (EVP_PKEY_derive_init(derive_ctx.get()) <= 0)
+                throw runtime_error("EVP_PKEY_derive_init failed: " + getOpenSSLErrorString());
+            if (EVP_PKEY_derive_set_peer(derive_ctx.get(), pub_pkey.get()) <= 0)
+                throw runtime_error("EVP_PKEY_derive_set_peer failed: " + getOpenSSLErrorString());
+
+            size_t secret_len = 0;
+            if (EVP_PKEY_derive(derive_ctx.get(), nullptr, &secret_len) <= 0)
+                throw runtime_error("EVP_PKEY_derive (size) failed: " + getOpenSSLErrorString());
+            vector<unsigned char> shared_secret(secret_len);
+            if (EVP_PKEY_derive(derive_ctx.get(), shared_secret.data(), &secret_len) <= 0)
+                throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
+            shared_secret.resize(secret_len);
+
+            // Derive the CEK length from content_alg
+            size_t derived_key_len = 0;
+            switch (content_alg)
+            {
+                case ContentEncryptionAlgorithm::a128gcm:
+                case ContentEncryptionAlgorithm::a128cbc_hs256:
+                    derived_key_len = 16; break;
+                case ContentEncryptionAlgorithm::a192gcm:
+                case ContentEncryptionAlgorithm::a192cbc_hs384:
+                    derived_key_len = 24; break;
+                case ContentEncryptionAlgorithm::a256gcm:
+                case ContentEncryptionAlgorithm::a256cbc_hs512:
+                    derived_key_len = 32; break;
+                default:
+                    throw runtime_error("Unsupported content algorithm for ECDH-ES");
+            }
+            return concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
+        }
         case KeyEncryptionAlgorithm::a128gcmkw:
         case KeyEncryptionAlgorithm::a192gcmkw:
         case KeyEncryptionAlgorithm::a256gcmkw:
-            throw runtime_error("Key decryption algorithm is not implemented for OpenSSL backend");
+        {
+            size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw) ? 16
+                                       : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24 : 32;
+            auto kek = getOctKeyBytes(key);
+            if (kek.size() != expected_kek_size)
+                throw runtime_error("AES-GCM key unwrap key size does not match algorithm");
+
+            auto cipher = (kek.size() == 16) ? EVP_aes_128_gcm()
+                          : (kek.size() == 24) ? EVP_aes_192_gcm() : EVP_aes_256_gcm();
+
+            if (iv.has_value() && tag.has_value())
+            {
+                return aesGcmDecrypt(cipher, kek, *iv, encrypted_cek, {}, *tag);
+            }
+
+            constexpr size_t kGcmIvSize = 12;
+            constexpr size_t kGcmTagSize = 16;
+            if (encrypted_cek.size() < kGcmIvSize + kGcmTagSize)
+                throw runtime_error("AES-GCM key unwrap: wrapped data too short");
+            vector<unsigned char> gcm_iv(encrypted_cek.begin(), encrypted_cek.begin() + kGcmIvSize);
+            vector<unsigned char> gcm_tag(encrypted_cek.end() - kGcmTagSize, encrypted_cek.end());
+            vector<unsigned char> ciphertext(encrypted_cek.begin() + kGcmIvSize,
+                                             encrypted_cek.end() - kGcmTagSize);
+            return aesGcmDecrypt(cipher, kek, gcm_iv, ciphertext, {}, gcm_tag);
+        }
         default:
             throw runtime_error("Unsupported key decryption algorithm");
     }
