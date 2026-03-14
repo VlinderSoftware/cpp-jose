@@ -390,7 +390,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install Cygwin
-        uses: cygwin/install-cygwin-action@v4
+        uses: cygwin/cygwin-install-action@v6
         with:
           packages: cmake ninja gcc-g++ libssl-devel lcov
 
