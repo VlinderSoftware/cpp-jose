@@ -133,11 +133,6 @@ public:
     virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                             std::vector<unsigned char> const &data) const override;
 
-    /// Base64 encode
-    virtual std::string base64Encode(std::vector<unsigned char> const &data) const override;
-    /// Base64 decode
-    virtual std::vector<unsigned char> base64Decode(std::string const &encoded) const override;
-
     /// Backend-specific error string
     virtual std::string getErrorString() const override;
 

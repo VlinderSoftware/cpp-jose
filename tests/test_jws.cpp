@@ -546,7 +546,8 @@ TEST_CASE("JWS_NoneAlgorithmRoundTrip", "[jws][nonealgorithmroundtrip]")
     REQUIRE(JWA::SignatureAlgorithm::none == parsed.getAlgorithm());
 }
 
-TEST_CASE("JWS_NoneAlgorithmNonEmptySignatureRejected", "[jws][nonealgorithmnonemptysignaturerejected]")
+TEST_CASE("JWS_NoneAlgorithmNonEmptySignatureRejected",
+          "[jws][nonealgorithmnonemptysignaturerejected]")
 {
     // A token claiming alg:none but carrying a non-empty signature must be rejected
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
@@ -576,10 +577,9 @@ TEST_CASE("JWS_NoneDowngradeAttackRejected", "[jws][nonedowngradeattackrejected]
 
     // Replace the header with one claiming alg:none and strip the signature
     string tampered_header = Base64Url::encode(R"({"alg":"none"})");
-    size_t first_dot  = real_token.find('.');
+    size_t first_dot = real_token.find('.');
     size_t second_dot = real_token.find('.', first_dot + 1);
-    string tampered = tampered_header
-                    + real_token.substr(first_dot, second_dot - first_dot + 1);
+    string tampered = tampered_header + real_token.substr(first_dot, second_dot - first_dot + 1);
     // append empty signature segment
     tampered += '.';
 

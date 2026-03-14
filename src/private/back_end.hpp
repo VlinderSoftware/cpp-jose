@@ -235,10 +235,10 @@ public:
         return "";
     }
 
-    /// Base64 encode
-    virtual std::string base64Encode(std::vector<unsigned char> const &data) const = 0;
-    /// Base64 decode
-    virtual std::vector<unsigned char> base64Decode(std::string const &encoded) const = 0;
+    /// Base64 encode (standard alphabet, no line breaks, with padding)
+    std::string base64Encode(std::vector<unsigned char> const &data) const;
+    /// Base64 decode (standard or URL-safe alphabet, optional padding)
+    std::vector<unsigned char> base64Decode(std::string const &encoded) const;
 
     ///// Get hash algorithm for signature
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;

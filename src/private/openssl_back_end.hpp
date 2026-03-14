@@ -128,8 +128,6 @@ public:
     std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                     std::vector<unsigned char> const &data) const override;
 
-    std::string base64Encode(std::vector<unsigned char> const &data) const override;
-    std::vector<unsigned char> base64Decode(std::string const &encoded) const override;
     std::string getErrorString() const override;
 
 protected:

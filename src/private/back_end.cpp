@@ -1,9 +1,20 @@
 #include "back_end.hpp"
 
+#include <array>
+#include <stdexcept>
+
 #include "../jwk_impl.hpp"
 #include "endian.hpp"
 
 using namespace std;
+
+namespace {
+
+constexpr char const base64_chars[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                      "abcdefghijklmnopqrstuvwxyz"
+                                      "0123456789+/";
+
+}  // namespace
 
 namespace Vlinder {
 namespace JOSE {
@@ -290,6 +301,138 @@ vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorit
                                               vector<unsigned char> const &tag) const
 {
     return this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
+}
+
+string BackEnd::base64Encode(vector<unsigned char> const &data) const
+{
+    if (data.empty())
+    {
+        return {};
+    }
+
+    string out;
+    out.reserve(4 * ((data.size() + 2) / 3));
+
+    size_t i = 0;
+    for (; i + 2 < data.size(); i += 3)
+    {
+        uint32_t const triple = (static_cast<uint32_t>(data[i]) << 16) |
+                                (static_cast<uint32_t>(data[i + 1]) << 8) |
+                                static_cast<uint32_t>(data[i + 2]);
+        out.push_back(base64_chars[(triple >> 18) & 0x3F]);
+        out.push_back(base64_chars[(triple >> 12) & 0x3F]);
+        out.push_back(base64_chars[(triple >> 6) & 0x3F]);
+        out.push_back(base64_chars[(triple) & 0x3F]);
+    }
+    size_t const remaining = data.size() - i;
+    if (remaining == 1)
+    {
+        uint32_t const triple = static_cast<uint32_t>(data[i]) << 16;
+        out.push_back(base64_chars[(triple >> 18) & 0x3F]);
+        out.push_back(base64_chars[(triple >> 12) & 0x3F]);
+        out.push_back('=');
+        out.push_back('=');
+    }
+    else if (remaining == 2)
+    {
+        uint32_t const triple =
+            (static_cast<uint32_t>(data[i]) << 16) | (static_cast<uint32_t>(data[i + 1]) << 8);
+        out.push_back(base64_chars[(triple >> 18) & 0x3F]);
+        out.push_back(base64_chars[(triple >> 12) & 0x3F]);
+        out.push_back(base64_chars[(triple >> 6) & 0x3F]);
+        out.push_back('=');
+    }
+
+    return out;
+}
+
+vector<unsigned char> BackEnd::base64Decode(string const &encoded) const
+{
+    if (encoded.empty())
+    {
+        return {};
+    }
+
+    // Build reverse lookup: accepts both standard (+/) and URL-safe (-_) alphabet
+    static array<int8_t, 256> const kDecodeTable = []()
+    {
+        array<int8_t, 256> t;
+        t.fill(-1);
+        for (int i = 0; i < 26; ++i)
+        {
+            t[static_cast<unsigned char>('A' + i)] = static_cast<int8_t>(i);
+            t[static_cast<unsigned char>('a' + i)] = static_cast<int8_t>(26 + i);
+        }
+        for (int i = 0; i < 10; ++i)
+        {
+            t[static_cast<unsigned char>('0' + i)] = static_cast<int8_t>(52 + i);
+        }
+        t[static_cast<unsigned char>('+')] = 62;
+        t[static_cast<unsigned char>('/')] = 63;
+        t[static_cast<unsigned char>('-')] = 62;  // URL-safe
+        t[static_cast<unsigned char>('_')] = 63;  // URL-safe
+        t[static_cast<unsigned char>('=')] = 0;   // padding (treated as zero)
+        return t;
+    }();
+
+    // Strip whitespace
+    string cleaned;
+    cleaned.reserve(encoded.size());
+    for (unsigned char c : encoded)
+    {
+        if (c != '\r' && c != '\n' && c != ' ')
+        {
+            cleaned.push_back(static_cast<char>(c));
+        }
+    }
+
+    if (cleaned.empty())
+    {
+        return {};
+    }
+
+    if ((cleaned.size() % 4) != 0)
+    {
+        throw runtime_error("Invalid base64 input length");
+    }
+
+    size_t padding = 0;
+    if (cleaned.back() == '=')
+        ++padding;
+    if (cleaned.size() > 1 && cleaned[cleaned.size() - 2] == '=')
+        ++padding;
+
+    vector<unsigned char> out;
+    out.reserve((cleaned.size() / 4) * 3 - padding);
+
+    for (size_t i = 0; i < cleaned.size(); i += 4)
+    {
+        int8_t const v0 = kDecodeTable[static_cast<unsigned char>(cleaned[i])];
+        int8_t const v1 = kDecodeTable[static_cast<unsigned char>(cleaned[i + 1])];
+        int8_t const v2 = kDecodeTable[static_cast<unsigned char>(cleaned[i + 2])];
+        int8_t const v3 = kDecodeTable[static_cast<unsigned char>(cleaned[i + 3])];
+
+        if (v0 < 0 || v1 < 0 || v2 < 0 || v3 < 0)
+        {
+            throw runtime_error("Invalid character in base64 input");
+        }
+
+        uint32_t const triple = (static_cast<uint32_t>(v0) << 18) |
+                                (static_cast<uint32_t>(v1) << 12) |
+                                (static_cast<uint32_t>(v2) << 6) | static_cast<uint32_t>(v3);
+
+        out.push_back(static_cast<unsigned char>((triple >> 16) & 0xFF));
+        if (cleaned[i + 2] != '=')
+        {
+            out.push_back(static_cast<unsigned char>((triple >> 8) & 0xFF));
+        }
+        if (cleaned[i + 3] != '=')
+        {
+            out.push_back(static_cast<unsigned char>(triple & 0xFF));
+        }
+    }
+
+    return out;
 }
 
 }  // namespace Private
