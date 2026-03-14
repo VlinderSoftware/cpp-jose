@@ -525,3 +525,63 @@ TEST_CASE("JWS_VerifyES256PublicKeyOnlySucceeds", "[jws][verifyes256publickeyonl
     bool result = JWS::verify(token, public_key);
     REQUIRE(result);
 }
+
+// ─── "none" algorithm tests ───────────────────────────────────────────────────
+
+TEST_CASE("JWS_NoneAlgorithmRoundTrip", "[jws][nonealgorithmroundtrip]")
+{
+    // alg:none produces header.payload. (empty third segment); payload survives parse
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+
+    JWS jws;
+    jws.setPayload("unsigned payload");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::none);
+    string token = jws.sign(key);
+
+    // Token must end with '.' (empty signature segment)
+    REQUIRE(token.back() == '.');
+
+    JWS parsed = JWS::parse(token);
+    REQUIRE("unsigned payload" == parsed.getPayload());
+    REQUIRE(JWA::SignatureAlgorithm::none == parsed.getAlgorithm());
+}
+
+TEST_CASE("JWS_NoneAlgorithmNonEmptySignatureRejected", "[jws][nonealgorithmnonemptysignaturerejected]")
+{
+    // A token claiming alg:none but carrying a non-empty signature must be rejected
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+
+    // Build a well-formed none token, then append garbage to the signature segment
+    JWS jws;
+    jws.setPayload("payload");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::none);
+    string token = jws.sign(key);  // ends with '.'
+    token += "AAAA";               // non-empty signature
+
+    REQUIRE_FALSE(JWS::verify(token, key));
+}
+
+TEST_CASE("JWS_NoneDowngradeAttackRejected", "[jws][nonedowngradeattackrejected]")
+{
+    // An attacker strips the signature from a legitimately signed token and
+    // rewrites alg to "none".  verify() must reject it even though the key
+    // parameter is present, because accepting a "none"-algorithm token when
+    // the caller supplies a key is a well-known algorithm-confusion attack.
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+
+    JWS jws;
+    jws.setPayload(R"({"sub":"admin"})");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
+    string real_token = jws.sign(key);
+
+    // Replace the header with one claiming alg:none and strip the signature
+    string tampered_header = Base64Url::encode(R"({"alg":"none"})");
+    size_t first_dot  = real_token.find('.');
+    size_t second_dot = real_token.find('.', first_dot + 1);
+    string tampered = tampered_header
+                    + real_token.substr(first_dot, second_dot - first_dot + 1);
+    // append empty signature segment
+    tampered += '.';
+
+    REQUIRE_FALSE(JWS::verify(tampered, key));
+}

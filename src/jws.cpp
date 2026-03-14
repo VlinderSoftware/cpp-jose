@@ -148,10 +148,12 @@ bool JWS::verify(string const &jws, const JWK &key)
         string alg_str = header["alg"].get<string>();
         JWA::SignatureAlgorithm algorithm = JWA::signatureAlgorithmFromString(alg_str);
 
-        // Handle "none" algorithm
+        // Handle "none" algorithm — always reject when verify() is called
+        // with a key: accepting an unsigned token when the caller supplies a
+        // key is the classic algorithm-confusion / downgrade attack.
         if (algorithm == JWA::SignatureAlgorithm::none)
         {
-            return encoded_signature.empty();
+            return false;
         }
 
         // Decode signature
