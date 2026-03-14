@@ -472,3 +472,198 @@ TEST_CASE("JWE_MultipleEncryptionsSamePlaintext", "[jwe][multipleencryptionssame
     REQUIRE(plaintext == JWE::decrypt(token1, key));
     REQUIRE(plaintext == JWE::decrypt(token2, key));
 }
+
+// ─── ECDH-ES tests ───────────────────────────────────────────────────────────
+
+TEST_CASE("JWE_EncryptDecryptECDH_ES_A128GCM", "[jwe][encryptdecryptecdh-es-a128gcm]")
+{
+    JWK key = JWK::generateEC(JWK::Use::encryption, "P-256");
+
+    JWE jwe;
+    string plaintext = "ECDH-ES with A128GCM";
+    jwe.setPlaintext(plaintext);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+
+    string token = jwe.encrypt(key);
+    REQUIRE_FALSE(token.empty());
+
+    string decrypted = JWE::decrypt(token, key);
+    REQUIRE(plaintext == decrypted);
+}
+
+TEST_CASE("JWE_EncryptDecryptECDH_ES_A256GCM", "[jwe][encryptdecryptecdh-es-a256gcm]")
+{
+    JWK key = JWK::generateEC(JWK::Use::encryption, "P-256");
+
+    JWE jwe;
+    string plaintext = "ECDH-ES with A256GCM";
+    jwe.setPlaintext(plaintext);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
+
+    string token = jwe.encrypt(key);
+    REQUIRE_FALSE(token.empty());
+
+    string decrypted = JWE::decrypt(token, key);
+    REQUIRE(plaintext == decrypted);
+}
+
+TEST_CASE("JWE_EncryptDecryptECDH_ES_P384_A256CBC", "[jwe][encryptdecryptecdh-es-p384-a256cbc]")
+{
+    JWK key = JWK::generateEC(JWK::Use::encryption, "P-384");
+
+    JWE jwe;
+    string plaintext = "ECDH-ES P-384 with A256CBC-HS512";
+    jwe.setPlaintext(plaintext);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256cbc_hs512);
+
+    string token = jwe.encrypt(key);
+    REQUIRE_FALSE(token.empty());
+
+    string decrypted = JWE::decrypt(token, key);
+    REQUIRE(plaintext == decrypted);
+}
+
+TEST_CASE("JWE_ECDH_ES_WrongKeyFails", "[jwe][ecdh-es-wrongkeyfails]")
+{
+    JWK key1 = JWK::generateEC(JWK::Use::encryption, "P-256");
+    JWK key2 = JWK::generateEC(JWK::Use::encryption, "P-256");
+
+    JWE jwe;
+    jwe.setPlaintext("secret");
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+
+    string token = jwe.encrypt(key1);
+
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key2), exception);
+}
+
+TEST_CASE("JWE_ECDH_ES_TamperedCiphertextFails", "[jwe][ecdh-es-tamperedciphertextfails]")
+{
+    JWK key = JWK::generateEC(JWK::Use::encryption, "P-256");
+
+    JWE jwe;
+    jwe.setPlaintext("original content");
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+
+    string token = jwe.encrypt(key);
+
+    // Tamper with the ciphertext (4th component)
+    size_t dot1 = token.find('.');
+    size_t dot2 = token.find('.', dot1 + 1);
+    size_t dot3 = token.find('.', dot2 + 1);
+    size_t dot4 = token.find('.', dot3 + 1);
+
+    if (dot3 != string::npos && dot4 != string::npos && dot3 + 1 < dot4)
+        token[dot3 + 1] = (token[dot3 + 1] == 'A') ? 'B' : 'A';
+
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key), exception);
+}
+
+// ─── AES-GCM-KW tests ────────────────────────────────────────────────────────
+
+TEST_CASE("JWE_EncryptDecryptA128GCMKW_A128GCM", "[jwe][encryptdecrypta128gcmkw-a128gcm]")
+{
+    JWK key = JWK::generateOct(JWK::Use::encryption, 128);
+
+    JWE jwe;
+    string plaintext = "A128GCMKW with A128GCM";
+    jwe.setPlaintext(plaintext);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+
+    string token = jwe.encrypt(key);
+    REQUIRE_FALSE(token.empty());
+
+    string decrypted = JWE::decrypt(token, key);
+    REQUIRE(plaintext == decrypted);
+}
+
+TEST_CASE("JWE_EncryptDecryptA256GCMKW_A256GCM", "[jwe][encryptdecrypta256gcmkw-a256gcm]")
+{
+    JWK key = JWK::generateOct(JWK::Use::encryption, 256);
+
+    JWE jwe;
+    string plaintext = "A256GCMKW with A256GCM";
+    jwe.setPlaintext(plaintext);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a256gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
+
+    string token = jwe.encrypt(key);
+    REQUIRE_FALSE(token.empty());
+
+    string decrypted = JWE::decrypt(token, key);
+    REQUIRE(plaintext == decrypted);
+}
+
+TEST_CASE("JWE_EncryptDecryptA192GCMKW_A192GCM", "[jwe][encryptdecrypta192gcmkw-a192gcm]")
+{
+    JWK key = JWK::generateOct(JWK::Use::encryption, 192);
+
+    JWE jwe;
+    string plaintext = "A192GCMKW with A192GCM";
+    jwe.setPlaintext(plaintext);
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a192gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a192gcm);
+
+    string token = jwe.encrypt(key);
+    REQUIRE_FALSE(token.empty());
+
+    string decrypted = JWE::decrypt(token, key);
+    REQUIRE(plaintext == decrypted);
+}
+
+TEST_CASE("JWE_A128GCMKWWrongKeyFails", "[jwe][a128gcmkw-wrongkeyfails]")
+{
+    JWK key1 = JWK::generateOct(JWK::Use::encryption, 128);
+    JWK key2 = JWK::generateOct(JWK::Use::encryption, 128);
+
+    JWE jwe;
+    jwe.setPlaintext("secret");
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+
+    string token = jwe.encrypt(key1);
+
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key2), exception);
+}
+
+TEST_CASE("JWE_A256GCMKWWrongKeyFails", "[jwe][a256gcmkw-wrongkeyfails]")
+{
+    JWK key1 = JWK::generateOct(JWK::Use::encryption, 256);
+    JWK key2 = JWK::generateOct(JWK::Use::encryption, 256);
+
+    JWE jwe;
+    jwe.setPlaintext("secret");
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a256gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
+
+    string token = jwe.encrypt(key1);
+
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key2), exception);
+}
+
+TEST_CASE("JWE_A256GCMKWTamperedWrappedKeyFails", "[jwe][a256gcmkw-tamperedwrappedkeyfails]")
+{
+    JWK key = JWK::generateOct(JWK::Use::encryption, 256);
+
+    JWE jwe;
+    jwe.setPlaintext("secret content");
+    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a256gcmkw);
+    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
+
+    string token = jwe.encrypt(key);
+
+    // Tamper with the encrypted key (2nd component)
+    size_t dot1 = token.find('.');
+    size_t dot2 = token.find('.', dot1 + 1);
+
+    if (dot1 != string::npos && dot2 != string::npos && dot1 + 1 < dot2)
+        token[dot1 + 1] = (token[dot1 + 1] == 'A') ? 'B' : 'A';
+
+    REQUIRE_THROWS_AS(JWE::decrypt(token, key), exception);
+}

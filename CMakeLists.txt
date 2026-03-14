@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Options
 option(BUILD_TESTS "Build tests" ON)
 option(BUILD_EXAMPLES "Build examples" ON)
+option(BUILD_CLI "Build jose CLI tool" ON)
 set(JOSE_RSA_GENERATION_MAX_ATTEMPTS "8" CACHE STRING "Maximum attempts for RSA key generation/export hardening")
 
 if(NOT JOSE_RSA_GENERATION_MAX_ATTEMPTS MATCHES "^[1-9][0-9]*$")
@@ -93,6 +94,11 @@ endif()
 # Examples
 if(BUILD_EXAMPLES)
    add_subdirectory(examples)
+endif()
+
+# CLI tool
+if(BUILD_CLI)
+    add_subdirectory(cli)
 endif()
 
 # Installation

@@ -192,10 +192,18 @@ string JWE::encrypt(const JWK &key) const
         // For ECDH-ES, derive the CEK using key agreement
         encrypted_key.clear();  // No encrypted key field
 
-        // Initialize ephemeral_key with dummy that will be overwritten by encryptKey
-        ephemeral_key = JWK::generateEC(JWK::Use::signature, "P-256");
+        // Generate the ephemeral key on the same curve as the recipient key
+        string crv = "P-256";  // default
+        try
+        {
+            auto recipient_json = json::parse(key.toJSON(false));
+            if (recipient_json.contains("crv"))
+                crv = recipient_json["crv"].get<string>();
+        }
+        catch (...) {}
+        ephemeral_key = JWK::generateEC(JWK::Use::encryption, crv);
 
-        // Call encryptKey which will generate ephemeral key, perform ECDH, and derive CEK
+        // Call encryptKey which will perform ECDH using the ephemeral key and derive CEK
         size_t cek_size = getKeySize(impl_->content_algorithm_);
         vector<unsigned char> dummy_cek(cek_size);  // Provide size hint
         cek = JWA::encryptKey(impl_->key_algorithm_,

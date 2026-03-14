@@ -2839,14 +2839,17 @@ vector<unsigned char> OpenSSLBackEnd::decryptKey_(KeyEncryptionAlgorithm algorit
             switch (content_alg)
             {
                 case ContentEncryptionAlgorithm::a128gcm:
-                case ContentEncryptionAlgorithm::a128cbc_hs256:
                     derived_key_len = 16; break;
+                case ContentEncryptionAlgorithm::a128cbc_hs256:
+                    derived_key_len = 32; break;  // 16 (AES-128) + 16 (HMAC-SHA-256)
                 case ContentEncryptionAlgorithm::a192gcm:
-                case ContentEncryptionAlgorithm::a192cbc_hs384:
                     derived_key_len = 24; break;
+                case ContentEncryptionAlgorithm::a192cbc_hs384:
+                    derived_key_len = 48; break;  // 24 (AES-192) + 24 (HMAC-SHA-384)
                 case ContentEncryptionAlgorithm::a256gcm:
-                case ContentEncryptionAlgorithm::a256cbc_hs512:
                     derived_key_len = 32; break;
+                case ContentEncryptionAlgorithm::a256cbc_hs512:
+                    derived_key_len = 64; break;  // 32 (AES-256) + 32 (HMAC-SHA-512)
                 default:
                     throw runtime_error("Unsupported content algorithm for ECDH-ES");
             }

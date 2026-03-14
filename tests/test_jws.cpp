@@ -462,3 +462,66 @@ TEST_CASE("JWS_CreateWithJWSVerifyWithJWT", "[jws][createwithjwsverifywithjwt]")
     bool verified = JWS::verify(token, key);
     REQUIRE(verified);
 }
+
+// ─── Wrong-key failure tests for asymmetric algorithms ───────────────────────
+
+TEST_CASE("JWS_VerifyWithWrongECKeyFails", "[jws][verifywithwrongeckeyfails]")
+{
+    JWK key1 = JWK::generateEC(JWK::Use::signature, "P-256");
+    JWK key2 = JWK::generateEC(JWK::Use::signature, "P-256");
+
+    JWS jws;
+    jws.setPayload("signed with key1");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::es256);
+
+    string token = jws.sign(key1);
+
+    bool result = JWS::verify(token, key2);
+    REQUIRE_FALSE(result);
+}
+
+TEST_CASE("JWS_VerifyWithWrongRSAKeyFails", "[jws][verifywithwrongrsakkeyfails]")
+{
+    JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWK key2 = JWK::generateRSA(JWK::Use::signature, 2048);
+
+    JWS jws;
+    jws.setPayload("signed with rsa key1");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
+
+    string token = jws.sign(key1);
+
+    bool result = JWS::verify(token, key2);
+    REQUIRE_FALSE(result);
+}
+
+TEST_CASE("JWS_VerifyWithWrongPSSKeyFails", "[jws][verifywithwrongpsskeyfails]")
+{
+    JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWK key2 = JWK::generateRSA(JWK::Use::signature, 2048);
+
+    JWS jws;
+    jws.setPayload("signed with pss key1");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::ps256);
+
+    string token = jws.sign(key1);
+
+    bool result = JWS::verify(token, key2);
+    REQUIRE_FALSE(result);
+}
+
+TEST_CASE("JWS_VerifyES256PublicKeyOnlySucceeds", "[jws][verifyes256publickeyonlysucceeds]")
+{
+    // Sign with private key, verify with public-only key extracted from JSON
+    JWK private_key = JWK::generateEC(JWK::Use::signature, "P-256");
+
+    JWS jws;
+    jws.setPayload("verify with public key");
+    jws.setAlgorithm(JWA::SignatureAlgorithm::es256);
+    string token = jws.sign(private_key);
+
+    // Strip private key material
+    JWK public_key = JWK::fromJSON(private_key.toJSON(false));
+    bool result = JWS::verify(token, public_key);
+    REQUIRE(result);
+}
