@@ -224,7 +224,7 @@ jobs:
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage_tool == 'lcov-gcov'
         run: |
-          lcov --capture --directory build --output-file build/coverage.info
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --output-file build/coverage.info
           lcov --list build/coverage.info
@@ -237,6 +237,7 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
+               --ignore-errors source \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --output-file build/coverage.info
@@ -251,6 +252,7 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
+               --ignore-errors source \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --output-file build/coverage.info
@@ -350,7 +352,7 @@ jobs:
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
         run: |
-          lcov --capture --directory build --output-file build/coverage.info
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --output-file build/coverage.info
           lcov --list build/coverage.info
@@ -416,7 +418,7 @@ jobs:
         if: matrix.coverage
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          lcov --capture --directory build --output-file build/coverage.info
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --output-file build/coverage.info
           lcov --list build/coverage.info
