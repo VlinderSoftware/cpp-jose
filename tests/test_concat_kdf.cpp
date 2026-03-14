@@ -18,14 +18,6 @@ public:
         return vector<unsigned char>(32, 0xAA);
     }
 
-    string base64Encode(vector<unsigned char> const & /*data*/) const override
-    {
-        return string();
-    }
-    vector<unsigned char> base64Decode(string const & /*encoded*/) const override
-    {
-        return {};
-    }
     unique_ptr<Key> generateRSA(unsigned int bits) const override
     {
         return nullptr;
