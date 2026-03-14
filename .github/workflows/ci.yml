@@ -226,6 +226,7 @@ jobs:
         run: |
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
           echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
@@ -240,6 +241,7 @@ jobs:
                --ignore-errors source \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
           echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
@@ -255,6 +257,7 @@ jobs:
                --ignore-errors source \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
           echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
@@ -354,6 +357,7 @@ jobs:
         run: |
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
@@ -420,6 +424,7 @@ jobs:
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
