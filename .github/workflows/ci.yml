@@ -170,20 +170,20 @@ jobs:
           [[ -n "${{ matrix.cc }}" ]] && export CC="${{ matrix.cc }}"
           [[ -n "${{ matrix.cxx }}" ]] && export CXX="${{ matrix.cxx }}"
 
-          EXTRA_ARGS=""
+          EXTRA_ARGS=()
           [[ "${{ matrix.compiler }}" == "clang-cl" ]] && \
-            EXTRA_ARGS+=" -DCMAKE_C_COMPILER=clang-cl -DCMAKE_CXX_COMPILER=clang-cl"
+            EXTRA_ARGS+=("-DCMAKE_C_COMPILER=clang-cl" "-DCMAKE_CXX_COMPILER=clang-cl")
           [[ -n "$OPENSSL_ROOT_DIR" ]] && \
-            EXTRA_ARGS+=" -DOPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR"
+            EXTRA_ARGS+=("-DOPENSSL_ROOT_DIR=$OPENSSL_ROOT_DIR")
 
           # Coverage instrumentation flags (not needed for opencppcoverage — it instruments at run time)
           case "${{ matrix.coverage_tool }}" in
             lcov-gcov|lcov-llvm)
-              EXTRA_ARGS+=" -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage"
+              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=--coverage" "-DCMAKE_EXE_LINKER_FLAGS=--coverage")
               ;;
             llvm-cov-instr)
-              EXTRA_ARGS+=" -DCMAKE_CXX_FLAGS='/clang:-fprofile-instr-generate /clang:-fcoverage-mapping'"
-              EXTRA_ARGS+=" -DCMAKE_EXE_LINKER_FLAGS='/clang:-fprofile-instr-generate'"
+              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=/clang:-fprofile-instr-generate /clang:-fcoverage-mapping")
+              EXTRA_ARGS+=("-DCMAKE_EXE_LINKER_FLAGS=/clang:-fprofile-instr-generate")
               ;;
           esac
 
@@ -192,7 +192,7 @@ jobs:
             -DJOSE_BACKEND=${{ matrix.backend }} \
             -DBUILD_TESTS=ON \
             -DBUILD_EXAMPLES=ON \
-            $EXTRA_ARGS
+            "${EXTRA_ARGS[@]}"
 
       - name: Build
         run: cmake --build build --config ${{ matrix.build_type }}
