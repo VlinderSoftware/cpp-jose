@@ -45,3 +45,31 @@
     [ ] Implement JWA::encryptKey / JWA::decryptKey in src/private/cng_jwa.cpp
     [ ] Implement JWA::encryptContent / JWA::decryptContent in src/private/cng_jwa.cpp
     [ ] Add backend-parity tests for OpenSSL vs CNG behavior
+
+[ ] Style:
+    [ ] All if blocks should be block statements
+
+[ ]  RFC 7517:
+     [ ] add support for "x5u" (X.509 URL) Parameter
+     [ ] add support for "x5c" (X.509 Certificate Chain) Parameter
+     [ ] add support for "x5t" (X.509 Certificate SHA-1 Thumbprint) Parameter
+     [ ] add support for "x5t#S256" (X.509 Certificate SHA-256 Thumbprint) parameter
+
+[ ] Interop tests:
+    [ ] CLI vs. Python
+    [ ] CLI vs. Node
+    [ ] Validate JWK String Comparison Rules
+    [ ] Validate Encrypted JWK and Encrypted JWK Set Formats
+    [ ] JWK duplicate members: |
+        The member names within a JWK MUST be unique; JWK parsers MUST either
+        reject JWKs with duplicate member names or use a JSON parser that
+        returns only the lexically last duplicate member name, as specified
+        in Section 15.12 (The JSON Object) of ECMAScript 5.1 [ECMAScript].
+    [ ] JWK key use and ops validation: |
+        The "use" and "key_ops" JWK members SHOULD NOT be used together;
+        however, if both are used, the information they convey MUST be
+        consistent.  Applications should specify which of these members they
+        use, if either is to be used by the application.
+
+[ ] CLI
+    [ ] JWK sets
