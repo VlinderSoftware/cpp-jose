@@ -79,7 +79,16 @@
     [ ] JWK: x5t#S256 parameters are reserialized when parsed
     [ ] JWK: validate that x5u, x5c, x5t, and x5t#S256 are not mutually exclusive
     [ ] JWKS: validate that parsing an empty set works, provided the keys parameter is present
-    [ ] validate that the CLI will cowardly refuse to produce an empty set (and will use that wording)
+    [ ] JWKS: validate that the CLI will cowardly refuse to produce an empty set (and will use that wording)
+    [ ] JWKS: functionally ignore but reserialize unknown members|
+        Additional members can be present in the JWK Set; if not understood
+        by implementations encountering them, they MUST be ignored.
+    [ ] JWKS: functionally ignore but reserialize keys with unknown types or missing members |
+        Implementations SHOULD ignore JWKs within a JWK Set that use "kty"
+        (key type) values that are not understood by them, that are missing
+        required members, or for which values are out of the supported
+        ranges.
+    [ ] JWKS: validate that the order of keys in the set is preserved on reserialization
 
 [ ] CLI
     [ ] JWK sets
@@ -93,3 +102,5 @@
         those same certificates, starting with the leaf).
     [ ] JWK: allow taking a certificate as input and generating the JWK from it,
         and optionally adding an x5t and/or x5t#S256 parameter
+    [ ] JKWS: cowardly refuse to serialize an unencrypted set that contains private
+        keys unless forced
