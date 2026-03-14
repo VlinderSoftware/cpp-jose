@@ -31,6 +31,10 @@ if(NOT JOSE_BACKEND STREQUAL "CNG" AND NOT JOSE_BACKEND STREQUAL "OpenSSL")
     message(FATAL_ERROR "Invalid JOSE_BACKEND='${JOSE_BACKEND}'. Valid values are: CNG, OpenSSL")
 endif()
 
+if(JOSE_BACKEND STREQUAL "CNG" AND NOT WIN32)
+    message(FATAL_ERROR "JOSE_BACKEND=CNG is only supported on Windows")
+endif()
+
 # Fetch nlohmann/json
 include(FetchContent)
 FetchContent_Declare(

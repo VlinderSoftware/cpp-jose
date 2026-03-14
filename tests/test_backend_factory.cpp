@@ -1,8 +1,12 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "../src/private/back_end_factory.hpp"
+#if defined(JOSE_USE_CNG)
 #include "../src/private/cng_back_end.hpp"
+#endif
+#if defined(JOSE_USE_OPENSSL)
 #include "../src/private/openssl_back_end.hpp"
+#endif
 
 using namespace std;
 
