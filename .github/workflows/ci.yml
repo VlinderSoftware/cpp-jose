@@ -224,7 +224,7 @@ jobs:
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage_tool == 'lcov-gcov'
         run: |
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
                --output-file build/coverage.info
@@ -238,7 +238,7 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source \
+               --ignore-errors source,inconsistent \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
@@ -254,7 +254,7 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source \
+               --ignore-errors source,inconsistent \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
@@ -355,7 +355,7 @@ jobs:
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
         run: |
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
                --output-file build/coverage.info
@@ -422,7 +422,7 @@ jobs:
         if: matrix.coverage
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
                --output-file build/coverage.info
