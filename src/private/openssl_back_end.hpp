@@ -160,12 +160,13 @@ protected:
                     std::vector<unsigned char> const &iv,
                     std::vector<unsigned char> const &plaintext,
                     std::vector<unsigned char> const &aad) const override;
-    std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
-                                               std::vector<unsigned char> const &cek,
-                                               std::vector<unsigned char> const &iv,
-                                               std::vector<unsigned char> const &ciphertext,
-                                               std::vector<unsigned char> const &aad,
-                                               std::vector<unsigned char> const &tag) const override;
+    std::vector<unsigned char>
+    decryptContent_(ContentEncryptionAlgorithm algorithm,
+                    std::vector<unsigned char> const &cek,
+                    std::vector<unsigned char> const &iv,
+                    std::vector<unsigned char> const &ciphertext,
+                    std::vector<unsigned char> const &aad,
+                    std::vector<unsigned char> const &tag) const override;
 
 private:
     std::vector<unsigned char>

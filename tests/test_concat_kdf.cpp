@@ -136,13 +136,14 @@ protected:
         (void)plaintext;
         (void)aad;
         return {{}, {}};
-    }    
-    virtual std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
-                                                       std::vector<unsigned char> const &cek,
-                                                       std::vector<unsigned char> const &iv,
-                                                       std::vector<unsigned char> const &ciphertext,
-                                                       std::vector<unsigned char> const &aad,
-                                                       std::vector<unsigned char> const &tag) const override
+    }
+    virtual std::vector<unsigned char>
+    decryptContent_(ContentEncryptionAlgorithm algorithm,
+                    std::vector<unsigned char> const &cek,
+                    std::vector<unsigned char> const &iv,
+                    std::vector<unsigned char> const &ciphertext,
+                    std::vector<unsigned char> const &aad,
+                    std::vector<unsigned char> const &tag) const override
     {
         (void)algorithm;
         (void)cek;

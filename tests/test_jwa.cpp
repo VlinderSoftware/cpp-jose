@@ -35,9 +35,8 @@ void verifyAsymmetricSerializedDeserializedKeyCombinations(JWA::SignatureAlgorit
         JWA::verify(algorithm, deserialized_public_key, data, signature_from_deserialized_private));
 }
 
-void verifyRsaKeyEncryptionSerializedDeserializedCombinations(
-    JWA::KeyEncryptionAlgorithm algorithm,
-    vector<unsigned char> const &cek)
+void verifyRsaKeyEncryptionSerializedDeserializedCombinations(JWA::KeyEncryptionAlgorithm algorithm,
+                                                              vector<unsigned char> const &cek)
 {
     JWK original_private_key = JWK::generateRSA(JWK::Use::encryption, 2048);
     JWK original_public_key = JWK::fromJSON(original_private_key.toJSON(false));
@@ -66,10 +65,9 @@ void verifyRsaKeyEncryptionSerializedDeserializedCombinations(
     REQUIRE(cek == JWA::decryptKey(algorithm, deserialized_private_key, encrypted));
 }
 
-void verifySymmetricKeyWrapSerializedDeserializedCombinations(
-    JWA::KeyEncryptionAlgorithm algorithm,
-    unsigned int key_size_bits,
-    vector<unsigned char> const &cek)
+void verifySymmetricKeyWrapSerializedDeserializedCombinations(JWA::KeyEncryptionAlgorithm algorithm,
+                                                              unsigned int key_size_bits,
+                                                              vector<unsigned char> const &cek)
 {
     JWK original_kek = JWK::generateOct(JWK::Use::encryption, key_size_bits);
     JWK deserialized_kek = JWK::fromJSON(original_kek.toJSON(true));

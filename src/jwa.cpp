@@ -60,7 +60,8 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return getBackEnd().decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
+    return getBackEnd()
+        .decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>

@@ -223,37 +223,53 @@ bool BackEnd::verify(SignatureAlgorithm algorithm,
 }
 
 vector<unsigned char> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
-            const JWK &key,
-            vector<unsigned char> const &cek,
-            optional<vector<unsigned char>> const &iv,
-            optional<vector<unsigned char>> const &tag,
-            optional<JWK> const &ephemeral_key,
-            ContentEncryptionAlgorithm content_alg) const
+                                          const JWK &key,
+                                          vector<unsigned char> const &cek,
+                                          optional<vector<unsigned char>> const &iv,
+                                          optional<vector<unsigned char>> const &tag,
+                                          optional<JWK> const &ephemeral_key,
+                                          ContentEncryptionAlgorithm content_alg) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)
     {
         throw runtime_error("Key does not contain valid material");
     }
-    auto underlying_ephemeral_key = ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr : nullptr;
-    return this->encryptKey_(algorithm, underlying_key, cek, iv, tag, underlying_ephemeral_key, content_alg);
+    auto underlying_ephemeral_key =
+        ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
+                      : nullptr;
+    return this->encryptKey_(algorithm,
+                             underlying_key,
+                             cek,
+                             iv,
+                             tag,
+                             underlying_ephemeral_key,
+                             content_alg);
 }
 
 vector<unsigned char> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
-            JWK const &key,
-            vector<unsigned char> const &encrypted_cek,
-            optional<vector<unsigned char>> const &iv,
-            optional<vector<unsigned char>> const &tag,
-            optional<JWK> const &ephemeral_key,
-            ContentEncryptionAlgorithm content_alg) const
+                                          JWK const &key,
+                                          vector<unsigned char> const &encrypted_cek,
+                                          optional<vector<unsigned char>> const &iv,
+                                          optional<vector<unsigned char>> const &tag,
+                                          optional<JWK> const &ephemeral_key,
+                                          ContentEncryptionAlgorithm content_alg) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)
     {
         throw runtime_error("Key does not contain valid material");
     }
-    auto underlying_ephemeral_key = ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr : nullptr;
-    return this->decryptKey_(algorithm, underlying_key, encrypted_cek, iv, tag, underlying_ephemeral_key, content_alg);
+    auto underlying_ephemeral_key =
+        ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
+                      : nullptr;
+    return this->decryptKey_(algorithm,
+                             underlying_key,
+                             encrypted_cek,
+                             iv,
+                             tag,
+                             underlying_ephemeral_key,
+                             content_alg);
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>

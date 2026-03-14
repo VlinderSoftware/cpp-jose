@@ -6,9 +6,9 @@
 #include <stdexcept>
 
 #include "base64url.hpp"
-#include "private/json_utils.hpp"
 #include "jwa.hpp"
 #include "jwk.hpp"
+#include "private/json_utils.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
@@ -200,7 +200,9 @@ string JWE::encrypt(const JWK &key) const
             if (recipient_json.contains("crv"))
                 crv = recipient_json["crv"].get<string>();
         }
-        catch (...) {}
+        catch (...)
+        {
+        }
         ephemeral_key = JWK::generateEC(JWK::Use::encryption, crv);
 
         // Call encryptKey which will perform ECDH using the ephemeral key and derive CEK
@@ -363,13 +365,7 @@ string JWE::decrypt(string const &jwe, const JWK &key)
 
         // Derive CEK using ECDH
         vector<unsigned char> encrypted_key;  // Empty for ECDH-ES
-        cek = JWA::decryptKey(key_alg,
-                              key,
-                              encrypted_key,
-                              {},
-                              {},
-                              ephemeral_key,
-                              content_alg);
+        cek = JWA::decryptKey(key_alg, key, encrypted_key, {}, {}, ephemeral_key, content_alg);
     }
     else
     {
@@ -391,23 +387,11 @@ string JWE::decrypt(string const &jwe, const JWK &key)
         // Pass IV and tag if present (for GCM key wrap)
         if (!kek_iv.empty() && !kek_tag.empty())
         {
-            cek = JWA::decryptKey(key_alg,
-                                  key,
-                                  encrypted_key,
-                                  kek_iv,
-                                  kek_tag,
-                                  {},
-                                  content_alg);
+            cek = JWA::decryptKey(key_alg, key, encrypted_key, kek_iv, kek_tag, {}, content_alg);
         }
         else
         {
-            cek = JWA::decryptKey(key_alg,
-                                  key,
-                                  encrypted_key,
-                                  {},
-                                  {},
-                                  {},
-                                  content_alg);
+            cek = JWA::decryptKey(key_alg, key, encrypted_key, {}, {}, {}, content_alg);
         }
     }
 

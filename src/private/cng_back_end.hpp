@@ -149,32 +149,33 @@ protected:
                  Key *key,
                  std::vector<unsigned char> const &data,
                  std::vector<unsigned char> const &signature) const override;
-   std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
-               Key *key,
-               std::vector<unsigned char> const &cek,
-               std::optional<std::vector<unsigned char>> const &iv,
-               std::optional<std::vector<unsigned char>> const &tag,
-               Key *ephemeral_key,
-               ContentEncryptionAlgorithm content_alg) const override;
+    std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
+                                           Key *key,
+                                           std::vector<unsigned char> const &cek,
+                                           std::optional<std::vector<unsigned char>> const &iv,
+                                           std::optional<std::vector<unsigned char>> const &tag,
+                                           Key *ephemeral_key,
+                                           ContentEncryptionAlgorithm content_alg) const override;
     std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
-               Key *key,
-               std::vector<unsigned char> const &encrypted_cek,
-               std::optional<std::vector<unsigned char>> const &iv,
-               std::optional<std::vector<unsigned char>> const &tag,
-               Key *ephemeral_key,
-               ContentEncryptionAlgorithm content_alg) const override;
+                                           Key *key,
+                                           std::vector<unsigned char> const &encrypted_cek,
+                                           std::optional<std::vector<unsigned char>> const &iv,
+                                           std::optional<std::vector<unsigned char>> const &tag,
+                                           Key *ephemeral_key,
+                                           ContentEncryptionAlgorithm content_alg) const override;
     std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
     encryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,
                     std::vector<unsigned char> const &plaintext,
                     std::vector<unsigned char> const &aad) const override;
-    std::vector<unsigned char> decryptContent_(ContentEncryptionAlgorithm algorithm,
-                                               std::vector<unsigned char> const &cek,
-                                               std::vector<unsigned char> const &iv,
-                                               std::vector<unsigned char> const &ciphertext,
-                                               std::vector<unsigned char> const &aad,
-                                               std::vector<unsigned char> const &tag) const override;
+    std::vector<unsigned char>
+    decryptContent_(ContentEncryptionAlgorithm algorithm,
+                    std::vector<unsigned char> const &cek,
+                    std::vector<unsigned char> const &iv,
+                    std::vector<unsigned char> const &ciphertext,
+                    std::vector<unsigned char> const &aad,
+                    std::vector<unsigned char> const &tag) const override;
 };
 
 }  // namespace Private

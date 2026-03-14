@@ -5,10 +5,10 @@
 #include <stdexcept>
 
 #include "base64url.hpp"
-#include "private/json_utils.hpp"
 #include "jwa.hpp"
 #include "jwk.hpp"
 #include "jws.hpp"
+#include "private/json_utils.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
