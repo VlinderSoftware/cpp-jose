@@ -106,7 +106,7 @@ jobs:
             backend: CNG
             build_type: Debug
             coverage: true
-            coverage_tool: llvm-cov-instr
+            coverage_tool: opencppcoverage
           - name: "Windows ClangCL CNG Release"
             os: windows-latest
             compiler: clang-cl
@@ -119,7 +119,7 @@ jobs:
             backend: OpenSSL
             build_type: Debug
             coverage: true
-            coverage_tool: llvm-cov-instr
+            coverage_tool: opencppcoverage
           - name: "Windows ClangCL OpenSSL Release"
             os: windows-latest
             compiler: clang-cl
@@ -244,7 +244,13 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source,source,inconsistent,inconsistent,unsupported,unsupported \
+               --ignore-errors source \
+               --ignore-errors source \
+               --ignore-errors inconsistent \
+               --ignore-errors inconsistent \
+               --ignore-errors unsupported \
+               --ignore-errors unsupported \
+               --rc check_data_consistency=0 \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
@@ -260,7 +266,15 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source,source,inconsistent,inconsistent,unsupported,unsupported,format,format \
+               --ignore-errors source \
+               --ignore-errors source \
+               --ignore-errors inconsistent \
+               --ignore-errors inconsistent \
+               --ignore-errors unsupported \
+               --ignore-errors unsupported \
+               --ignore-errors format \
+               --ignore-errors format \
+               --rc check_data_consistency=0 \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
