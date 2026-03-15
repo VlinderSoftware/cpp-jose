@@ -45,7 +45,7 @@ jobs:
             backend: OpenSSL
             build_type: Debug
             coverage: true
-            coverage_tool: lcov-llvm
+            coverage_tool: llvm-cov-instr
           - name: "Linux Clang Release"
             os: ubuntu-latest
             compiler: clang
@@ -63,7 +63,7 @@ jobs:
             backend: OpenSSL
             build_type: Debug
             coverage: true
-            coverage_tool: lcov-llvm
+            coverage_tool: llvm-cov-instr
           - name: "macOS Clang Release"
             os: macos-latest
             compiler: clang
@@ -186,9 +186,9 @@ jobs:
               EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=--coverage" "-DCMAKE_EXE_LINKER_FLAGS=--coverage")
               ;;
             llvm-cov-instr)
-              # /EHsc must be explicit: setting CMAKE_CXX_FLAGS replaces CMake's
-              # MSVC defaults (which normally include /EHsc for exceptions).
-              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=/EHsc /clang:-fprofile-instr-generate /clang:-fcoverage-mapping")
+              # Native Clang source-based coverage (Linux/macOS only).
+              # ClangCL Windows uses opencppcoverage instead.
+              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=-fprofile-instr-generate -fcoverage-mapping")
               EXTRA_ARGS+=("-DCMAKE_EXE_LINKER_FLAGS=-fprofile-instr-generate")
               ;;
           esac
@@ -209,7 +209,7 @@ jobs:
         shell: bash
         run: |
           [[ "${{ matrix.coverage_tool }}" == "llvm-cov-instr" ]] && \
-            export LLVM_PROFILE_FILE="%p-%m.profraw"
+            export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/build/%p-%m.profraw"
           ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
 
       # OpenCppCoverage wraps the test executable directly
@@ -237,53 +237,34 @@ jobs:
           lcov --list build/coverage.info
           echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
 
-      - name: Coverage report (Clang / llvm-cov, Linux)
-        if: matrix.coverage_tool == 'lcov-llvm' && runner.os == 'Linux'
+      - name: Coverage report (Clang / llvm-cov instrumentation, Linux)
+        if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Linux'
         run: |
-          printf '#!/bin/sh\nexec llvm-cov gcov "$@"\n' > /tmp/llvm-gcov.sh
-          chmod +x /tmp/llvm-gcov.sh
-          lcov --capture --directory build \
-               --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source \
-               --ignore-errors source \
-               --ignore-errors inconsistent \
-               --ignore-errors inconsistent \
-               --ignore-errors unsupported \
-               --ignore-errors unsupported \
-               --rc check_data_consistency=0 \
-               --output-file build/coverage.info
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+          mapfile -t profraw_files < <(find build -name "*.profraw")
+          llvm-profdata merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
+          test_exe=$(find build -name 'jose_tests' -type f | head -1)
+          llvm-cov export "$test_exe" \
+            -instr-profile=build/coverage.profdata \
+            -format=lcov \
+            "--ignore-filename-regex=(build/_deps|tests)/" \
+            > build/coverage.lcov
+          echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
 
-      - name: Coverage report (Clang / llvm-cov, macOS)
-        if: matrix.coverage_tool == 'lcov-llvm' && runner.os == 'macOS'
+      - name: Coverage report (Clang / llvm-cov instrumentation, macOS)
+        if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'macOS'
         run: |
-          printf '#!/bin/sh\nexec "%s/bin/llvm-cov" gcov "$@"\n' "$LLVM_PREFIX" \
-            > /tmp/llvm-gcov.sh
-          chmod +x /tmp/llvm-gcov.sh
-          lcov --capture --directory build \
-               --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source \
-               --ignore-errors source \
-               --ignore-errors inconsistent \
-               --ignore-errors inconsistent \
-               --ignore-errors unsupported \
-               --ignore-errors unsupported \
-               --ignore-errors format \
-               --ignore-errors format \
-               --rc check_data_consistency=0 \
-               --output-file build/coverage.info
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+          mapfile -t profraw_files < <(find build -name "*.profraw")
+          "$LLVM_PREFIX/bin/llvm-profdata" merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
+          test_exe=$(find build -name 'jose_tests' -type f | head -1)
+          "$LLVM_PREFIX/bin/llvm-cov" export "$test_exe" \
+            -instr-profile=build/coverage.profdata \
+            -format=lcov \
+            "--ignore-filename-regex=(build/_deps|tests)/" \
+            > build/coverage.lcov
+          echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
 
       - name: Coverage report (ClangCL / llvm-cov instrumentation)
-        if: matrix.coverage_tool == 'llvm-cov-instr'
+        if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Windows'
         shell: pwsh
         run: |
           $profrawFiles = Get-ChildItem -Path . -Recurse -Filter "*.profraw" |
