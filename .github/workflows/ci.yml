@@ -294,24 +294,6 @@ jobs:
           echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
           echo "COVERAGE_DATA_FILE=build/coverage.xml" >> "$GITHUB_ENV"
 
-      - name: Generate HTML coverage report
-        if: matrix.coverage && matrix.coverage_tool != 'opencppcoverage'
-        run: genhtml "${{ env.COVERAGE_FILE }}" --output-directory build/coverage-html
-
-      - name: Upload HTML coverage report
-        if: matrix.coverage && matrix.coverage_tool != 'opencppcoverage'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.name }}
-          path: build/coverage-html/
-
-      - name: Upload XML coverage report
-        if: matrix.coverage_tool == 'opencppcoverage'
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.name }}
-          path: build/coverage.xml
-
       - name: Upload raw coverage data
         if: matrix.coverage
         uses: actions/upload-artifact@v4
@@ -390,17 +372,6 @@ jobs:
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
-      - name: Generate HTML coverage report
-        if: matrix.coverage
-        run: genhtml build/coverage.info --output-directory build/coverage-html
-
-      - name: Upload HTML coverage report
-        if: matrix.coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.name }}
-          path: build/coverage-html/
-
       - name: Upload raw coverage data
         if: matrix.coverage
         uses: actions/upload-artifact@v4
@@ -423,7 +394,7 @@ jobs:
         include:
           - name: "Cygwin GCC OpenSSL Debug"
             build_type: Debug
-            coverage: true
+            coverage: false
           - name: "Cygwin GCC OpenSSL Release"
             build_type: Release
             coverage: false
@@ -434,7 +405,7 @@ jobs:
       - name: Install Cygwin
         uses: cygwin/cygwin-install-action@v6
         with:
-          packages: cmake ninja gcc-g++ libssl-devel perl lcov
+          packages: cmake ninja gcc-g++ libssl-devel
 
       - name: Configure CMake
         run: |
@@ -459,35 +430,6 @@ jobs:
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
           ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
-
-      - name: Coverage report (GCC / lcov)
-        if: matrix.coverage
-        run: |
-          cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-
-      - name: Generate HTML coverage report
-        if: matrix.coverage
-        run: |
-          cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          genhtml build/coverage.info --output-directory build/coverage-html
-
-      - name: Upload HTML coverage report
-        if: matrix.coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.name }}
-          path: build/coverage-html/
-
-      - name: Upload raw coverage data
-        if: matrix.coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-data-${{ matrix.name }}
-          path: build/coverage.info
 
   # ── Coverage summary (single pane of glass) ──────────────────────────────
   coverage-summary:
