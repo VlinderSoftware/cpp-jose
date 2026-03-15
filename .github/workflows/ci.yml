@@ -193,7 +193,7 @@ jobs:
               ;;
           esac
 
-          cmake -B build -G Ninja \
+          cmake -B ../build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DJOSE_BACKEND=${{ matrix.backend }} \
             -DBUILD_TESTS=ON \
@@ -201,7 +201,7 @@ jobs:
             "${EXTRA_ARGS[@]}"
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }}
+        run: cmake --build ../build --config ${{ matrix.build_type }}
 
       # Normal test run for all non-opencppcoverage configurations
       - name: Test
@@ -209,18 +209,18 @@ jobs:
         shell: bash
         run: |
           [[ "${{ matrix.coverage_tool }}" == "llvm-cov-instr" ]] && \
-            export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/build/%p-%m.profraw"
-          ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
+            export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/../build/%p-%m.profraw"
+          ctest --test-dir ../build --output-on-failure -C ${{ matrix.build_type }}
 
       # OpenCppCoverage wraps the test executable directly
       - name: Test (OpenCppCoverage)
         if: matrix.coverage_tool == 'opencppcoverage'
         shell: pwsh
         run: |
-          $testExe = Get-ChildItem -Path build -Recurse -Filter jose_tests.exe |
+          $testExe = Get-ChildItem -Path ../build -Recurse -Filter jose_tests.exe |
                      Select-Object -First 1 -ExpandProperty FullName
           & "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe" `
-              --export_type cobertura:build/coverage.xml `
+              --export_type cobertura:../build/coverage.xml `
               --sources src `
               --sources include `
               -- $testExe
@@ -230,69 +230,71 @@ jobs:
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage_tool == 'lcov-gcov'
         run: |
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+          lcov --capture --directory ../build --output-file ../build/coverage.info --ignore-errors source,inconsistent
+          lcov --remove ../build/coverage.info '/usr/*' '*/_deps/*' '*/tests/*' \
                --ignore-errors unused \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
-          echo "COVERAGE_DATA_FILE=build/coverage.info" >> "$GITHUB_ENV"
+               --output-file ../build/coverage.info
+          lcov --list ../build/coverage.info
+          echo "COVERAGE_FILE=../build/coverage.info" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=../build/coverage.info" >> "$GITHUB_ENV"
 
       - name: Coverage report (Clang / llvm-cov instrumentation, Linux)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Linux'
         run: |
           profraw_files=()
           while IFS= read -r f; do profraw_files+=("$f"); done \
-            < <(find build -name "*.profraw")
-          llvm-profdata merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
-          test_exe=$(find build -name 'jose_tests' -type f | head -1)
+            < <(find ../build -name "*.profraw")
+          llvm-profdata merge -sparse "${profraw_files[@]}" -o ../build/coverage.profdata
+          test_exe=$(find ../build -name 'jose_tests' -type f | head -1)
           llvm-cov export "$test_exe" \
-            -instr-profile=build/coverage.profdata \
+            -instr-profile=../build/coverage.profdata \
             -format=lcov \
-            "--ignore-filename-regex=(build/_deps|tests)/" \
-            > build/coverage.lcov
-          echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
-          echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
+            "--ignore-filename-regex=/_deps/|/tests/" \
+            > ../build/coverage.lcov
+          echo "COVERAGE_FILE=../build/coverage.lcov" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=../build/coverage.lcov" >> "$GITHUB_ENV"
 
       - name: Coverage report (Clang / llvm-cov instrumentation, macOS)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'macOS'
         run: |
           profraw_files=()
           while IFS= read -r f; do profraw_files+=("$f"); done \
-            < <(find build -name "*.profraw")
-          "$LLVM_PREFIX/bin/llvm-profdata" merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
-          test_exe=$(find build -name 'jose_tests' -type f | head -1)
+            < <(find ../build -name "*.profraw")
+          "$LLVM_PREFIX/bin/llvm-profdata" merge -sparse "${profraw_files[@]}" -o ../build/coverage.profdata
+          test_exe=$(find ../build -name 'jose_tests' -type f | head -1)
           "$LLVM_PREFIX/bin/llvm-cov" export "$test_exe" \
-            -instr-profile=build/coverage.profdata \
+            -instr-profile=../build/coverage.profdata \
             -format=lcov \
-            "--ignore-filename-regex=(build/_deps|tests)/" \
-            > build/coverage.lcov
-          echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
-          echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
+            "--ignore-filename-regex=/_deps/|/tests/" \
+            > ../build/coverage.lcov
+          echo "COVERAGE_FILE=../build/coverage.lcov" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=../build/coverage.lcov" >> "$GITHUB_ENV"
 
       - name: Coverage report (ClangCL / llvm-cov instrumentation)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Windows'
         shell: pwsh
         run: |
-          $profrawFiles = Get-ChildItem -Path . -Recurse -Filter "*.profraw" |
+          $profrawFiles = Get-ChildItem -Path ../build -Recurse -Filter "*.profraw" |
                           Select-Object -ExpandProperty FullName
-          $testExe = Get-ChildItem -Path build -Recurse -Filter jose_tests.exe |
+          $testExe = Get-ChildItem -Path ../build -Recurse -Filter jose_tests.exe |
                      Select-Object -First 1 -ExpandProperty FullName
-          llvm-profdata merge -sparse $profrawFiles -o build/coverage.profdata
+          llvm-profdata merge -sparse $profrawFiles -o ../build/coverage.profdata
           llvm-cov export $testExe `
-            -instr-profile=build/coverage.profdata `
+            -instr-profile=../build/coverage.profdata `
             -format=lcov `
-            "--ignore-filename-regex=(build[\\/]_deps|tests)[\\/]" `
-            > build/coverage.lcov
-          "COVERAGE_FILE=build/coverage.lcov" | `
+            "--ignore-filename-regex=/_deps/|/tests/" `
+            > ../build/coverage.lcov
+          "COVERAGE_FILE=../build/coverage.lcov" | `
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "COVERAGE_DATA_FILE=../build/coverage.lcov" | `
             Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Set coverage file (OpenCppCoverage)
         if: matrix.coverage_tool == 'opencppcoverage'
         shell: bash
         run: |
-          echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
-          echo "COVERAGE_DATA_FILE=build/coverage.xml" >> "$GITHUB_ENV"
+          echo "COVERAGE_FILE=../build/coverage.xml" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=../build/coverage.xml" >> "$GITHUB_ENV"
 
       - name: Upload raw coverage data
         if: matrix.coverage
@@ -349,7 +351,7 @@ jobs:
           if [[ "${{ matrix.coverage }}" == "true" ]]; then
             EXTRA_ARGS+=" -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage"
           fi
-          cmake -B build -G Ninja \
+          cmake -B ../build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DJOSE_BACKEND=${{ matrix.backend }} \
             -DBUILD_TESTS=ON \
@@ -357,27 +359,27 @@ jobs:
             $EXTRA_ARGS
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }}
+        run: cmake --build ../build --config ${{ matrix.build_type }}
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
+        run: ctest --test-dir ../build --output-on-failure -C ${{ matrix.build_type }}
 
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
         run: |
           # MinGW ships lcov 1.x which does not know 'inconsistent' or 'unused';
           # use only the 'source' type which has been present since lcov 1.x.
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
+          lcov --capture --directory ../build --output-file ../build/coverage.info --ignore-errors source
+          lcov --remove ../build/coverage.info '/usr/*' '*/_deps/*' '*/tests/*' \
+               --output-file ../build/coverage.info
+          lcov --list ../build/coverage.info
 
       - name: Upload raw coverage data
         if: matrix.coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-data-${{ matrix.name }}
-          path: build/coverage.info
+          path: ../build/coverage.info
 
   # ── Cygwin ────────────────────────────────────────────────────────────────
   build-cygwin:
@@ -414,7 +416,7 @@ jobs:
           if [[ "${{ matrix.coverage }}" == "true" ]]; then
             EXTRA_ARGS+=" -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage"
           fi
-          cmake -B build -G Ninja \
+          cmake -B ../build -G Ninja \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
             -DJOSE_BACKEND=OpenSSL \
             -DBUILD_TESTS=ON \
@@ -424,12 +426,12 @@ jobs:
       - name: Build
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          cmake --build build --config ${{ matrix.build_type }}
+          cmake --build ../build --config ${{ matrix.build_type }}
 
       - name: Test
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
+          ctest --test-dir ../build --output-on-failure -C ${{ matrix.build_type }}
 
   # ── Coverage summary (single pane of glass) ──────────────────────────────
   coverage-summary:
