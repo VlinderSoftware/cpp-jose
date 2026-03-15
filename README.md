@@ -1,3 +1,7 @@
+> [!WARNING]
+> This code is in early development.
+> The API needs work, testing has not been done beyond unit tests, etc.
+
 # cpp-jose
 JOSE implementation in modern C++
 
