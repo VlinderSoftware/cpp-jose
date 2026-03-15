@@ -23,7 +23,13 @@ using namespace Vlinder::JOSE;
 void printTimestamp(string const &label, chrono::system_clock::time_point tp)
 {
     auto time = chrono::system_clock::to_time_t(tp);
-    cout << label << ": " << put_time(gmtime(&time), "%Y-%m-%d %H:%M:%S UTC") << endl;
+    tm tm_result{};
+#ifdef _WIN32
+    gmtime_s(&tm_result, &time);
+#else
+    gmtime_r(&time, &tm_result);
+#endif
+    cout << label << ": " << put_time(&tm_result, "%Y-%m-%d %H:%M:%S UTC") << endl;
 }
 
 int main()
