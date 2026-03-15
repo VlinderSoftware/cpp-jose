@@ -732,10 +732,11 @@ void JWKSet::addKey(const JWK &key)
     impl_->keys_.push_back(key);
 }
 
-//TODO add optional alg parameter: the combination of kid + alg has to be unique, kid by itself does not.
+// TODO add optional alg parameter: the combination of kid + alg has to be unique, kid by itself
+// does not.
 JWK JWKSet::getKey(string const &kid) const
 {
-    //TODO make this a find_if
+    // TODO make this a find_if
     for (auto const &key : impl_->keys_)
     {
         if (key.getKeyID() == kid)
