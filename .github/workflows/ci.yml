@@ -186,7 +186,9 @@ jobs:
               EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=--coverage" "-DCMAKE_EXE_LINKER_FLAGS=--coverage")
               ;;
             llvm-cov-instr)
-              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=/clang:-fprofile-instr-generate /clang:-fcoverage-mapping")
+              # /EHsc must be explicit: setting CMAKE_CXX_FLAGS replaces CMake's
+              # MSVC defaults (which normally include /EHsc for exceptions).
+              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=/EHsc /clang:-fprofile-instr-generate /clang:-fcoverage-mapping")
               EXTRA_ARGS+=("-DCMAKE_EXE_LINKER_FLAGS=-fprofile-instr-generate")
               ;;
           esac
