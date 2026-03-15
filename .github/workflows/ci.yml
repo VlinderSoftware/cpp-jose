@@ -240,7 +240,9 @@ jobs:
       - name: Coverage report (Clang / llvm-cov instrumentation, Linux)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Linux'
         run: |
-          mapfile -t profraw_files < <(find build -name "*.profraw")
+          profraw_files=()
+          while IFS= read -r f; do profraw_files+=("$f"); done \
+            < <(find build -name "*.profraw")
           llvm-profdata merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
           test_exe=$(find build -name 'jose_tests' -type f | head -1)
           llvm-cov export "$test_exe" \
@@ -253,7 +255,9 @@ jobs:
       - name: Coverage report (Clang / llvm-cov instrumentation, macOS)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'macOS'
         run: |
-          mapfile -t profraw_files < <(find build -name "*.profraw")
+          profraw_files=()
+          while IFS= read -r f; do profraw_files+=("$f"); done \
+            < <(find build -name "*.profraw")
           "$LLVM_PREFIX/bin/llvm-profdata" merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
           test_exe=$(find build -name 'jose_tests' -type f | head -1)
           "$LLVM_PREFIX/bin/llvm-cov" export "$test_exe" \
