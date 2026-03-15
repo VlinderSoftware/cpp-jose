@@ -236,6 +236,7 @@ jobs:
                --output-file build/coverage.info
           lcov --list build/coverage.info
           echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.info" >> "$GITHUB_ENV"
 
       - name: Coverage report (Clang / llvm-cov instrumentation, Linux)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Linux'
@@ -251,6 +252,7 @@ jobs:
             "--ignore-filename-regex=(build/_deps|tests)/" \
             > build/coverage.lcov
           echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
 
       - name: Coverage report (Clang / llvm-cov instrumentation, macOS)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'macOS'
@@ -266,6 +268,7 @@ jobs:
             "--ignore-filename-regex=(build/_deps|tests)/" \
             > build/coverage.lcov
           echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
 
       - name: Coverage report (ClangCL / llvm-cov instrumentation)
         if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Windows'
@@ -287,7 +290,9 @@ jobs:
       - name: Set coverage file (OpenCppCoverage)
         if: matrix.coverage_tool == 'opencppcoverage'
         shell: bash
-        run: echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
+        run: |
+          echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.xml" >> "$GITHUB_ENV"
 
       - name: Generate HTML coverage report
         if: matrix.coverage && matrix.coverage_tool != 'opencppcoverage'
@@ -306,6 +311,13 @@ jobs:
         with:
           name: coverage-${{ matrix.name }}
           path: build/coverage.xml
+
+      - name: Upload raw coverage data
+        if: matrix.coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-${{ matrix.name }}
+          path: ${{ env.COVERAGE_DATA_FILE }}
 
   # ── MinGW (MSYS2 UCRT64) ─────────────────────────────────────────────────
   build-mingw:
@@ -382,12 +394,19 @@ jobs:
         if: matrix.coverage
         run: genhtml build/coverage.info --output-directory build/coverage-html
 
-      - name: Upload coverage report
+      - name: Upload HTML coverage report
         if: matrix.coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.name }}
           path: build/coverage-html/
+
+      - name: Upload raw coverage data
+        if: matrix.coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-${{ matrix.name }}
+          path: build/coverage.info
 
   # ── Cygwin ────────────────────────────────────────────────────────────────
   build-cygwin:
@@ -456,12 +475,156 @@ jobs:
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
           genhtml build/coverage.info --output-directory build/coverage-html
 
-      - name: Upload coverage report
+      - name: Upload HTML coverage report
         if: matrix.coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.name }}
           path: build/coverage-html/
+
+      - name: Upload raw coverage data
+        if: matrix.coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data-${{ matrix.name }}
+          path: build/coverage.info
+
+  # ── Coverage summary (single pane of glass) ──────────────────────────────
+  coverage-summary:
+    name: Coverage Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build-and-test, build-mingw, build-cygwin]
+    steps:
+      - name: Download all coverage data artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-data-*
+          path: coverage-data
+          merge-multiple: false
+
+      - name: Build coverage summary table
+        shell: python3 {0}
+        run: |
+          import os, re, sys, glob, xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          THRESHOLD = 85.0
+          summary_path = os.environ["GITHUB_STEP_SUMMARY"]
+
+          def parse_lcov(path):
+              """Return {filename: (lines_hit, lines_total)} from an lcov .info/.lcov file."""
+              files = {}
+              current = None
+              lh = lt = 0
+              for line in Path(path).read_text(errors="replace").splitlines():
+                  if line.startswith("SF:"):
+                      current = line[3:].strip()
+                      lh = lt = 0
+                  elif line.startswith("LH:"):
+                      lh = int(line[3:])
+                  elif line.startswith("LF:"):
+                      lt = int(line[3:])
+                  elif line == "end_of_record" and current:
+                      files[current] = (lh, lt)
+                      current = None
+              return files
+
+          def parse_cobertura(path):
+              """Return {filename: (lines_hit, lines_total)} from a Cobertura XML."""
+              files = {}
+              tree = ET.parse(path)
+              for cls in tree.iter("class"):
+                  fname = cls.get("filename", "")
+                  hits = sum(1 for l in cls.iter("line") if int(l.get("hits", 0)) > 0)
+                  total = sum(1 for _ in cls.iter("line"))
+                  if total:
+                      files[fname] = (hits, total)
+              return files
+
+          def overall_pct(file_map):
+              th = sum(t for _, t in file_map.values())
+              hh = sum(h for h, _ in file_map.values())
+              return 100.0 * hh / th if th else 0.0
+
+          def low_files(file_map):
+              out = []
+              for fname, (h, t) in sorted(file_map.items()):
+                  if t == 0:
+                      continue
+                  pct = 100.0 * h / t
+                  # Only report project source files
+                  base = os.path.basename(fname)
+                  if pct < THRESHOLD:
+                      out.append((fname, pct, h, t))
+              return out
+
+          rows = []
+          any_fail = False
+
+          for artifact_dir in sorted(Path("coverage-data").iterdir()):
+              if not artifact_dir.is_dir():
+                  continue
+              # artifact name is "coverage-data-<matrix.name>"
+              label = artifact_dir.name.removeprefix("coverage-data-")
+              data_files = list(artifact_dir.rglob("*"))
+              data_files = [f for f in data_files if f.is_file()]
+              if not data_files:
+                  rows.append((label, None, None, []))
+                  continue
+              data_file = data_files[0]
+              try:
+                  if data_file.suffix in (".info", ".lcov") or data_file.name.endswith(".info"):
+                      file_map = parse_lcov(data_file)
+                  elif data_file.suffix == ".xml":
+                      file_map = parse_cobertura(data_file)
+                  else:
+                      # Try lcov first, fall back to cobertura
+                      try:
+                          file_map = parse_lcov(data_file)
+                      except Exception:
+                          file_map = parse_cobertura(data_file)
+              except Exception as e:
+                  rows.append((label, None, None, []))
+                  continue
+
+              if not file_map:
+                  rows.append((label, None, None, []))
+                  continue
+
+              pct = overall_pct(file_map)
+              low = low_files(file_map)
+              if low or pct < THRESHOLD:
+                  any_fail = True
+              rows.append((label, pct, len(file_map), low))
+
+          with open(summary_path, "w") as f:
+              f.write("## Coverage Summary\n\n")
+              f.write(f"Threshold: **{THRESHOLD:.0f}%** per file\n\n")
+              f.write("| Configuration | Overall | Files | Status |\n")
+              f.write("|---|---|---|---|\n")
+              for label, pct, nfiles, low in rows:
+                  if pct is None:
+                      f.write(f"| {label} | ⚠️ no data | — | ⚠️ |\n")
+                  else:
+                      status = "✅" if not low and pct >= THRESHOLD else "❌"
+                      f.write(f"| {label} | {pct:.1f}% | {nfiles} | {status} |\n")
+
+              failing = [(l, low) for l, pct, nfiles, low in rows if low]
+              if failing:
+                  f.write("\n### Files below threshold\n\n")
+                  f.write("| Configuration | File | Coverage |\n")
+                  f.write("|---|---|---|\n")
+                  for label, low in failing:
+                      for fname, pct, h, t in low:
+                          # Strip leading path components to show relative path
+                          short = re.sub(r"^.*(src/|include/)", r"\1", fname)
+                          f.write(f"| {label} | `{short}` | {pct:.1f}% ({h}/{t} lines) |\n")
+              else:
+                  f.write("\n✅ All files meet the coverage threshold.\n")
+
+          if any_fail:
+              print("::warning::Some configurations have files below the 85% coverage threshold. See the job summary.")
 
   format-check:
     runs-on: ubuntu-latest
