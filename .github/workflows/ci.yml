@@ -244,7 +244,7 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source,inconsistent \
+               --ignore-errors source,source,inconsistent,inconsistent,unsupported,unsupported \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
@@ -260,7 +260,7 @@ jobs:
           chmod +x /tmp/llvm-gcov.sh
           lcov --capture --directory build \
                --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source,inconsistent,format \
+               --ignore-errors source,source,inconsistent,inconsistent,unsupported,unsupported,format,format \
                --output-file build/coverage.info
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
                --ignore-errors unused \
