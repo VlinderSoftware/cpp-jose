@@ -187,7 +187,7 @@ jobs:
               ;;
             llvm-cov-instr)
               EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=/clang:-fprofile-instr-generate /clang:-fcoverage-mapping")
-              EXTRA_ARGS+=("-DCMAKE_EXE_LINKER_FLAGS=/clang:-fprofile-instr-generate")
+              EXTRA_ARGS+=("-DCMAKE_EXE_LINKER_FLAGS=-fprofile-instr-generate")
               ;;
           esac
 
