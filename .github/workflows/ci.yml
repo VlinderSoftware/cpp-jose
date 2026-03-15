@@ -376,6 +376,8 @@ jobs:
   build-cygwin:
     name: ${{ matrix.name }}
     runs-on: windows-latest
+    env:
+      SHELLOPTS: igncr
     defaults:
       run:
         shell: C:\cygwin\bin\bash.exe --login -eo pipefail '{0}'
