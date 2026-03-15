@@ -360,10 +360,12 @@ jobs:
 
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
+        continue-on-error: true
         run: |
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
+          # MinGW ships lcov 1.x which does not know 'inconsistent' or 'unused';
+          # use only the 'source' type which has been present since lcov 1.x.
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
@@ -400,7 +402,7 @@ jobs:
       - name: Install Cygwin
         uses: cygwin/cygwin-install-action@v6
         with:
-          packages: cmake ninja gcc-g++ libssl-devel lcov
+          packages: cmake ninja gcc-g++ libssl-devel perl lcov
 
       - name: Configure CMake
         run: |
@@ -428,11 +430,11 @@ jobs:
 
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
+        continue-on-error: true
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
           lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
