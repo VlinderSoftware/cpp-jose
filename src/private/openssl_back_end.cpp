@@ -25,6 +25,16 @@ namespace JOSE {
 namespace Private {
 
 namespace {
+template <typename T>
+int getSizeAsInt(T value)
+{
+    auto size = value.size();
+    if (size > static_cast<size_t>(numeric_limits<int>::max()))
+    {
+        throw logic_error("Size exceeds maximum int value");
+    }
+    return static_cast<int>(size);
+}
 
 template <typename T, typename Deleter>
 auto makeOpenSSLGuard(T *ptr, Deleter deleter)
@@ -1820,13 +1830,13 @@ vector<unsigned char> aesKeyWrap(vector<unsigned char> const &kek,
         throw runtime_error("Failed to initialize AES key wrap: " + getOpenSSLErrorString());
     }
 
-    vector<unsigned char> ciphertext(plaintext.size() + EVP_CIPHER_CTX_block_size(ctx.get()));
+    vector<unsigned char> ciphertext(getSizeAsInt(plaintext) + EVP_CIPHER_CTX_block_size(ctx.get()));
     int output_size = 0;
     if (EVP_EncryptUpdate(ctx.get(),
                           ciphertext.data(),
                           &output_size,
                           plaintext.data(),
-                          plaintext.size()) != 1)
+                          getSizeAsInt(plaintext)) != 1)
     {
         throw runtime_error("AES key wrap failed: " + getOpenSSLErrorString());
     }
@@ -1883,7 +1893,7 @@ vector<unsigned char> aesKeyUnwrap(vector<unsigned char> const &kek,
                           plaintext.data(),
                           &output_size,
                           ciphertext.data(),
-                          ciphertext.size()) != 1)
+                          getSizeAsInt(ciphertext)) != 1)
     {
         throw runtime_error("AES key unwrap failed: " + getOpenSSLErrorString());
     }
@@ -1921,13 +1931,13 @@ aesGcmEncrypt(EVP_CIPHER const *cipher,
     }
 
     int len = 0;
-    if (!aad.empty() && EVP_EncryptUpdate(ctx.get(), nullptr, &len, aad.data(), aad.size()) != 1)
+    if (!aad.empty() && EVP_EncryptUpdate(ctx.get(), nullptr, &len, aad.data(), getSizeAsInt(aad)) != 1)
     {
         throw runtime_error("Failed to process AAD: " + getOpenSSLErrorString());
     }
 
     vector<unsigned char> ciphertext(plaintext.size());
-    if (EVP_EncryptUpdate(ctx.get(), ciphertext.data(), &len, plaintext.data(), plaintext.size()) !=
+    if (EVP_EncryptUpdate(ctx.get(), ciphertext.data(), &len, plaintext.data(), getSizeAsInt(plaintext)) !=
         1)
     {
         throw runtime_error("AES-GCM encryption failed: " + getOpenSSLErrorString());
@@ -1974,7 +1984,7 @@ vector<unsigned char> aesGcmDecrypt(EVP_CIPHER const *cipher,
     }
 
     int len = 0;
-    if (!aad.empty() && EVP_DecryptUpdate(ctx.get(), nullptr, &len, aad.data(), aad.size()) != 1)
+    if (!aad.empty() && EVP_DecryptUpdate(ctx.get(), nullptr, &len, aad.data(), getSizeAsInt(aad)) != 1)
     {
         throw runtime_error("Failed to process AAD: " + getOpenSSLErrorString());
     }
@@ -1984,7 +1994,7 @@ vector<unsigned char> aesGcmDecrypt(EVP_CIPHER const *cipher,
                           plaintext.data(),
                           &len,
                           ciphertext.data(),
-                          ciphertext.size()) != 1)
+                          getSizeAsInt(ciphertext)) != 1)
     {
         throw runtime_error("AES-GCM decryption failed: " + getOpenSSLErrorString());
     }
@@ -2035,7 +2045,7 @@ aesCbcHmacEncrypt(EVP_CIPHER const *cipher,
 
     vector<unsigned char> ciphertext(plaintext.size() + EVP_CIPHER_block_size(cipher));
     int len = 0;
-    if (EVP_EncryptUpdate(ctx.get(), ciphertext.data(), &len, plaintext.data(), plaintext.size()) !=
+    if (EVP_EncryptUpdate(ctx.get(), ciphertext.data(), &len, plaintext.data(), getSizeAsInt(plaintext)) !=
         1)
     {
         throw runtime_error("AES-CBC encryption failed: " + getOpenSSLErrorString());
@@ -2148,7 +2158,7 @@ vector<unsigned char> aesCbcHmacDecrypt(EVP_CIPHER const *cipher,
                           plaintext.data(),
                           &len,
                           ciphertext.data(),
-                          ciphertext.size()) != 1)
+                          getSizeAsInt(ciphertext)) != 1)
     {
         throw runtime_error("AES-CBC decryption failed: " + getOpenSSLErrorString());
     }
