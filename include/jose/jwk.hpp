@@ -74,6 +74,14 @@ public:
      * @return JWK object with auto-generated SHA-512 thumbprint as kid
      */
     static JWK generateOct(Use use, int bits = 256, std::string const &alg = "");
+
+    /**
+     * @brief Generate a new OKP key
+     * @param use Key use (signature or encryption) - REQUIRED
+     * @param bits Key size in bits (ignored for OKP, but can be used to specify curve)
+     * @param alg Optional algorithm. If empty, defaults based on use (Ed25519 for sig, X25519 for enc)
+     * @return JWK object with auto-generated SHA-512 thumbprint as kid
+     */
     static JWK generateOKP(Use use,
                            unsigned int bits = 0 /*default depends on use*/,
                            std::string const &alg = {});
@@ -156,12 +164,12 @@ public:
     /**
      * @brief Get key by ID
      */
-    JWK getKey(std::string const &kid) const;
+    JWK getKey(std::string const &kid) const; //TODO return a std::variant<JWK, JWE> where the JWE would contain an encrypted JWK
 
     /**
      * @brief Get all keys
      */
-    std::vector<JWK> getKeys() const;
+    std::vector<JWK> getKeys() const; //TODO the vector should contain a std::variant<JWK, JWE> where the JWE would contain an encrypted JWK
 
     /**
      * @brief Serialize to JSON

@@ -76,7 +76,7 @@ public:
      * @param data Data to sign
      * @return Signature
      */
-    static std::vector<unsigned char>
+    static std::vector<unsigned char> //TODO should be a JWS
     sign(SignatureAlgorithm algorithm, const JWK &key, std::vector<unsigned char> const &data);
 
     /**
@@ -90,7 +90,7 @@ public:
     static bool verify(SignatureAlgorithm algorithm,
                        const JWK &key,
                        std::vector<unsigned char> const &data,
-                       std::vector<unsigned char> const &signature);
+                       std::vector<unsigned char> const &signature); //TODO should be a JWS
 
     /**
      * @brief Encrypt content encryption key
@@ -103,6 +103,7 @@ public:
      * @param contentAlg Content encryption algorithm (for ECDH-ES key derivation)
      * @return Encrypted CEK
      */
+    //TODO most of the output parameters should be in the return value, which should be a JWE
     static std::vector<unsigned char>
     encryptKey(KeyEncryptionAlgorithm algorithm,
                const JWK &key,
@@ -123,6 +124,7 @@ public:
      * @param contentAlg Content encryption algorithm (for ECDH-ES key derivation)
      * @return Decrypted CEK
      */
+    //TODO most of the input parmaeters should be a JWE, and the return value should be a JWK
     static std::vector<unsigned char>
     decryptKey(KeyEncryptionAlgorithm algorithm,
                JWK const &key,
