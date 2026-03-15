@@ -289,12 +289,23 @@ jobs:
         shell: bash
         run: echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
 
-      - name: Upload coverage to Codecov
-        if: matrix.coverage
-        uses: codecov/codecov-action@v4
+      - name: Generate HTML coverage report
+        if: matrix.coverage && matrix.coverage_tool != 'opencppcoverage'
+        run: genhtml "${{ env.COVERAGE_FILE }}" --output-directory build/coverage-html
+
+      - name: Upload HTML coverage report
+        if: matrix.coverage && matrix.coverage_tool != 'opencppcoverage'
+        uses: actions/upload-artifact@v4
         with:
-          files: ${{ env.COVERAGE_FILE }}
-          fail_ci_if_error: false
+          name: coverage-${{ matrix.name }}
+          path: build/coverage-html/
+
+      - name: Upload XML coverage report
+        if: matrix.coverage_tool == 'opencppcoverage'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.name }}
+          path: build/coverage.xml
 
   # ── MinGW (MSYS2 UCRT64) ─────────────────────────────────────────────────
   build-mingw:
@@ -359,7 +370,6 @@ jobs:
 
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
-        continue-on-error: true
         run: |
           # MinGW ships lcov 1.x which does not know 'inconsistent' or 'unused';
           # use only the 'source' type which has been present since lcov 1.x.
@@ -368,12 +378,16 @@ jobs:
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
-      - name: Upload coverage to Codecov
+      - name: Generate HTML coverage report
         if: matrix.coverage
-        uses: codecov/codecov-action@v4
+        run: genhtml build/coverage.info --output-directory build/coverage-html
+
+      - name: Upload coverage report
+        if: matrix.coverage
+        uses: actions/upload-artifact@v4
         with:
-          files: build/coverage.info
-          fail_ci_if_error: false
+          name: coverage-${{ matrix.name }}
+          path: build/coverage-html/
 
   # ── Cygwin ────────────────────────────────────────────────────────────────
   build-cygwin:
@@ -429,7 +443,6 @@ jobs:
 
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
-        continue-on-error: true
         run: |
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
@@ -437,12 +450,18 @@ jobs:
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
-      - name: Upload coverage to Codecov
+      - name: Generate HTML coverage report
         if: matrix.coverage
-        uses: codecov/codecov-action@v4
+        run: |
+          cd "$(cygpath -u "$GITHUB_WORKSPACE")"
+          genhtml build/coverage.info --output-directory build/coverage-html
+
+      - name: Upload coverage report
+        if: matrix.coverage
+        uses: actions/upload-artifact@v4
         with:
-          files: build/coverage.info
-          fail_ci_if_error: false
+          name: coverage-${{ matrix.name }}
+          path: build/coverage-html/
 
   format-check:
     runs-on: ubuntu-latest
