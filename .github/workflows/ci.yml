@@ -486,6 +486,25 @@ jobs:
                       files[fname] = (hits, total)
               return files
 
+          # Normalise a path to forward slashes for consistent matching
+          def norm(p):
+              return str(p).replace("\\", "/")
+
+          def is_project_file(fname):
+              """True if this is a project src/ or include/ file (not deps, not system)."""
+              n = norm(fname)
+              # Must contain /src/ or /include/ somewhere in the path
+              if "/src/" not in n and "/include/" not in n:
+                  return False
+              # Exclude anything under _deps, build artifacts, or system paths
+              for excl in ("/_deps/", "/usr/", "/opt/", "/_temp/", "/msys", "/cygwin"):
+                  if excl in n:
+                      return False
+              return True
+
+          def project_file_map(file_map):
+              return {f: v for f, v in file_map.items() if is_project_file(f)}
+
           def overall_pct(file_map):
               th = sum(t for _, t in file_map.values())
               hh = sum(h for h, _ in file_map.values())
@@ -497,8 +516,6 @@ jobs:
                   if t == 0:
                       continue
                   pct = 100.0 * h / t
-                  # Only report project source files
-                  base = os.path.basename(fname)
                   if pct < THRESHOLD:
                       out.append((fname, pct, h, t))
               return out
@@ -536,11 +553,16 @@ jobs:
                   rows.append((label, None, None, []))
                   continue
 
-              pct = overall_pct(file_map)
-              low = low_files(file_map)
+              proj = project_file_map(file_map)
+              if not proj:
+                  rows.append((label, None, None, []))
+                  continue
+
+              pct = overall_pct(proj)
+              low = low_files(proj)
               if low or pct < THRESHOLD:
                   any_fail = True
-              rows.append((label, pct, len(file_map), low))
+              rows.append((label, pct, len(proj), low))
 
           with open(summary_path, "w") as f:
               f.write("## Coverage Summary\n\n")
