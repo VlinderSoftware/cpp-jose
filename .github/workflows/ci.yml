@@ -231,7 +231,7 @@ jobs:
         if: matrix.coverage_tool == 'lcov-gcov'
         run: |
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
-          lcov --remove build/coverage.info '/usr/*' '*/_deps/*' '*/tests/*' \
+          lcov --remove build/coverage.info '/usr/*' '*/_deps/*' '*/build/src/*' '*/tests/*' \
                --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
@@ -249,7 +249,7 @@ jobs:
           llvm-cov export "$test_exe" \
             -instr-profile=build/coverage.profdata \
             -format=lcov \
-            "--ignore-filename-regex=/_deps/|/tests/" \
+            "--ignore-filename-regex=/_deps/|/build/src/|/tests/" \
             > build/coverage.lcov
           echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
           echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
@@ -265,7 +265,7 @@ jobs:
           "$LLVM_PREFIX/bin/llvm-cov" export "$test_exe" \
             -instr-profile=build/coverage.profdata \
             -format=lcov \
-            "--ignore-filename-regex=/_deps/|/tests/" \
+            "--ignore-filename-regex=/_deps/|/build/src/|/tests/" \
             > build/coverage.lcov
           echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
           echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
@@ -282,7 +282,7 @@ jobs:
           llvm-cov export $testExe `
             -instr-profile=build/coverage.profdata `
             -format=lcov `
-            "--ignore-filename-regex=/_deps/|/tests/" `
+            "--ignore-filename-regex=/_deps/|/build/src/|/tests/" `
             > build/coverage.lcov
           "COVERAGE_FILE=build/coverage.lcov" | `
             Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -370,7 +370,7 @@ jobs:
           # MinGW ships lcov 1.x which does not know 'inconsistent' or 'unused';
           # use only the 'source' type which has been present since lcov 1.x.
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
-          lcov --remove build/coverage.info '/usr/*' '*/_deps/*' '*/tests/*' \
+          lcov --remove build/coverage.info '/usr/*' '*/_deps/*' '*/build/src/*' '*/tests/*' \
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
@@ -497,7 +497,7 @@ jobs:
               if "/src/" not in n and "/include/" not in n:
                   return False
               # Exclude anything under _deps, build artifacts, or system paths
-              for excl in ("/_deps/", "/usr/", "/opt/", "/_temp/", "/msys", "/cygwin"):
+              for excl in ("/_deps/", "/build/src/", "/usr/", "/opt/", "/_temp/", "/msys", "/cygwin"):
                   if excl in n:
                       return False
               return True
