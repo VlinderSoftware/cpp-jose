@@ -221,8 +221,8 @@ jobs:
                      Select-Object -First 1 -ExpandProperty FullName
           & "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe" `
               --export_type cobertura:build/coverage.xml `
-              --sources src `
-              --sources include `
+              --sources "$env:GITHUB_WORKSPACE\src" `
+              --sources "$env:GITHUB_WORKSPACE\include" `
               -- $testExe
 
       # ── Coverage report generation ────────────────────────────────────────
@@ -497,7 +497,8 @@ jobs:
               if "/src/" not in n and "/include/" not in n:
                   return False
               # Exclude anything under _deps, build artifacts, or system paths
-              for excl in ("/_deps/", "/build/src/", "/usr/", "/opt/", "/_temp/", "/msys", "/cygwin"):
+              for excl in ("/_deps/", "/build/src/", "/usr/", "/opt/", "/_temp/", "/msys", "/cygwin",
+                           "/windows kits/", "/program files/", "/windows/system"):
                   if excl in n:
                       return False
               return True
