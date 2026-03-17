@@ -106,6 +106,12 @@ public:
      */
     std::string getHeader() const;
 
+    /**
+     * @brief Serialize to JSON (compact serialization format)
+     * @return JWE in compact serialization format
+     */
+    std::string toJSON() const;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

@@ -32,24 +32,19 @@ public:
     /**
      * @brief Add a key to the set
      */
-    void addKey(JWK const &key);
-
-    /**
-     * @brief Add an encrypted key to the set
-     */
-    void addKey(JWE const &key);
+    void addKey(std::variant<JWK, JWE> const &key);
 
     /**
      * @brief Get key by ID
      */
-    JWK getKey(std::string const &kid)
+    std::variant<JWK, JWE> getKey(std::string const &kid)
         const;  // TODO return a std::variant<JWK, JWE> where the JWE would contain an encrypted JWK
 
     /**
      * @brief Get all keys
      */
-    std::vector<JWK> getKeys() const;  // TODO the vector should contain a std::variant<JWK, JWE>
-                                       // where the JWE would contain an encrypted JWK
+    std::vector<std::variant<JWK, JWE>> getKeys() const;  // TODO the vector should contain a std::variant<JWK, JWE>
+                                                            // where the JWE would contain an encrypted JWK
 
     /**
      * @brief Serialize to JSON

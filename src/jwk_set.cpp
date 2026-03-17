@@ -65,19 +65,14 @@ JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
     return set;
 }
 
-void JWKSet::addKey(JWK const &key)
-{
-    impl_->keys_.push_back(key);
-}
-
-void JWKSet::addKey(JWE const &key)
+void JWKSet::addKey(std::variant<JWK, JWE> const &key)
 {
     impl_->keys_.push_back(key);
 }
 
 // TODO add optional alg parameter: the combination of kid + alg has to be unique, kid by itself
 // does not.
-JWK JWKSet::getKey(string const &kid) const
+variant<JWK, JWE> JWKSet::getKey(string const &kid) const
 {
     // TODO make this a find_if
     for (auto const &key : impl_->keys_)
@@ -90,17 +85,9 @@ JWK JWKSet::getKey(string const &kid) const
     throw runtime_error("Key not found");
 }
 
-vector<JWK> JWKSet::getKeys() const
+vector<std::variant<JWK, JWE>> JWKSet::getKeys() const
 {
-    vector<JWK> jwks;
-    for (auto const &key : impl_->keys_)
-    {
-        if (holds_alternative<JWK>(key))
-        {
-            jwks.push_back(get<JWK>(key));
-        }
-    }
-    return jwks;
+    return impl_->keys_;
 }
 
 string JWKSet::toJSON() const
@@ -117,8 +104,7 @@ string JWKSet::toJSON() const
         }
         else if (holds_alternative<JWE>(key))
         {
-            // TODO handle JWEs
-            throw runtime_error("JWE serialization not implemented yet");
+            keys_array.push_back(json::parse(get<JWE>(key).toJSON()));
         }
     }
 
