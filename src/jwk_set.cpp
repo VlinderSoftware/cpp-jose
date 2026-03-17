@@ -21,6 +21,30 @@ JWKSet::JWKSet() : impl_(make_unique<Impl>())
 {
 }
 
+JWKSet::JWKSet(std::initializer_list<JWK> keys) : impl_(make_unique<Impl>())
+{
+    for (auto const &key : keys)
+    {
+        impl_->keys_.push_back(key);
+    }
+}
+
+JWKSet::JWKSet(std::initializer_list<JWE> keys) : impl_(make_unique<Impl>())
+{
+    for (auto const &key : keys)
+    {
+        impl_->keys_.push_back(key);
+    }
+}
+
+JWKSet::JWKSet(std::initializer_list<std::variant<JWK, JWE>> keys) : impl_(make_unique<Impl>())
+{
+    for (auto const &key : keys)
+    {
+        impl_->keys_.push_back(key);
+    }
+}
+
 JWKSet::~JWKSet() = default;
 
 JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)

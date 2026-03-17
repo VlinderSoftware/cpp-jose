@@ -134,11 +134,11 @@ int main()
         cout << jwks_json.substr(0, 300) << "..." << endl;
 
         cout << "\nRetrieving key by ID..." << endl;
-        JWK retrieved_key = jwks.getKey(key2.getKeyID());
+        JWK retrieved_key = get<JWK>(jwks.getKey(key2.getKeyID()));
         cout << "✓ Retrieved key: " << retrieved_key.getKeyID() << endl;
         cout << "  Algorithm: " << retrieved_key.getAlgorithm() << endl;
 
-        vector<JWK> allKeys = jwks.getKeys();
+        auto allKeys = jwks.getKeys();
         cout << "\nTotal keys in set: " << allKeys.size() << endl;
 
         // Example 6: JWK Thumbprints (RFC 7638)

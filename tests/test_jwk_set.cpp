@@ -163,18 +163,18 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
 
             AND_THEN("keys can be retrieved by ID")
             {
-                JWK retrieved = jwkSet.getKey("key1");
+                JWK retrieved = get<JWK>(jwkSet.getKey("key1"));
                 REQUIRE(retrieved.getKeyID() == "key1");
                 REQUIRE(retrieved.getKeyType() == JWK::KeyType::rsa);
 
-                JWK retrieved2 = jwkSet.getKey("key2");
+                JWK retrieved2 = get<JWK>(jwkSet.getKey("key2"));
                 REQUIRE(retrieved2.getKeyID() == "key2");
                 REQUIRE(retrieved2.getKeyType() == JWK::KeyType::ec);
             }
 
             AND_THEN("all keys can be retrieved as a vector")
             {
-                vector<JWK> keys = jwkSet.getKeys();
+                auto keys = jwkSet.getKeys();
                 REQUIRE(keys.size() == 2);
             }
         }
@@ -195,13 +195,13 @@ SCENARIO("JWKSet can manage multiple keys", "[jwk][jwkset][bdd]")
 
             THEN("all keys should be stored")
             {
-                vector<JWK> keys = jwkSet.getKeys();
+                auto keys = jwkSet.getKeys();
                 REQUIRE(keys.size() == 5);
             }
 
             AND_THEN("a specific key can be retrieved")
             {
-                JWK retrieved = jwkSet.getKey("rsa-key-3");
+                JWK retrieved = get<JWK>(jwkSet.getKey("rsa-key-3"));
                 REQUIRE(retrieved.getKeyID() == "rsa-key-3");
             }
         }
@@ -225,11 +225,11 @@ TEST_CASE("JWKSet round-trip preserves all keys", "[jwk][jwkset][round-trip]")
     string json = original.toJSON();
     JWKSet parsed = JWKSet::fromJSON(json);
 
-    JWK retrievedKey1 = parsed.getKey("key1");
+    JWK retrievedKey1 = get<JWK>(parsed.getKey("key1"));
     REQUIRE(retrievedKey1.getKeyID() == "key1");
     REQUIRE(retrievedKey1.getAlgorithm() == "RS256");
 
-    JWK retrievedKey2 = parsed.getKey("key2");
+    JWK retrievedKey2 = get<JWK>(parsed.getKey("key2"));
     REQUIRE(retrievedKey2.getKeyID() == "key2");
     REQUIRE(retrievedKey2.getAlgorithm() == "ES256");
 }
@@ -253,9 +253,9 @@ TEST_CASE("JWKSet fromJSON can ignore private parameters", "[jwk][jwkset][parsin
     string json = original.toJSON();
     JWKSet parsed = JWKSet::fromJSON(json, true);
 
-    REQUIRE_FALSE(parsed.getKey("set-rsa").hasPrivateKey());
-    REQUIRE_FALSE(parsed.getKey("set-ec").hasPrivateKey());
-    REQUIRE_FALSE(parsed.getKey("set-oct").hasPrivateKey());
+    REQUIRE_FALSE(get<JWK>(parsed.getKey("set-rsa")).hasPrivateKey());
+    REQUIRE_FALSE(get<JWK>(parsed.getKey("set-ec")).hasPrivateKey());
+    REQUIRE_FALSE(get<JWK>(parsed.getKey("set-oct")).hasPrivateKey());
 }
 
 TEST_CASE("JWK Oct fromJSON ignore-private accepts missing k", "[jwk][oct][parsing]")
@@ -280,7 +280,7 @@ TEST_CASE("JWKSet can contain three keys", "[jwk][jwkset]")
     jwkSet.addKey(JWK::generateEC(JWK::Use::signature, "P-256"));
     jwkSet.addKey(JWK::generateOct(JWK::Use::signature, 256));
 
-    vector<JWK> keys = jwkSet.getKeys();
+    auto keys = jwkSet.getKeys();
     REQUIRE(keys.size() == 3);
 }
 

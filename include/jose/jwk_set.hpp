@@ -1,8 +1,10 @@
 #ifndef JOSE_JWK_SET_HPP
 #define JOSE_JWK_SET_HPP
 
+#include <initializer_list>
 #include <memory>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "jwe.hpp"
@@ -18,6 +20,9 @@ class JWKSet
 {
 public:
     JWKSet();
+    JWKSet(std::initializer_list<JWK> keys);
+    JWKSet(std::initializer_list<JWE> keys);
+    JWKSet(std::initializer_list<std::variant<JWK, JWE>> keys);
     ~JWKSet();
 
     // Move constructors/operators
