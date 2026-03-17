@@ -1,3 +1,13 @@
+[ ] API reviews
+    [x] JWA
+    [x] JWK
+    [ ] JWKS
+    [ ] JWS
+    [ ] JWE
+    [ ] JWK Thumbprints
+    [ ] JWT
+    [ ] Base64URL
+
 [ ] Add functional tests for import & export:
     [x] Import an RSA from JSON, exported public key only, use the validate 
         signature
