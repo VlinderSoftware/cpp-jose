@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "jwe.hpp"
 #include "jwk.hpp"
 
 namespace Vlinder {
@@ -32,6 +33,11 @@ public:
      * @brief Add a key to the set
      */
     void addKey(JWK const &key);
+
+    /**
+     * @brief Add an encrypted key to the set
+     */
+    void addKey(JWE const &key);
 
     /**
      * @brief Get key by ID

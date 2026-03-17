@@ -1,13 +1,8 @@
 #include "jwk_set.hpp"
 
-#include <cstring>
-#include <new>
-#include <set>
-#include <stdexcept>
+#include <variant>
 
-#include "base64url.hpp"
-#include "jwk_thumbprint.hpp"
-#include "private/back_end_factory.hpp"
+#include "jwe.hpp"
 #include "private/json_utils.hpp"
 
 using namespace std;
@@ -19,7 +14,7 @@ namespace JOSE {
 // JWKSet implementation
 struct JWKSet::Impl
 {
-    vector<JWK> keys_;
+    vector<variant<JWK, JWE>> keys_;
 };
 
 JWKSet::JWKSet() : impl_(make_unique<Impl>())
@@ -48,18 +43,34 @@ JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
     {
         string key_json_string = key_json.dump();
         // TODO handle JWEs
-        auto key = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
-        if (!key.second)
+        auto jwk = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
+        if (!jwk.second)
         {
-            throw runtime_error("Failed to parse key in JWK Set");
+            auto jwe = JWE::fromJSON(key_json_string, nothrow);
+            if (!jwe.second)
+            {
+                throw runtime_error("Failed to parse key as JWK or JWE");
+            }
+            else
+            {
+                set.addKey(*jwe.first);
+            }
         }
-        set.addKey(*key.first);
+        else
+        {
+            set.addKey(*jwk.first);
+        }
     }
 
     return set;
 }
 
 void JWKSet::addKey(JWK const &key)
+{
+    impl_->keys_.push_back(key);
+}
+
+void JWKSet::addKey(JWE const &key)
 {
     impl_->keys_.push_back(key);
 }
@@ -71,9 +82,9 @@ JWK JWKSet::getKey(string const &kid) const
     // TODO make this a find_if
     for (auto const &key : impl_->keys_)
     {
-        if (key.getKeyID() == kid)
+        if (holds_alternative<JWK>(key) && get<JWK>(key).getKeyID() == kid)
         {
-            return key;
+            return get<JWK>(key);
         }
     }
     throw runtime_error("Key not found");
@@ -81,7 +92,15 @@ JWK JWKSet::getKey(string const &kid) const
 
 vector<JWK> JWKSet::getKeys() const
 {
-    return impl_->keys_;
+    vector<JWK> jwks;
+    for (auto const &key : impl_->keys_)
+    {
+        if (holds_alternative<JWK>(key))
+        {
+            jwks.push_back(get<JWK>(key));
+        }
+    }
+    return jwks;
 }
 
 string JWKSet::toJSON() const
@@ -92,7 +111,15 @@ string JWKSet::toJSON() const
 
     for (auto const &key : impl_->keys_)
     {
-        keys_array.push_back(json::parse(key.toJSON(false)));
+        if (holds_alternative<JWK>(key))
+        {
+            keys_array.push_back(json::parse(get<JWK>(key).toJSON(false)));
+        }
+        else if (holds_alternative<JWE>(key))
+        {
+            // TODO handle JWEs
+            throw runtime_error("JWE serialization not implemented yet");
+        }
     }
 
     json_obj["keys"] = keys_array;

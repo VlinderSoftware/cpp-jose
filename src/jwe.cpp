@@ -463,6 +463,18 @@ JWE JWE::fromJSON(string const &jwe)
     return result;
 }
 
+pair<optional<JWE>, bool> JWE::fromJSON(string const &jwe, nothrow_t const &)
+{
+    try
+    {
+        return make_pair(fromJSON(jwe), true);
+    }
+    catch (...)
+    {
+        return make_pair(nullopt, false);
+    }
+}
+
 string JWE::getPlaintext() const
 {
     return impl_->plaintext_;
