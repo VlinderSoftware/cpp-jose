@@ -3,6 +3,8 @@
 
 #include <map>
 #include <memory>
+#include <new>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,6 +49,13 @@ public:
      * @return JWK object
      */
     static JWK fromJSON(std::string const &json, bool ignore_private_if_present = false);
+
+    /**
+     * @brief Parse JWK from JSON string
+     * @param json JSON string
+     * @return JWK object
+     */
+    static std::pair< std::optional<JWK>, bool > fromJSON(std::string const &json, bool ignore_private_if_present, std::nothrow_t const &);
 
     /**
      * @brief Generate a new RSA key

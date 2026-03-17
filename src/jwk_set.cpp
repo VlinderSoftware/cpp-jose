@@ -1,6 +1,7 @@
 #include "jwk_set.hpp"
 
 #include <cstring>
+#include <new>
 #include <set>
 #include <stdexcept>
 
@@ -47,8 +48,12 @@ JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
     {
         string key_json_string = key_json.dump();
         // TODO handle JWEs
-        JWK key = JWK::fromJSON(key_json_string, ignore_private_if_present);
-        set.addKey(key);
+        auto key = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
+        if (!key.second)
+        {
+            throw runtime_error("Failed to parse key in JWK Set");
+        }
+        set.addKey(*key.first);
     }
 
     return set;
