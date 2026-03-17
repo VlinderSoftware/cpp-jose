@@ -171,7 +171,7 @@ TEST_CASE("JWE_SetKeyId", "[jwe][setkeyid]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("my-key-id"));
@@ -189,7 +189,7 @@ TEST_CASE("JWE_SetType", "[jwe][settype]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("JWT"));
@@ -207,7 +207,7 @@ TEST_CASE("JWE_SetCustomHeaderParam", "[jwe][setcustomheaderparam]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("custom"));
@@ -225,7 +225,7 @@ TEST_CASE("JWE_GetHeader", "[jwe][getheader]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE_FALSE(header.empty());
@@ -246,7 +246,7 @@ TEST_CASE("JWE_ParseJWE", "[jwe][parsejwe]")
 
     string token = original.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("key-123"));

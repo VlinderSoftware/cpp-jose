@@ -85,7 +85,7 @@ public:
      * @param jwe JWE in compact serialization format
      * @return JWE object
      */
-    static JWE parse(std::string const &jwe);
+    static JWE fromJSON(std::string const &jwe);
 
     /**
      * @brief Get the plaintext (after parsing or setting)

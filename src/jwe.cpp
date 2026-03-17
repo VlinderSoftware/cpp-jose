@@ -410,7 +410,7 @@ string JWE::decrypt(string const &jwe, const JWK &key)
     return string(plaintext.begin(), plaintext.end());
 }
 
-JWE JWE::parse(string const &jwe)
+JWE JWE::fromJSON(string const &jwe)
 {
     // Split into five parts
     vector<string> parts;
