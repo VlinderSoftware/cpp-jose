@@ -132,6 +132,63 @@
         private keys unless forced
     [ ] JWS: refuse "none" alg signatures unless told to accept them
 
+[ ] Coverage gaps (identified from CI artifacts, all platforms):
+
+    [ ] Copy/move assignment — JWE, JWS, JWT, JWK all have untested operator=
+        [ ] Copy-assign each type and verify the copy is independent
+        [ ] Move-assign each type and verify the source is in a valid state
+
+    [ ] JWKThumbprint: only SHA-256 path is exercised (77.7% coverage)
+        [ ] compute(key, "SHA-384")
+        [ ] compute(key, "SHA-512")
+        [ ] compute(key, "<unsupported>") throws
+
+    [ ] JWT API gaps
+        [ ] setAudience(vector<string>) with >1 audience
+        [ ] getIssuedAt() and getJWTID() getters
+        [ ] validate() with audience that is not in the token (expect false)
+        [ ] sign() algorithm auto-selection: oct key → HS256, ec key → ES256
+
+    [ ] Error/rejection paths (back_end, jws, jwe)
+        [ ] BackEnd::sign() with mismatched key type throws (e.g. RSA key + HS256)
+        [ ] BackEnd::verify() with mismatched key type throws
+        [ ] JWS::verify() with malformed token (missing dots) returns false
+        [ ] JWS::parse() with invalid format string throws
+        [ ] JWE: passing a non-oct key to getOctetKeyMaterial() throws
+        [ ] JWE: unsupported algorithm passed to getKeySize() / getIVSize() throws
+
+    [ ] JWK helpers never reached
+        [ ] Import a JWK JSON containing an "alg" field — inferUseFromAlgorithm
+            and keySizeFromAlg are exercised
+        [ ] validateAlgorithm(): pass a signature alg to an encryption key and
+            vice versa (should throw)
+
+    [ ] JWA: unknown-algorithm throw paths (96.1%)
+        [ ] JWA::toString(SignatureAlgorithm) with an out-of-range value throws
+        [ ] JWA::toString(KeyEncryptionAlgorithm) with an out-of-range value throws
+        [ ] JWA::toString(ContentEncryptionAlgorithm) with an out-of-range value throws
+        [ ] JWA::signatureAlgorithmFromString("bogus") throws
+        [ ] JWA::keyEncryptionAlgorithmFromString("bogus") throws
+        [ ] JWA::contentEncryptionAlgorithmFromString("bogus") throws
+
+    [ ] OKP import — OpenSSL backend (67.1% coverage)
+        [ ] Import a known Ed25519 public JWK and sign/verify
+        [ ] Import a known Ed25519 private JWK and sign/verify
+        [ ] Import a known X25519 public JWK
+        [ ] Import a known X25519 private JWK
+        (already listed under "Add OpenSSL-only OKP test coverage" above, but
+        the entire importOkpKey() code path is currently dead on all platforms)
+
+    [ ] CNG key generation gaps (85.6%)
+        [ ] CNGBackEnd::generateOct() — generate a symmetric key via CNG
+        [ ] CNGBackEnd::generateOkp() — generate an OKP key via CNG
+            (CNG only — guard with backend check)
+
+    [ ] endian.hpp: byteSwap32 is never called (68.8%)
+        [ ] Add a direct unit test for byteSwap32 with known values
+        [ ] Trace whether any callers exist; if not, determine if the function
+            is dead code and either exercise it or remove it
+
 [ ] COSE support
     nlohmann library already supports CBOR
 

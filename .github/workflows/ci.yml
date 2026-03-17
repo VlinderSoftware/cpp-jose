@@ -20,7 +20,7 @@ jobs:
         include:
           # ── Linux GCC ─────────────────────────────────────────────────────
           - name: "Linux GCC Debug"
-            os: ubuntu-latest
+            os: ubuntu-24.04
             compiler: gcc
             cc: gcc
             cxx: g++
@@ -29,7 +29,7 @@ jobs:
             coverage: true
             coverage_tool: lcov-gcov
           - name: "Linux GCC Release"
-            os: ubuntu-latest
+            os: ubuntu-24.04
             compiler: gcc
             cc: gcc
             cxx: g++
@@ -38,16 +38,52 @@ jobs:
             coverage: false
           # ── Linux Clang ───────────────────────────────────────────────────
           - name: "Linux Clang Debug"
-            os: ubuntu-latest
+            os: ubuntu-24.04
             compiler: clang
             cc: clang
             cxx: clang++
             backend: OpenSSL
             build_type: Debug
             coverage: true
-            coverage_tool: lcov-llvm
+            coverage_tool: llvm-cov-instr
           - name: "Linux Clang Release"
-            os: ubuntu-latest
+            os: ubuntu-24.04
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── Linux ARM64 GCC ──────────────────────────────────────────────
+          - name: "Linux ARM64 GCC Debug"
+            os: ubuntu-24.04-arm
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: lcov-gcov
+          - name: "Linux ARM64 GCC Release"
+            os: ubuntu-24.04-arm
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── Linux ARM64 Clang ─────────────────────────────────────────────
+          - name: "Linux ARM64 Clang Debug"
+            os: ubuntu-24.04-arm
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: llvm-cov-instr
+          - name: "Linux ARM64 Clang Release"
+            os: ubuntu-24.04-arm
             compiler: clang
             cc: clang
             cxx: clang++
@@ -63,7 +99,7 @@ jobs:
             backend: OpenSSL
             build_type: Debug
             coverage: true
-            coverage_tool: lcov-llvm
+            coverage_tool: llvm-cov-instr
           - name: "macOS Clang Release"
             os: macos-latest
             compiler: clang
@@ -106,7 +142,7 @@ jobs:
             backend: CNG
             build_type: Debug
             coverage: true
-            coverage_tool: llvm-cov-instr
+            coverage_tool: opencppcoverage
           - name: "Windows ClangCL CNG Release"
             os: windows-latest
             compiler: clang-cl
@@ -119,7 +155,7 @@ jobs:
             backend: OpenSSL
             build_type: Debug
             coverage: true
-            coverage_tool: llvm-cov-instr
+            coverage_tool: opencppcoverage
           - name: "Windows ClangCL OpenSSL Release"
             os: windows-latest
             compiler: clang-cl
@@ -138,14 +174,18 @@ jobs:
 
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
-          brew install ninja openssl@3 lcov llvm
+          for pkg in ninja openssl@3 lcov llvm; do
+            brew list "$pkg" &>/dev/null || brew install "$pkg"
+          done
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
           echo "LLVM_PREFIX=$(brew --prefix llvm)" >> "$GITHUB_ENV"
 
       - name: Set up MSVC environment (Windows)
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: blytkerchan/devsecops-setup-msvc@v1
 
       - name: Locate OpenSSL (Windows)
         if: ${{ runner.os == 'Windows' && matrix.backend == 'OpenSSL' }}
@@ -186,7 +226,9 @@ jobs:
               EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=--coverage" "-DCMAKE_EXE_LINKER_FLAGS=--coverage")
               ;;
             llvm-cov-instr)
-              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=/clang:-fprofile-instr-generate /clang:-fcoverage-mapping")
+              # Native Clang source-based coverage (Linux/macOS only).
+              # ClangCL Windows uses opencppcoverage instead.
+              EXTRA_ARGS+=("-DCMAKE_CXX_FLAGS=-fprofile-instr-generate -fcoverage-mapping")
               EXTRA_ARGS+=("-DCMAKE_EXE_LINKER_FLAGS=-fprofile-instr-generate")
               ;;
           esac
@@ -207,7 +249,7 @@ jobs:
         shell: bash
         run: |
           [[ "${{ matrix.coverage_tool }}" == "llvm-cov-instr" ]] && \
-            export LLVM_PROFILE_FILE="%p-%m.profraw"
+            export LLVM_PROFILE_FILE="${GITHUB_WORKSPACE}/build/%p-%m.profraw"
           ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
 
       # OpenCppCoverage wraps the test executable directly
@@ -219,8 +261,8 @@ jobs:
                      Select-Object -First 1 -ExpandProperty FullName
           & "C:\Program Files\OpenCppCoverage\OpenCppCoverage.exe" `
               --export_type cobertura:build/coverage.xml `
-              --sources src `
-              --sources include `
+              --sources "$env:GITHUB_WORKSPACE\src" `
+              --sources "$env:GITHUB_WORKSPACE\include" `
               -- $testExe
 
       # ── Coverage report generation ────────────────────────────────────────
@@ -229,48 +271,50 @@ jobs:
         if: matrix.coverage_tool == 'lcov-gcov'
         run: |
           lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
+          lcov --remove build/coverage.info '/usr/*' '*/_deps/*' '*/build/src/*' '*/tests/*' \
                --ignore-errors unused \
                --output-file build/coverage.info
           lcov --list build/coverage.info
           echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.info" >> "$GITHUB_ENV"
 
-      - name: Coverage report (Clang / llvm-cov, Linux)
-        if: matrix.coverage_tool == 'lcov-llvm' && runner.os == 'Linux'
+      - name: Coverage report (Clang / llvm-cov instrumentation, Linux)
+        if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Linux'
         run: |
-          printf '#!/bin/sh\nexec llvm-cov gcov "$@"\n' > /tmp/llvm-gcov.sh
-          chmod +x /tmp/llvm-gcov.sh
-          lcov --capture --directory build \
-               --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source,inconsistent \
-               --output-file build/coverage.info
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+          profraw_files=()
+          while IFS= read -r f; do profraw_files+=("$f"); done \
+            < <(find build -name "*.profraw")
+          llvm-profdata merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
+          test_exe=$(find build -name 'jose_tests' -type f | head -1)
+          llvm-cov export "$test_exe" \
+            -instr-profile=build/coverage.profdata \
+            -format=lcov \
+            "--ignore-filename-regex=/_deps/|/build/src/|/tests/" \
+            > build/coverage.lcov
+          echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
 
-      - name: Coverage report (Clang / llvm-cov, macOS)
-        if: matrix.coverage_tool == 'lcov-llvm' && runner.os == 'macOS'
+      - name: Coverage report (Clang / llvm-cov instrumentation, macOS)
+        if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'macOS'
         run: |
-          printf '#!/bin/sh\nexec "%s/bin/llvm-cov" gcov "$@"\n' "$LLVM_PREFIX" \
-            > /tmp/llvm-gcov.sh
-          chmod +x /tmp/llvm-gcov.sh
-          lcov --capture --directory build \
-               --gcov-tool /tmp/llvm-gcov.sh \
-               --ignore-errors source,inconsistent,format \
-               --output-file build/coverage.info
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-          echo "COVERAGE_FILE=build/coverage.info" >> "$GITHUB_ENV"
+          profraw_files=()
+          while IFS= read -r f; do profraw_files+=("$f"); done \
+            < <(find build -name "*.profraw")
+          "$LLVM_PREFIX/bin/llvm-profdata" merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
+          test_exe=$(find build -name 'jose_tests' -type f | head -1)
+          "$LLVM_PREFIX/bin/llvm-cov" export "$test_exe" \
+            -instr-profile=build/coverage.profdata \
+            -format=lcov \
+            "--ignore-filename-regex=/_deps/|/build/src/|/tests/" \
+            > build/coverage.lcov
+          echo "COVERAGE_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.lcov" >> "$GITHUB_ENV"
 
       - name: Coverage report (ClangCL / llvm-cov instrumentation)
-        if: matrix.coverage_tool == 'llvm-cov-instr'
+        if: matrix.coverage_tool == 'llvm-cov-instr' && runner.os == 'Windows'
         shell: pwsh
         run: |
-          $profrawFiles = Get-ChildItem -Path . -Recurse -Filter "*.profraw" |
+          $profrawFiles = Get-ChildItem -Path build -Recurse -Filter "*.profraw" |
                           Select-Object -ExpandProperty FullName
           $testExe = Get-ChildItem -Path build -Recurse -Filter jose_tests.exe |
                      Select-Object -First 1 -ExpandProperty FullName
@@ -278,22 +322,26 @@ jobs:
           llvm-cov export $testExe `
             -instr-profile=build/coverage.profdata `
             -format=lcov `
-            "--ignore-filename-regex=(build[\\/]_deps|tests)[\\/]" `
+            "--ignore-filename-regex=/_deps/|/build/src/|/tests/" `
             > build/coverage.lcov
           "COVERAGE_FILE=build/coverage.lcov" | `
+            Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "COVERAGE_DATA_FILE=build/coverage.lcov" | `
             Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Set coverage file (OpenCppCoverage)
         if: matrix.coverage_tool == 'opencppcoverage'
         shell: bash
-        run: echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
+        run: |
+          echo "COVERAGE_FILE=build/coverage.xml" >> "$GITHUB_ENV"
+          echo "COVERAGE_DATA_FILE=build/coverage.xml" >> "$GITHUB_ENV"
 
-      - name: Upload coverage to Codecov
+      - name: Upload raw coverage data
         if: matrix.coverage
-        uses: codecov/codecov-action@v4
+        uses: actions/upload-artifact@v7
         with:
-          files: ${{ env.COVERAGE_FILE }}
-          fail_ci_if_error: false
+          name: coverage-data-${{ matrix.name }}
+          path: ${{ env.COVERAGE_DATA_FILE }}
 
   # ── MinGW (MSYS2 UCRT64) ─────────────────────────────────────────────────
   build-mingw:
@@ -324,7 +372,7 @@ jobs:
             coverage: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: msys2/setup-msys2@v2
         with:
@@ -359,18 +407,19 @@ jobs:
       - name: Coverage report (GCC / lcov)
         if: matrix.coverage
         run: |
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
+          # MinGW ships lcov 1.x which does not know 'inconsistent' or 'unused';
+          # use only the 'source' type which has been present since lcov 1.x.
+          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source
+          lcov --remove build/coverage.info '/usr/*' '*/_deps/*' '*/build/src/*' '*/tests/*' \
                --output-file build/coverage.info
           lcov --list build/coverage.info
 
-      - name: Upload coverage to Codecov
+      - name: Upload raw coverage data
         if: matrix.coverage
-        uses: codecov/codecov-action@v4
+        uses: actions/upload-artifact@v7
         with:
-          files: build/coverage.info
-          fail_ci_if_error: false
+          name: coverage-data-${{ matrix.name }}
+          path: build/coverage.info
 
   # ── Cygwin ────────────────────────────────────────────────────────────────
   build-cygwin:
@@ -387,18 +436,18 @@ jobs:
         include:
           - name: "Cygwin GCC OpenSSL Debug"
             build_type: Debug
-            coverage: true
+            coverage: false
           - name: "Cygwin GCC OpenSSL Release"
             build_type: Release
             coverage: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Cygwin
         uses: cygwin/cygwin-install-action@v6
         with:
-          packages: cmake ninja gcc-g++ libssl-devel lcov
+          packages: cmake ninja gcc-g++ libssl-devel
 
       - name: Configure CMake
         run: |
@@ -424,27 +473,170 @@ jobs:
           cd "$(cygpath -u "$GITHUB_WORKSPACE")"
           ctest --test-dir build --output-on-failure -C ${{ matrix.build_type }}
 
-      - name: Coverage report (GCC / lcov)
-        if: matrix.coverage
-        run: |
-          cd "$(cygpath -u "$GITHUB_WORKSPACE")"
-          lcov --capture --directory build --output-file build/coverage.info --ignore-errors source,inconsistent
-          lcov --remove build/coverage.info '/usr/*' '*/Catch2/*' '*/nlohmann*' \
-               --ignore-errors unused \
-               --output-file build/coverage.info
-          lcov --list build/coverage.info
-
-      - name: Upload coverage to Codecov
-        if: matrix.coverage
-        uses: codecov/codecov-action@v4
+  # ── Coverage summary (single pane of glass) ──────────────────────────────
+  coverage-summary:
+    name: Coverage Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [build-and-test, build-mingw, build-cygwin]
+    steps:
+      - name: Download all coverage data artifacts
+        uses: actions/download-artifact@v8
         with:
-          files: build/coverage.info
-          fail_ci_if_error: false
+          pattern: coverage-data-*
+          path: coverage-data
+          merge-multiple: false
+
+      - name: Build coverage summary table
+        shell: python3 {0}
+        run: |
+          import os, re, sys, glob, xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          THRESHOLD = 85.0
+          summary_path = os.environ["GITHUB_STEP_SUMMARY"]
+
+          def parse_lcov(path):
+              """Return {filename: (lines_hit, lines_total)} from an lcov .info/.lcov file."""
+              files = {}
+              current = None
+              lh = lt = 0
+              for line in Path(path).read_text(errors="replace").splitlines():
+                  if line.startswith("SF:"):
+                      current = line[3:].strip()
+                      lh = lt = 0
+                  elif line.startswith("LH:"):
+                      lh = int(line[3:])
+                  elif line.startswith("LF:"):
+                      lt = int(line[3:])
+                  elif line == "end_of_record" and current:
+                      files[current] = (lh, lt)
+                      current = None
+              return files
+
+          def parse_cobertura(path):
+              """Return {filename: (lines_hit, lines_total)} from a Cobertura XML."""
+              files = {}
+              tree = ET.parse(path)
+              for cls in tree.iter("class"):
+                  fname = cls.get("filename", "")
+                  hits = sum(1 for l in cls.iter("line") if int(l.get("hits", 0)) > 0)
+                  total = sum(1 for _ in cls.iter("line"))
+                  if total:
+                      files[fname] = (hits, total)
+              return files
+
+          # Normalise a path to forward slashes for consistent matching
+          def norm(p):
+              return str(p).replace("\\", "/")
+
+          def is_project_file(fname):
+              """True if this is a project src/ or include/ file (not deps, not system)."""
+              n = norm(fname)
+              # Must contain /src/ or /include/ somewhere in the path
+              if "/src/" not in n and "/include/" not in n:
+                  return False
+              # Exclude anything under _deps, build artifacts, or system paths
+              for excl in ("/_deps/", "/build/src/", "/usr/", "/opt/", "/_temp/", "/msys", "/cygwin",
+                           "/windows kits/", "/program files/", "/windows/system"):
+                  if excl in n:
+                      return False
+              return True
+
+          def project_file_map(file_map):
+              return {f: v for f, v in file_map.items() if is_project_file(f)}
+
+          def overall_pct(file_map):
+              th = sum(t for _, t in file_map.values())
+              hh = sum(h for h, _ in file_map.values())
+              return 100.0 * hh / th if th else 0.0
+
+          def low_files(file_map):
+              out = []
+              for fname, (h, t) in sorted(file_map.items()):
+                  if t == 0:
+                      continue
+                  pct = 100.0 * h / t
+                  if pct < THRESHOLD:
+                      out.append((fname, pct, h, t))
+              return out
+
+          rows = []
+          any_fail = False
+
+          for artifact_dir in sorted(Path("coverage-data").iterdir()):
+              if not artifact_dir.is_dir():
+                  continue
+              # artifact name is "coverage-data-<matrix.name>"
+              label = artifact_dir.name.removeprefix("coverage-data-")
+              data_files = list(artifact_dir.rglob("*"))
+              data_files = [f for f in data_files if f.is_file()]
+              if not data_files:
+                  rows.append((label, None, None, []))
+                  continue
+              data_file = data_files[0]
+              try:
+                  if data_file.suffix in (".info", ".lcov") or data_file.name.endswith(".info"):
+                      file_map = parse_lcov(data_file)
+                  elif data_file.suffix == ".xml":
+                      file_map = parse_cobertura(data_file)
+                  else:
+                      # Try lcov first, fall back to cobertura
+                      try:
+                          file_map = parse_lcov(data_file)
+                      except Exception:
+                          file_map = parse_cobertura(data_file)
+              except Exception as e:
+                  rows.append((label, None, None, []))
+                  continue
+
+              if not file_map:
+                  rows.append((label, None, None, []))
+                  continue
+
+              proj = project_file_map(file_map)
+              if not proj:
+                  rows.append((label, None, None, []))
+                  continue
+
+              pct = overall_pct(proj)
+              low = low_files(proj)
+              if low or pct < THRESHOLD:
+                  any_fail = True
+              rows.append((label, pct, len(proj), low))
+
+          with open(summary_path, "w") as f:
+              f.write("## Coverage Summary\n\n")
+              f.write(f"Threshold: **{THRESHOLD:.0f}%** per file\n\n")
+              f.write("| Configuration | Overall | Files | Status |\n")
+              f.write("|---|---|---|---|\n")
+              for label, pct, nfiles, low in rows:
+                  if pct is None:
+                      f.write(f"| {label} | ⚠️ no data | — | ⚠️ |\n")
+                  else:
+                      status = "✅" if not low and pct >= THRESHOLD else "❌"
+                      f.write(f"| {label} | {pct:.1f}% | {nfiles} | {status} |\n")
+
+              failing = [(l, low) for l, pct, nfiles, low in rows if low]
+              if failing:
+                  f.write("\n### Files below threshold\n\n")
+                  f.write("| Configuration | File | Coverage |\n")
+                  f.write("|---|---|---|\n")
+                  for label, low in failing:
+                      for fname, pct, h, t in low:
+                          # Strip leading path components to show relative path
+                          short = re.sub(r"^.*(src/|include/)", r"\1", fname)
+                          f.write(f"| {label} | `{short}` | {pct:.1f}% ({h}/{t} lines) |\n")
+              else:
+                  f.write("\n✅ All files meet the coverage threshold.\n")
+
+          if any_fail:
+              print("::warning::Some configurations have files below the 85% coverage threshold. See the job summary.")
 
   format-check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install clang-format
         run: sudo apt-get install -y clang-format

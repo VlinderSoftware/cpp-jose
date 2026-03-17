@@ -48,11 +48,3 @@ include(CTest)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
 catch_discover_tests(jose_tests)
-
-# Coverage flags
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-    if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(jose_tests PRIVATE --coverage)
-        target_link_options(jose_tests PRIVATE --coverage)
-    endif()
-endif()
