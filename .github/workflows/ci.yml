@@ -54,6 +54,42 @@ jobs:
             backend: OpenSSL
             build_type: Release
             coverage: false
+          # ── Linux ARM64 GCC ──────────────────────────────────────────────
+          - name: "Linux ARM64 GCC Debug"
+            os: ubuntu-24.04-arm
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: lcov-gcov
+          - name: "Linux ARM64 GCC Release"
+            os: ubuntu-24.04-arm
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
+          # ── Linux ARM64 Clang ─────────────────────────────────────────────
+          - name: "Linux ARM64 Clang Debug"
+            os: ubuntu-24.04-arm
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Debug
+            coverage: true
+            coverage_tool: llvm-cov-instr
+          - name: "Linux ARM64 Clang Release"
+            os: ubuntu-24.04-arm
+            compiler: clang
+            cc: clang
+            cxx: clang++
+            backend: OpenSSL
+            build_type: Release
+            coverage: false
           # ── macOS Clang ───────────────────────────────────────────────────
           - name: "macOS Clang Debug"
             os: macos-latest
