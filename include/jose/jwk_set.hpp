@@ -31,7 +31,7 @@ public:
     /**
      * @brief Add a key to the set
      */
-    void addKey(const JWK &key);
+    void addKey(JWK const &key);
 
     /**
      * @brief Get key by ID
