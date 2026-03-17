@@ -1,11 +1,11 @@
 #include "jwk_set.hpp"
-#include "jwk_thumbprint.hpp"
 
 #include <cstring>
 #include <set>
 #include <stdexcept>
 
 #include "base64url.hpp"
+#include "jwk_thumbprint.hpp"
 #include "private/back_end_factory.hpp"
 #include "private/json_utils.hpp"
 
@@ -43,23 +43,24 @@ JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
     }
 
     // Parse each key in the array
-    for (auto const &keyJson : jwk_set_json["keys"])
+    for (auto const &key_json : jwk_set_json["keys"])
     {
-        string keyJsonStr = keyJson.dump();
+        string key_json_string = key_json.dump();
         // TODO handle JWEs
-        JWK key = JWK::fromJSON(keyJsonStr, ignore_private_if_present);
+        JWK key = JWK::fromJSON(key_json_string, ignore_private_if_present);
         set.addKey(key);
     }
 
     return set;
 }
 
-void JWKSet::addKey(const JWK &key)
+void JWKSet::addKey(JWK const &key)
 {
     impl_->keys_.push_back(key);
 }
 
-// TODO add optional alg parameter: the combination of kid + alg has to be unique, kid by itself does not.
+// TODO add optional alg parameter: the combination of kid + alg has to be unique, kid by itself
+// does not.
 JWK JWKSet::getKey(string const &kid) const
 {
     // TODO make this a find_if

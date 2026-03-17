@@ -1,11 +1,11 @@
 #ifndef JOSE_JWK_SET_HPP
 #define JOSE_JWK_SET_HPP
 
-#include "jwk.hpp"
-
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "jwk.hpp"
 
 namespace Vlinder {
 namespace JOSE {
@@ -58,4 +58,4 @@ private:
 }  // namespace JOSE
 }  // namespace Vlinder
 
-#endif  // JOSE_JWK_HPP
+#endif  // JOSE_JWK_SET_HPP
