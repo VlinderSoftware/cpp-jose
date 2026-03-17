@@ -22,6 +22,7 @@
 #include "jwa.hpp"
 #include "jwe.hpp"
 #include "jwk.hpp"
+#include "jwk_set.hpp"
 #include "jwk_thumbprint.hpp"
 #include "jws.hpp"
 #include "jwt.hpp"

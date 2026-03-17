@@ -63,6 +63,7 @@ set(JOSE_SOURCES
     src/jws.cpp
     src/jwe.cpp
     src/jwt.cpp
+    src/jwk_set.cpp
     src/jwk_thumbprint.cpp
     "src/private/back_end.cpp"
     src/base64url.cpp
