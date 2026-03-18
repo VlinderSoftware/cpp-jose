@@ -82,7 +82,7 @@ void appendDerInteger(vector<unsigned char> &out, vector<unsigned char> const &v
     out.insert(out.end(), normalized.begin(), normalized.end());
 }
 
-vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJson(nlohmann::json const &json)
+vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJSON(nlohmann::json const &json)
 {
     auto n = Base64Url::decode(json.at("n").get<string>());
     auto e = Base64Url::decode(json.at("e").get<string>());

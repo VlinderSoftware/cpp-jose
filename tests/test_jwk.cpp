@@ -83,7 +83,7 @@ void appendDerInteger(vector<unsigned char> &out, vector<unsigned char> const &v
     out.insert(out.end(), normalized.begin(), normalized.end());
 }
 
-vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJson(nlohmann::json const &json)
+vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJSON(nlohmann::json const &json)
 {
     auto n = Base64Url::decode(json.at("n").get<string>());
     auto e = Base64Url::decode(json.at("e").get<string>());
@@ -585,7 +585,7 @@ TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER", "[jwk][r
     JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
     auto json = nlohmann::json::parse(original.toJSON(true));
 
-    vector<unsigned char> der = buildRSAPrivateKeyPKCS1DERFromJson(json);
+    vector<unsigned char> der = buildRSAPrivateKeyPKCS1DERFromJSON(json);
     REQUIRE_FALSE(der.empty());
 
     unsigned char const *der_ptr = der.data();
