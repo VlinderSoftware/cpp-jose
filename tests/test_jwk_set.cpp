@@ -819,3 +819,284 @@ SCENARIO("Symmetric key toJSON omits k when include_private is false", "[jwk][oc
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// JWKSet initializer_list<variant<JWK, JWE>> constructor
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWKSet can be constructed from an initializer list of JWK keys",
+         "[jwk][jwkset][constructor]")
+{
+    GIVEN("two generated JWK keys")
+    {
+        JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
+        key1.setKeyID("init-rsa");
+
+        JWK key2 = JWK::generateEC(JWK::Use::signature, "P-256");
+        key2.setKeyID("init-ec");
+
+        WHEN("constructing a JWKSet via initializer list")
+        {
+            // JWK implicitly converts to variant<JWK, JWE>
+            JWKSet set{variant<JWK, JWE>{key1}, variant<JWK, JWE>{key2}};
+
+            THEN("the set contains both keys")
+            {
+                REQUIRE(set.getKeys().size() == 2);
+            }
+            AND_THEN("keys can be retrieved by ID")
+            {
+                REQUIRE(get<JWK>(set.getKey("init-rsa")).getKeyType() == JWK::KeyType::rsa);
+                REQUIRE(get<JWK>(set.getKey("init-ec")).getKeyType() == JWK::KeyType::ec);
+            }
+            AND_THEN("the set serializes both keys")
+            {
+                string json = set.toJSON();
+                REQUIRE(json.find("\"init-rsa\"") != string::npos);
+                REQUIRE(json.find("\"init-ec\"") != string::npos);
+            }
+        }
+    }
+}
+
+SCENARIO("JWKSet can be constructed from an initializer list of JWK keys (1)",
+         "[jwk][jwkset][constructor]")
+{
+    GIVEN("two generated JWK keys")
+    {
+        JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
+        key1.setKeyID("init-rsa");
+
+        JWK key2 = JWK::generateEC(JWK::Use::signature, "P-256");
+        key2.setKeyID("init-ec");
+
+        WHEN("constructing a JWKSet via initializer list")
+        {
+            // JWK implicitly converts to variant<JWK, JWE>
+            JWKSet set{key1, key2};
+
+            THEN("the set contains both keys")
+            {
+                REQUIRE(set.getKeys().size() == 2);
+            }
+            AND_THEN("keys can be retrieved by ID")
+            {
+                REQUIRE(get<JWK>(set.getKey("init-rsa")).getKeyType() == JWK::KeyType::rsa);
+                REQUIRE(get<JWK>(set.getKey("init-ec")).getKeyType() == JWK::KeyType::ec);
+            }
+            AND_THEN("the set serializes both keys")
+            {
+                string json = set.toJSON();
+                REQUIRE(json.find("\"init-rsa\"") != string::npos);
+                REQUIRE(json.find("\"init-ec\"") != string::npos);
+            }
+        }
+    }
+}
+SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE values",
+         "[jwk][jwkset][constructor]")
+{
+    GIVEN("a JWK key and an encrypted JWE token")
+    {
+        JWK enc_key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        enc_key.setKeyID("enc-key");
+
+        JWK payload_key = JWK::generateEC(JWK::Use::signature, "P-256");
+        payload_key.setKeyID("payload-ec");
+
+        JWE jwe;
+        jwe.setPlaintext(payload_key.toJSON(true));
+        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+        string compact = jwe.encrypt(enc_key);
+        JWE parsed_jwe = JWE::fromJSON(compact);
+
+        JWK plain_key = JWK::generateEC(JWK::Use::signature, "P-384");
+        plain_key.setKeyID("plain-ec");
+
+        WHEN("constructing a JWKSet with the plain key and the parsed JWE")
+        {
+            JWKSet set{variant<JWK, JWE>{plain_key}, variant<JWK, JWE>{parsed_jwe}};
+
+            THEN("the set contains two entries")
+            {
+                REQUIRE(set.getKeys().size() == 2);
+            }
+            AND_THEN("the plain JWK entry is a JWK variant")
+            {
+                bool found_jwk = false;
+                for (auto const &entry : set.getKeys())
+                {
+                    if (holds_alternative<JWK>(entry))
+                    {
+                        found_jwk = true;
+                    }
+                }
+                REQUIRE(found_jwk);
+            }
+            AND_THEN("the JWE entry is a JWE variant")
+            {
+                bool found_jwe = false;
+                for (auto const &entry : set.getKeys())
+                {
+                    if (holds_alternative<JWE>(entry))
+                    {
+                        found_jwe = true;
+                    }
+                }
+                REQUIRE(found_jwe);
+            }
+        }
+    }
+}
+
+SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE values (1)",
+         "[jwk][jwkset][constructor]")
+{
+    GIVEN("a JWK key and an encrypted JWE token")
+    {
+        JWK enc_key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        enc_key.setKeyID("enc-key");
+
+        JWK payload_key = JWK::generateEC(JWK::Use::signature, "P-256");
+        payload_key.setKeyID("payload-ec");
+
+        JWE jwe;
+        jwe.setPlaintext(payload_key.toJSON(true));
+        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+        string compact = jwe.encrypt(enc_key);
+        JWE parsed_jwe = JWE::fromJSON(compact);
+
+        JWK plain_key = JWK::generateEC(JWK::Use::signature, "P-384");
+        plain_key.setKeyID("plain-ec");
+
+        WHEN("constructing a JWKSet with the plain key and the parsed JWE")
+        {
+            JWKSet set{plain_key, parsed_jwe};
+
+            THEN("the set contains two entries")
+            {
+                REQUIRE(set.getKeys().size() == 2);
+            }
+            AND_THEN("the plain JWK entry is a JWK variant")
+            {
+                bool found_jwk = false;
+                for (auto const &entry : set.getKeys())
+                {
+                    if (holds_alternative<JWK>(entry))
+                    {
+                        found_jwk = true;
+                    }
+                }
+                REQUIRE(found_jwk);
+            }
+            AND_THEN("the JWE entry is a JWE variant")
+            {
+                bool found_jwe = false;
+                for (auto const &entry : set.getKeys())
+                {
+                    if (holds_alternative<JWE>(entry))
+                    {
+                        found_jwe = true;
+                    }
+                }
+                REQUIRE(found_jwe);
+            }
+        }
+    }
+}
+
+TEST_CASE("JWKSet default constructor produces empty set", "[jwk][jwkset][constructor]")
+{
+    JWKSet set;
+    REQUIRE(set.getKeys().empty());
+    string json = set.toJSON();
+    REQUIRE(json.find("\"keys\"") != string::npos);
+}
+
+TEST_CASE("JWKSet fromJSON throws on missing keys array", "[jwk][jwkset][parsing]")
+{
+    REQUIRE_THROWS(JWKSet::fromJSON(R"({"not-keys": []})"));
+}
+
+TEST_CASE("JWKSet fromJSON throws on non-array keys field", "[jwk][jwkset][parsing]")
+{
+    REQUIRE_THROWS(JWKSet::fromJSON(R"({"keys": "not-an-array"})"));
+}
+
+TEST_CASE("JWKSet getKey throws on missing key ID", "[jwk][jwkset][getkey]")
+{
+    JWKSet set;
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
+    key.setKeyID("present");
+    set.addKey(key);
+
+    REQUIRE_THROWS(set.getKey("absent"));
+}
+
+// ---------------------------------------------------------------------------
+// JWK::fromJSON nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWK::fromJSON nothrow returns success for valid JSON", "[jwk][fronjson][nothrow]")
+{
+    GIVEN("a valid RSA public key JSON")
+    {
+        JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
+        original.setKeyID("nothrow-rsa");
+        string json = original.toJSON(false);
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWK::fromJSON(json, false, std::nothrow);
+
+            THEN("ok is true")
+            {
+                REQUIRE(ok);
+            }
+            AND_THEN("result holds a JWK")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(result->getKeyID() == "nothrow-rsa");
+            }
+        }
+    }
+}
+
+SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjson][nothrow]")
+{
+    GIVEN("a malformed JSON string")
+    {
+        string bad_json = "this is not json at all";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWK::fromJSON(bad_json, false, std::nothrow);
+
+            THEN("ok is false")
+            {
+                REQUIRE_FALSE(ok);
+            }
+            AND_THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("a JSON object that is not a JWK")
+    {
+        string non_jwk_json = R"({"not":"a","valid":"jwk"})";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWK::fromJSON(non_jwk_json, false, std::nothrow);
+
+            THEN("ok is false")
+            {
+                REQUIRE_FALSE(ok);
+            }
+        }
+    }
+}

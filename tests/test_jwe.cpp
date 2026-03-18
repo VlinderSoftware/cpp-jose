@@ -667,3 +667,71 @@ TEST_CASE("JWE_A256GCMKWTamperedWrappedKeyFails", "[jwe][a256gcmkw-tamperedwrapp
 
     REQUIRE_THROWS_AS(JWE::decrypt(token, key), exception);
 }
+
+// ---------------------------------------------------------------------------
+// JWE::fromJSON nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWE::fromJSON nothrow returns success for a valid compact JWE", "[jwe][fromjson][nothrow]")
+{
+    GIVEN("a generated compact JWE token")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe;
+        jwe.setPlaintext("nothrow test");
+        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+        jwe.setKeyID("nothrow-key");
+        string compact = jwe.encrypt(key);
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWE::fromJSON(compact, std::nothrow);
+
+            THEN("ok is true")
+            {
+                REQUIRE(ok);
+            }
+            AND_THEN("result holds a JWE with the expected kid in the header")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(result->getHeader().find("nothrow-key") != string::npos);
+            }
+        }
+    }
+}
+
+SCENARIO("JWE::fromJSON nothrow returns failure for an invalid string", "[jwe][fromjson][nothrow]")
+{
+    GIVEN("a string that is not a compact JWE")
+    {
+        string bad = "this.is.not.a.jwe";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWE::fromJSON(bad, std::nothrow);
+
+            THEN("ok is false")
+            {
+                REQUIRE_FALSE(ok);
+            }
+            AND_THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("an empty string")
+    {
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWE::fromJSON("", std::nothrow);
+
+            THEN("ok is false")
+            {
+                REQUIRE_FALSE(ok);
+            }
+        }
+    }
+}
