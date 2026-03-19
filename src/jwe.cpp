@@ -410,7 +410,7 @@ string JWE::decrypt(string const &jwe, const JWK &key)
     return string(plaintext.begin(), plaintext.end());
 }
 
-JWE JWE::parse(string const &jwe)
+JWE JWE::fromJSON(string const &jwe)
 {
     // Split into five parts
     vector<string> parts;
@@ -463,6 +463,18 @@ JWE JWE::parse(string const &jwe)
     return result;
 }
 
+pair<optional<JWE>, bool> JWE::fromJSON(string const &jwe, nothrow_t const &)
+{
+    try
+    {
+        return make_pair(fromJSON(jwe), true);
+    }
+    catch (...)
+    {
+        return make_pair(nullopt, false);
+    }
+}
+
 string JWE::getPlaintext() const
 {
     return impl_->plaintext_;
@@ -496,6 +508,17 @@ string JWE::getHeader() const
 
     return header.dump();
 }
+
+string JWE::toJSON() const
+{
+    // This method is intended to return the compact serialization format, which is the same as encrypt() output.
+    // However, since we don't store the encrypted key, IV, ciphertext, and auth tag in the object, we cannot
+    // produce a valid compact serialization without performing encryption. Therefore, we will throw an exception
+    // if this method is called without encryption having been performed.
+
+    throw runtime_error("toJSON() is not implemented because it requires encryption to be performed first");
+}
+
 
 }  // namespace JOSE
 }  // namespace Vlinder

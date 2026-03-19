@@ -132,7 +132,7 @@ int main()
 
         string enc_header = header_example.encrypt(rsa_key);
 
-        JWE parsed_header = JWE::parse(enc_header);
+        JWE parsed_header = JWE::fromJSON(enc_header);
         cout << "\nJWE Header: " << parsed_header.getHeader() << endl;
 
         // Example 6: JWE Compact Serialization Format

@@ -171,7 +171,7 @@ TEST_CASE("JWE_SetKeyId", "[jwe][setkeyid]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("my-key-id"));
@@ -189,7 +189,7 @@ TEST_CASE("JWE_SetType", "[jwe][settype]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("JWT"));
@@ -207,7 +207,7 @@ TEST_CASE("JWE_SetCustomHeaderParam", "[jwe][setcustomheaderparam]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("custom"));
@@ -225,7 +225,7 @@ TEST_CASE("JWE_GetHeader", "[jwe][getheader]")
 
     string token = jwe.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE_FALSE(header.empty());
@@ -246,7 +246,7 @@ TEST_CASE("JWE_ParseJWE", "[jwe][parsejwe]")
 
     string token = original.encrypt(key);
 
-    JWE parsed = JWE::parse(token);
+    JWE parsed = JWE::fromJSON(token);
     string header = parsed.getHeader();
 
     REQUIRE(string::npos != header.find("key-123"));
@@ -666,4 +666,72 @@ TEST_CASE("JWE_A256GCMKWTamperedWrappedKeyFails", "[jwe][a256gcmkw-tamperedwrapp
         token[dot1 + 1] = (token[dot1 + 1] == 'A') ? 'B' : 'A';
 
     REQUIRE_THROWS_AS(JWE::decrypt(token, key), exception);
+}
+
+// ---------------------------------------------------------------------------
+// JWE::fromJSON nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWE::fromJSON nothrow returns success for a valid compact JWE", "[jwe][fromjson][nothrow]")
+{
+    GIVEN("a generated compact JWE token")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe;
+        jwe.setPlaintext("nothrow test");
+        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
+        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+        jwe.setKeyID("nothrow-key");
+        string compact = jwe.encrypt(key);
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWE::fromJSON(compact, std::nothrow);
+
+            THEN("ok is true")
+            {
+                REQUIRE(ok);
+            }
+            AND_THEN("result holds a JWE with the expected kid in the header")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(result->getHeader().find("nothrow-key") != string::npos);
+            }
+        }
+    }
+}
+
+SCENARIO("JWE::fromJSON nothrow returns failure for an invalid string", "[jwe][fromjson][nothrow]")
+{
+    GIVEN("a string that is not a compact JWE")
+    {
+        string bad = "this.is.not.a.jwe";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWE::fromJSON(bad, std::nothrow);
+
+            THEN("ok is false")
+            {
+                REQUIRE_FALSE(ok);
+            }
+            AND_THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("an empty string")
+    {
+        WHEN("parsing with the nothrow overload")
+        {
+            auto [result, ok] = JWE::fromJSON("", std::nothrow);
+
+            THEN("ok is false")
+            {
+                REQUIRE_FALSE(ok);
+            }
+        }
+    }
 }

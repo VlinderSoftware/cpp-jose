@@ -63,10 +63,12 @@ set(JOSE_SOURCES
     src/jws.cpp
     src/jwe.cpp
     src/jwt.cpp
+    src/jwk_set.cpp
     src/jwk_thumbprint.cpp
     "src/private/back_end.cpp"
     src/base64url.cpp
     "src/private/back_end_factory.cpp"
+    "src/private/der_tools.cpp"
     
 )
 

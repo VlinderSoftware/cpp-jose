@@ -25,6 +25,7 @@ add_executable(jose_tests
     test_jws.cpp
     test_jwe.cpp
     test_jwt.cpp
+    test_jwk_set.cpp
     test_jwk_thumbprint.cpp
     test_rfc7520_examples.cpp
     test_endian.cpp

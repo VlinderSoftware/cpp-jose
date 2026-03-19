@@ -2,6 +2,7 @@
 #define JOSE_JWE_HPP
 
 #include <memory>
+#include <new>
 #include <string>
 
 #include "jwa.hpp"
@@ -85,7 +86,15 @@ public:
      * @param jwe JWE in compact serialization format
      * @return JWE object
      */
-    static JWE parse(std::string const &jwe);
+    static JWE fromJSON(std::string const &jwe);
+
+    /**
+     * @brief Parse a JWE without decryption
+     * @param jwe JWE in compact serialization format
+     * @return JWE object
+     */
+    static std::pair<std::optional<JWE>, bool> fromJSON(std::string const &jwe,
+                                                        std::nothrow_t const &);
 
     /**
      * @brief Get the plaintext (after parsing or setting)
@@ -96,6 +105,12 @@ public:
      * @brief Get the header as JSON
      */
     std::string getHeader() const;
+
+    /**
+     * @brief Serialize to JSON (compact serialization format)
+     * @return JWE in compact serialization format
+     */
+    std::string toJSON() const;
 
 private:
     struct Impl;

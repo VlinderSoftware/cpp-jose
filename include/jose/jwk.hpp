@@ -3,6 +3,8 @@
 
 #include <map>
 #include <memory>
+#include <new>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -47,6 +49,14 @@ public:
      * @return JWK object
      */
     static JWK fromJSON(std::string const &json, bool ignore_private_if_present = false);
+
+    /**
+     * @brief Parse JWK from JSON string
+     * @param json JSON string
+     * @return JWK object
+     */
+    static std::pair<std::optional<JWK>, bool>
+    fromJSON(std::string const &json, bool ignore_private_if_present, std::nothrow_t const &);
 
     /**
      * @brief Generate a new RSA key
@@ -137,51 +147,6 @@ private:
     std::unique_ptr<Impl> impl_;
 
     friend class Private::BackEnd;
-};
-
-/**
- * @brief JSON Web Key Set (RFC 7517)
- */
-class JWKSet
-{
-public:
-    JWKSet();
-    ~JWKSet();
-
-    // Move constructors/operators
-    JWKSet(JWKSet &&other) noexcept = default;
-    JWKSet &operator=(JWKSet &&other) noexcept = default;
-
-    /**
-     * @brief Parse JWK Set from JSON
-     */
-    static JWKSet fromJSON(std::string const &json, bool ignore_private_if_present = false);
-
-    /**
-     * @brief Add a key to the set
-     */
-    void addKey(const JWK &key);
-
-    /**
-     * @brief Get key by ID
-     */
-    JWK getKey(std::string const &kid)
-        const;  // TODO return a std::variant<JWK, JWE> where the JWE would contain an encrypted JWK
-
-    /**
-     * @brief Get all keys
-     */
-    std::vector<JWK> getKeys() const;  // TODO the vector should contain a std::variant<JWK, JWE>
-                                       // where the JWE would contain an encrypted JWK
-
-    /**
-     * @brief Serialize to JSON
-     */
-    std::string toJSON() const;
-
-private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
 };
 
 }  // namespace JOSE

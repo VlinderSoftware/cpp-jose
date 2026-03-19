@@ -1,7 +1,7 @@
 [ ] API reviews
     [x] JWA
     [x] JWK
-    [ ] JWKS
+    [x] JWKS
     [ ] JWS
     [ ] JWE
     [ ] JWK Thumbprints
