@@ -7,7 +7,7 @@ namespace Vlinder {
 namespace JOSE {
 namespace Private {
 
-void appendDerLength(std::vector<unsigned char> &out, size_t length);
+void appendDERLength(std::vector<unsigned char> &out, size_t length);
 
 void appendDERInteger(std::vector<unsigned char> &out, std::vector<unsigned char> const &value);
 

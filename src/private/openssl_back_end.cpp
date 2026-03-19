@@ -146,30 +146,6 @@ vector<unsigned char> bnBytesToNative(vector<unsigned char> const &big_endian)
     return native;
 }
 
-void appendDerLength(vector<unsigned char> &out, size_t length)
-{
-    if (length < 0x80)
-    {
-        out.push_back(static_cast<unsigned char>(length));
-        return;
-    }
-
-    unsigned char encoded[sizeof(size_t)] = {};
-    size_t count = 0;
-    size_t value = length;
-    while (value != 0)
-    {
-        encoded[count++] = static_cast<unsigned char>(value & 0xFF);
-        value >>= 8;
-    }
-
-    out.push_back(static_cast<unsigned char>(0x80 | count));
-    for (size_t i = 0; i < count; ++i)
-    {
-        out.push_back(encoded[count - 1 - i]);
-    }
-}
-
 vector<unsigned char> buildRSAPrivateKeyPKCS1DER(vector<unsigned char> const &n_bytes,
                                                  vector<unsigned char> const &e_bytes,
                                                  vector<unsigned char> const &d_bytes,
@@ -198,7 +174,7 @@ vector<unsigned char> buildRSAPrivateKeyPKCS1DER(vector<unsigned char> const &n_
 
     vector<unsigned char> der;
     der.push_back(0x30);
-    appendDerLength(der, body.size());
+    appendDERLength(der, body.size());
     der.insert(der.end(), body.begin(), body.end());
     return der;
 }
