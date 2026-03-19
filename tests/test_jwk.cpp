@@ -508,6 +508,8 @@ TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
 #if defined(JOSE_USE_OPENSSL)
 TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER", "[jwk][rsa][openssl][der]")
 {
+    auto buildRSAPrivateKeyPKCS1DERFromJSON = Vlinder::JOSE::Private::buildRSAPrivateKeyPKCS1DERFromJSON;
+
     JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
     auto json = nlohmann::json::parse(original.toJSON(true));
 
