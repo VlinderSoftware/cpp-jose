@@ -41,13 +41,12 @@ public:
      * @brief Get key by ID
      */
     std::variant<JWK, JWE> getKey(std::string const &kid)
-        const;  // TODO return a std::variant<JWK, JWE> where the JWE would contain an encrypted JWK
+        const;
 
     /**
      * @brief Get all keys
      */
-    std::vector<std::variant<JWK, JWE>> getKeys() const;  // TODO the vector should contain a std::variant<JWK, JWE>
-                                                            // where the JWE would contain an encrypted JWK
+    std::vector<std::variant<JWK, JWE>> getKeys() const;
 
     /**
      * @brief Serialize to JSON

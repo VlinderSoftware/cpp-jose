@@ -31,10 +31,10 @@ JWKSet::JWKSet(std::initializer_list<std::variant<JWK, JWE>> keys) : impl_(make_
 
 JWKSet::~JWKSet() = default;
 
-JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
+JWKSet JWKSet::fromJSON(string const &json_string, bool ignore_private_if_present)
 {
     JWKSet set;
-    json jwk_set_json = json::parse(json_str);
+    json jwk_set_json = json::parse(json_string);
 
     if (!jwk_set_json.contains("keys"))
     {
