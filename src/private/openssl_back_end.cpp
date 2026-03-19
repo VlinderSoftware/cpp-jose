@@ -9,6 +9,8 @@
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 
+#include "der_tools.hpp"
+
 using namespace std;
 
 #ifndef JOSE_RSA_GENERATION_MAX_ATTEMPTS
@@ -168,30 +170,7 @@ void appendDerLength(vector<unsigned char> &out, size_t length)
     }
 }
 
-void appendDerInteger(vector<unsigned char> &out, vector<unsigned char> const &value)
-{
-    vector<unsigned char> normalized = value;
-    while (normalized.size() > 1 && normalized[0] == 0)
-    {
-        normalized.erase(normalized.begin());
-    }
-
-    if (normalized.empty())
-    {
-        normalized.push_back(0);
-    }
-
-    if ((normalized[0] & 0x80) != 0)
-    {
-        normalized.insert(normalized.begin(), 0);
-    }
-
-    out.push_back(0x02);
-    appendDerLength(out, normalized.size());
-    out.insert(out.end(), normalized.begin(), normalized.end());
-}
-
-vector<unsigned char> buildRsaPrivateKeyPkcs1Der(vector<unsigned char> const &n_bytes,
+vector<unsigned char> buildRSAPrivateKeyPKCS1DER(vector<unsigned char> const &n_bytes,
                                                  vector<unsigned char> const &e_bytes,
                                                  vector<unsigned char> const &d_bytes,
                                                  vector<unsigned char> const &p_bytes,
@@ -207,15 +186,15 @@ vector<unsigned char> buildRsaPrivateKeyPkcs1Der(vector<unsigned char> const &n_
     }
 
     vector<unsigned char> body;
-    appendDerInteger(body, vector<unsigned char>{0});
-    appendDerInteger(body, n_bytes);
-    appendDerInteger(body, e_bytes);
-    appendDerInteger(body, d_bytes);
-    appendDerInteger(body, p_bytes);
-    appendDerInteger(body, q_bytes);
-    appendDerInteger(body, dp_bytes);
-    appendDerInteger(body, dq_bytes);
-    appendDerInteger(body, qi_bytes);
+    appendDERInteger(body, vector<unsigned char>{0});
+    appendDERInteger(body, n_bytes);
+    appendDERInteger(body, e_bytes);
+    appendDERInteger(body, d_bytes);
+    appendDERInteger(body, p_bytes);
+    appendDERInteger(body, q_bytes);
+    appendDERInteger(body, dp_bytes);
+    appendDERInteger(body, dq_bytes);
+    appendDERInteger(body, qi_bytes);
 
     vector<unsigned char> der;
     der.push_back(0x30);
@@ -329,7 +308,7 @@ void resolveOkpFromCurve(string const &curve,
     throw runtime_error("Unsupported OKP curve: " + curve);
 }
 
-void extractRsaComponents(EVP_PKEY *pkey,
+void extractRSAComponents(EVP_PKEY *pkey,
                           vector<unsigned char> &n_bytes,
                           vector<unsigned char> &e_bytes,
                           vector<unsigned char> &d_bytes,
@@ -609,7 +588,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
         vector<unsigned char> dq_bytes;
         vector<unsigned char> qi_bytes;
 
-        extractRsaComponents(pkey_guard.get(),
+        extractRSAComponents(pkey_guard.get(),
                              n_bytes,
                              e_bytes,
                              d_bytes,
@@ -840,7 +819,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
 
             if (pkey == nullptr)
             {
-                vector<unsigned char> der_private = buildRsaPrivateKeyPkcs1Der(n_bytes,
+                vector<unsigned char> der_private = buildRSAPrivateKeyPKCS1DER(n_bytes,
                                                                                e_bytes,
                                                                                active_d_bytes,
                                                                                active_p_bytes,
@@ -902,7 +881,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
     vector<unsigned char> imported_dp;
     vector<unsigned char> imported_dq;
     vector<unsigned char> imported_qi;
-    extractRsaComponents(pkey_guard.get(),
+    extractRSAComponents(pkey_guard.get(),
                          imported_n,
                          imported_e,
                          imported_d,

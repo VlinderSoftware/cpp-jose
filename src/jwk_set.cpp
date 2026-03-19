@@ -50,7 +50,6 @@ JWKSet JWKSet::fromJSON(string const &json_str, bool ignore_private_if_present)
     for (auto const &key_json : jwk_set_json["keys"])
     {
         string key_json_string = key_json.dump();
-        // TODO handle JWEs
         auto jwk = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
         if (!jwk.second)
         {

@@ -35,81 +35,6 @@ string const k_rsa_private_json_fixture = R"({
 #if defined(JOSE_USE_OPENSSL)
 namespace {
 
-void appendDerLength(vector<unsigned char> &out, size_t length)
-{
-    if (length < 0x80)
-    {
-        out.push_back(static_cast<unsigned char>(length));
-        return;
-    }
-
-    unsigned char encoded[sizeof(size_t)] = {};
-    size_t count = 0;
-    size_t value = length;
-    while (value != 0)
-    {
-        encoded[count++] = static_cast<unsigned char>(value & 0xFF);
-        value >>= 8;
-    }
-
-    out.push_back(static_cast<unsigned char>(0x80 | count));
-    for (size_t i = 0; i < count; ++i)
-    {
-        out.push_back(encoded[count - 1 - i]);
-    }
-}
-
-void appendDerInteger(vector<unsigned char> &out, vector<unsigned char> const &value)
-{
-    vector<unsigned char> normalized = value;
-    while (normalized.size() > 1 && normalized[0] == 0)
-    {
-        normalized.erase(normalized.begin());
-    }
-
-    if (normalized.empty())
-    {
-        normalized.push_back(0);
-    }
-
-    if ((normalized[0] & 0x80) != 0)
-    {
-        normalized.insert(normalized.begin(), 0);
-    }
-
-    out.push_back(0x02);
-    appendDerLength(out, normalized.size());
-    out.insert(out.end(), normalized.begin(), normalized.end());
-}
-
-vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJSON(nlohmann::json const &json)
-{
-    auto n = Base64Url::decode(json.at("n").get<string>());
-    auto e = Base64Url::decode(json.at("e").get<string>());
-    auto d = Base64Url::decode(json.at("d").get<string>());
-    auto p = Base64Url::decode(json.at("p").get<string>());
-    auto q = Base64Url::decode(json.at("q").get<string>());
-    auto dp = Base64Url::decode(json.at("dp").get<string>());
-    auto dq = Base64Url::decode(json.at("dq").get<string>());
-    auto qi = Base64Url::decode(json.at("qi").get<string>());
-
-    vector<unsigned char> body;
-    appendDerInteger(body, vector<unsigned char>{0});
-    appendDerInteger(body, n);
-    appendDerInteger(body, e);
-    appendDerInteger(body, d);
-    appendDerInteger(body, p);
-    appendDerInteger(body, q);
-    appendDerInteger(body, dp);
-    appendDerInteger(body, dq);
-    appendDerInteger(body, qi);
-
-    vector<unsigned char> der;
-    der.push_back(0x30);
-    appendDerLength(der, body.size());
-    der.insert(der.end(), body.begin(), body.end());
-    return der;
-}
 
 vector<unsigned char> bnToBytes(BIGNUM *bn)
 {
@@ -859,7 +784,7 @@ SCENARIO("JWKSet can be constructed from an initializer list of JWK keys",
     }
 }
 
-SCENARIO("JWKSet can be constructed from an initializer list of JWK keys (1)",
+SCENARIO("JWKSet can be constructed from an initializer list of JWK keys with implicit conversion",
          "[jwk][jwkset][constructor]")
 {
     GIVEN("two generated JWK keys")
@@ -950,7 +875,7 @@ SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE 
     }
 }
 
-SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE values (1)",
+SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE values with implicit conversion",
          "[jwk][jwkset][constructor]")
 {
     GIVEN("a JWK key and an encrypted JWE token")
@@ -1039,7 +964,7 @@ TEST_CASE("JWKSet getKey throws on missing key ID", "[jwk][jwkset][getkey]")
 // JWK::fromJSON nothrow overload
 // ---------------------------------------------------------------------------
 
-SCENARIO("JWK::fromJSON nothrow returns success for valid JSON", "[jwk][fronjson][nothrow]")
+SCENARIO("JWK::fromJSON nothrow returns success for valid JSON", "[jwk][fromjson][nothrow]")
 {
     GIVEN("a valid RSA public key JSON")
     {
