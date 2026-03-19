@@ -40,7 +40,7 @@ public:
     /**
      * @brief Get key by ID
      */
-    std::variant<JWK, JWE> getKey(std::string const &kid)
+    std::variant<JWK, JWE> getKey(std::string const &kid, std::string const &alg = {})
         const;
 
     /**

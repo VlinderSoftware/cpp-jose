@@ -77,19 +77,28 @@ void JWKSet::addKey(std::variant<JWK, JWE> const &key)
     impl_->keys_.push_back(key);
 }
 
-// TODO add optional alg parameter: the combination of kid + alg has to be unique, kid by itself
 // does not.
-variant<JWK, JWE> JWKSet::getKey(string const &kid) const
+variant<JWK, JWE> JWKSet::getKey(string const &kid, std::string const &alg) const
 {
-    // TODO make this a find_if
-    for (auto const &key : impl_->keys_)
-    {
-        if (holds_alternative<JWK>(key) && get<JWK>(key).getKeyID() == kid)
+    auto predicate = [&kid, &alg](const variant<JWK, JWE> &key) -> bool {
+        if (holds_alternative<JWK>(key))
         {
-            return get<JWK>(key);
+            const JWK &jwk = get<JWK>(key);
+            return jwk.getKeyID() == kid && (alg.empty() || jwk.getAlgorithm() == alg);
         }
+        // TODO if we want to support JWEs in the set, we would need to check if the JWE header contains a kid and alg that match the parameters.
+        // else if (holds_alternative<JWE>(key))
+        // {
+        //     const JWE &jwe = get<JWE>(key);
+        //     return jwe.getKeyID() == kid && (alg.empty() || jwe.getHeader().find("\"alg\":\"" + alg + "\"") != string::npos);
+        // }
+        return false;
+    };
+    auto where = find_if(impl_->keys_.begin(), impl_->keys_.end(), predicate);
+    if (where == impl_->keys_.end())    {
+        throw runtime_error("Key not found");
     }
-    throw runtime_error("Key not found");
+    return *where;
 }
 
 vector<std::variant<JWK, JWE>> JWKSet::getKeys() const

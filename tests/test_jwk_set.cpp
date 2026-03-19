@@ -1025,3 +1025,120 @@ SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjs
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// JWKSet::getKey(kid, alg) — optional algorithm filter
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWKSet::getKey returns a key matching both kid and alg", "[jwk][jwkset][getkey]")
+{
+    GIVEN("a set with two keys sharing the same kid but different algorithms")
+    {
+        JWKSet set;
+
+        JWK rs256 = JWK::generateRSA(JWK::Use::signature, 2048, "RS256");
+        rs256.setKeyID("multi-alg");
+        set.addKey(rs256);
+
+        JWK rs512 = JWK::generateRSA(JWK::Use::signature, 2048, "RS512");
+        rs512.setKeyID("multi-alg");
+        set.addKey(rs512);
+
+        WHEN("retrieving by kid only")
+        {
+            JWK found = get<JWK>(set.getKey("multi-alg"));
+            THEN("the first matching key is returned")
+            {
+                REQUIRE(found.getKeyID() == "multi-alg");
+            }
+        }
+
+        WHEN("retrieving by kid and alg RS256")
+        {
+            JWK found = get<JWK>(set.getKey("multi-alg", "RS256"));
+            THEN("the RS256 key is returned")
+            {
+                REQUIRE(found.getAlgorithm() == "RS256");
+            }
+        }
+
+        WHEN("retrieving by kid and alg RS512")
+        {
+            JWK found = get<JWK>(set.getKey("multi-alg", "RS512"));
+            THEN("the RS512 key is returned")
+            {
+                REQUIRE(found.getAlgorithm() == "RS512");
+            }
+        }
+
+        WHEN("retrieving by kid and a non-existent alg")
+        {
+            THEN("it throws")
+            {
+                REQUIRE_THROWS(set.getKey("multi-alg", "PS256"));
+            }
+        }
+    }
+
+    GIVEN("a set with a single key")
+    {
+        JWKSet set;
+        JWK key = JWK::generateEC(JWK::Use::signature, "P-256", "ES256");
+        key.setKeyID("ec-key");
+        set.addKey(key);
+
+        WHEN("retrieving with an empty alg (no filter)")
+        {
+            JWK found = get<JWK>(set.getKey("ec-key", ""));
+            THEN("the key is returned")
+            {
+                REQUIRE(found.getKeyID() == "ec-key");
+            }
+        }
+
+        WHEN("retrieving with a matching alg")
+        {
+            JWK found = get<JWK>(set.getKey("ec-key", "ES256"));
+            THEN("the key is returned")
+            {
+                REQUIRE(found.getKeyID() == "ec-key");
+                REQUIRE(found.getAlgorithm() == "ES256");
+            }
+        }
+
+        WHEN("retrieving with a non-matching alg")
+        {
+            THEN("it throws")
+            {
+                REQUIRE_THROWS(set.getKey("ec-key", "ES512"));
+            }
+        }
+
+        WHEN("retrieving with a non-existent kid")
+        {
+            THEN("it throws regardless of alg")
+            {
+                REQUIRE_THROWS(set.getKey("no-such-key", "ES256"));
+                REQUIRE_THROWS(set.getKey("no-such-key", ""));
+            }
+        }
+    }
+}
+
+TEST_CASE("JWKSet::getKey with alg finds correct key among many", "[jwk][jwkset][getkey]")
+{
+    JWKSet set;
+
+    // Add keys with distinct kids and algs
+    for (auto const &alg : {"HS256", "HS384", "HS512"})
+    {
+        JWK k = JWK::generateOct(JWK::Use::signature, 256, alg);
+        k.setKeyID("oct-key");
+        k.setAlgorithm(alg);
+        set.addKey(k);
+    }
+
+    REQUIRE(get<JWK>(set.getKey("oct-key", "HS256")).getAlgorithm() == "HS256");
+    REQUIRE(get<JWK>(set.getKey("oct-key", "HS384")).getAlgorithm() == "HS384");
+    REQUIRE(get<JWK>(set.getKey("oct-key", "HS512")).getAlgorithm() == "HS512");
+}
