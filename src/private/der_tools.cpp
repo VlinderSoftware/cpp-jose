@@ -84,6 +84,6 @@ std::vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJSON(json const &json)
     return der;
 }
 
-}
-}
-}
+}  // namespace Private
+}  // namespace JOSE
+}  // namespace Vlinder

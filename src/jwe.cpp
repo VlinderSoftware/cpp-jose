@@ -511,14 +511,15 @@ string JWE::getHeader() const
 
 string JWE::toJSON() const
 {
-    // This method is intended to return the compact serialization format, which is the same as encrypt() output.
-    // However, since we don't store the encrypted key, IV, ciphertext, and auth tag in the object, we cannot
-    // produce a valid compact serialization without performing encryption. Therefore, we will throw an exception
-    // if this method is called without encryption having been performed.
+    // This method is intended to return the compact serialization format, which is the same as
+    // encrypt() output. However, since we don't store the encrypted key, IV, ciphertext, and auth
+    // tag in the object, we cannot produce a valid compact serialization without performing
+    // encryption. Therefore, we will throw an exception if this method is called without encryption
+    // having been performed.
 
-    throw runtime_error("toJSON() is not implemented because it requires encryption to be performed first");
+    throw runtime_error(
+        "toJSON() is not implemented because it requires encryption to be performed first");
 }
-
 
 }  // namespace JOSE
 }  // namespace Vlinder

@@ -672,7 +672,8 @@ TEST_CASE("JWE_A256GCMKWTamperedWrappedKeyFails", "[jwe][a256gcmkw-tamperedwrapp
 // JWE::fromJSON nothrow overload
 // ---------------------------------------------------------------------------
 
-SCENARIO("JWE::fromJSON nothrow returns success for a valid compact JWE", "[jwe][fromjson][nothrow]")
+SCENARIO("JWE::fromJSON nothrow returns success for a valid compact JWE",
+         "[jwe][fromjson][nothrow]")
 {
     GIVEN("a generated compact JWE token")
     {

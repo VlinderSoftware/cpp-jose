@@ -35,7 +35,6 @@ string const k_rsa_private_json_fixture = R"({
 #if defined(JOSE_USE_OPENSSL)
 namespace {
 
-
 vector<unsigned char> bnToBytes(BIGNUM *bn)
 {
     if (bn == nullptr)
@@ -875,7 +874,8 @@ SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE 
     }
 }
 
-SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE values with implicit conversion",
+SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE values with "
+         "implicit conversion",
          "[jwk][jwkset][constructor]")
 {
     GIVEN("a JWK key and an encrypted JWE token")

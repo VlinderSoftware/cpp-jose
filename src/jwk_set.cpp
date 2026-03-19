@@ -80,22 +80,25 @@ void JWKSet::addKey(std::variant<JWK, JWE> const &key)
 // does not.
 variant<JWK, JWE> JWKSet::getKey(string const &kid, std::string const &alg) const
 {
-    auto predicate = [&kid, &alg](const variant<JWK, JWE> &key) -> bool {
+    auto predicate = [&kid, &alg](variant<JWK, JWE> const &key) -> bool
+    {
         if (holds_alternative<JWK>(key))
         {
             const JWK &jwk = get<JWK>(key);
             return jwk.getKeyID() == kid && (alg.empty() || jwk.getAlgorithm() == alg);
         }
-        // TODO if we want to support JWEs in the set, we would need to check if the JWE header contains a kid and alg that match the parameters.
-        // else if (holds_alternative<JWE>(key))
+        // TODO if we want to support JWEs in the set, we would need to check if the JWE header
+        // contains a kid and alg that match the parameters. else if (holds_alternative<JWE>(key))
         // {
         //     const JWE &jwe = get<JWE>(key);
-        //     return jwe.getKeyID() == kid && (alg.empty() || jwe.getHeader().find("\"alg\":\"" + alg + "\"") != string::npos);
+        //     return jwe.getKeyID() == kid && (alg.empty() || jwe.getHeader().find("\"alg\":\"" +
+        //     alg + "\"") != string::npos);
         // }
         return false;
     };
     auto where = find_if(impl_->keys_.begin(), impl_->keys_.end(), predicate);
-    if (where == impl_->keys_.end())    {
+    if (where == impl_->keys_.end())
+    {
         throw runtime_error("Key not found");
     }
     return *where;

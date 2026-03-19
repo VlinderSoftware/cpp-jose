@@ -3,9 +3,8 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "jose/jose.hpp"
-
 #include "../src/private/der_tools.hpp"
+#include "jose/jose.hpp"
 
 #if defined(JOSE_USE_OPENSSL)
 #include <openssl/core_names.h>
@@ -508,9 +507,9 @@ TEST_CASE("JWK RSA round-trip preserves all properties", "[jwk][round-trip]")
 #if defined(JOSE_USE_OPENSSL)
 TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER", "[jwk][rsa][openssl][der]")
 {
-// clang-format off
+    // clang-format off
     auto buildRSAPrivateKeyPKCS1DERFromJSON = Vlinder::JOSE::Private::buildRSAPrivateKeyPKCS1DERFromJSON;
-// clang-format on
+    // clang-format on
 
     JWK original = JWK::generateRSA(JWK::Use::signature, 2048);
     auto json = nlohmann::json::parse(original.toJSON(true));

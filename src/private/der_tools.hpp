@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+
 #include "json_utils.hpp"
 
 namespace Vlinder {
@@ -13,6 +14,6 @@ void appendDERInteger(std::vector<unsigned char> &out, std::vector<unsigned char
 
 std::vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJSON(json const &json);
 
-}
-}
-}
+}  // namespace Private
+}  // namespace JOSE
+}  // namespace Vlinder
