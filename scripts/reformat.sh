@@ -18,11 +18,6 @@ if ! command -v clang-format >/dev/null 2>&1; then
     exit 1
 fi
 
-check_only=0
-if [[ "${1:-}" == "--check" ]]; then
-    check_only=1
-fi
-
 roots=(
     "${repo_root}/src"
     "${repo_root}/include"
@@ -58,26 +53,29 @@ fi
 echo "Using clang-format: $(command -v clang-format)"
 echo "Files discovered: ${#files[@]}"
 
-if [[ ${check_only} -eq 1 ]]; then
-    needs_formatting=0
-    for file in "${files[@]}"; do
-        if ! diff -u "${file}" <(clang-format --style=file "${file}") >/dev/null; then
-            rel="${file#${repo_root}/}"
-            echo "Needs formatting: ${rel}"
-            needs_formatting=1
-        fi
-    done
-
-    if [[ ${needs_formatting} -ne 0 ]]; then
-        exit 1
+# First pass: check whether any files need reformatting.
+needs_formatting=()
+for file in "${files[@]}"; do
+    if ! diff -q "${file}" <(clang-format --style=file "${file}") >/dev/null 2>&1; then
+        rel="${file#${repo_root}/}"
+        needs_formatting+=("${rel}")
     fi
+done
 
-    echo "All checked files already match clang-format output."
+if [[ ${#needs_formatting[@]} -eq 0 ]]; then
+    echo "All files already match clang-format output."
     exit 0
 fi
 
+# Second pass: reformat in place.
 for file in "${files[@]}"; do
     clang-format -i --style=file "${file}"
 done
 
-echo "Formatted ${#files[@]} files."
+echo "Reformatted ${#needs_formatting[@]} file(s):"
+for rel in "${needs_formatting[@]}"; do
+    echo "  ${rel}"
+done
+
+# Return 1 to signal that files were changed.
+exit 1

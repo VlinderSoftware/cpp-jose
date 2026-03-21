@@ -468,6 +468,10 @@ $settings["cmake.buildPreset"] = $configurePresetName
 Write-Json -Path $settingsPath -Object $settings
 Write-Info "Updated .vscode/settings.json"
 
+# Configure git to use the tracked hooks directory so pre-commit hooks run automatically.
+& git config core.hooksPath .githooks
+Write-Info "Git hooks path configured to .githooks"
+
 Write-Info "Bootstrap complete."
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Green

@@ -4,8 +4,64 @@
 # It validates required tooling and returns non-zero on failure
 # without terminating the user's terminal session.
 
+# On Windows (Git Bash / MSYS / Cygwin), augments PATH with Visual Studio LLVM
+# tool directories, mirroring the logic in Bootstrap.ps1.
+_cpp_jose_add_llvm_to_path()
+{
+    local uname_out
+    uname_out="$(uname -s 2>/dev/null || echo unknown)"
+    case "${uname_out}" in MINGW*|MSYS*|CYGWIN*) ;; *) return 0 ;; esac
+
+    # Nothing to do if both tools are already reachable.
+    command -v clang-format >/dev/null 2>&1 && command -v clang-tidy >/dev/null 2>&1 && return 0
+
+    local dir
+
+    # Try vswhere.exe to discover the active Visual Studio installation.
+    local vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+    if [[ -f "${vswhere}" ]]; then
+        local vs_path
+        vs_path="$("${vswhere}" -latest -products '*' \
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
+            -property installationPath 2>/dev/null || true)"
+        if [[ -n "${vs_path}" ]]; then
+            vs_path="$(cygpath -u "${vs_path}" 2>/dev/null || printf '%s' "${vs_path}")"
+            for dir in "${vs_path}/VC/Tools/Llvm/x64/bin" "${vs_path}/VC/Tools/Llvm/bin"; do
+                if [[ -f "${dir}/clang-format.exe" ]] && [[ -f "${dir}/clang-tidy.exe" ]]; then
+                    export PATH="${dir}:${PATH}"
+                    return 0
+                fi
+            done
+        fi
+    fi
+
+    # Fall back to well-known installation paths.
+    local -a fallback_dirs=(
+        "/c/Program Files/LLVM/bin"
+        "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/x64/bin"
+        "/c/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/x64/bin"
+        "/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/x64/bin"
+        "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/Llvm/bin"
+        "/c/Program Files/Microsoft Visual Studio/2022/Professional/VC/Tools/Llvm/bin"
+        "/c/Program Files/Microsoft Visual Studio/2022/Community/VC/Tools/Llvm/bin"
+        "/c/Program Files/Microsoft Visual Studio/17.0/Enterprise/VC/Tools/Llvm/x64/bin"
+        "/c/Program Files/Microsoft Visual Studio/17.0/Professional/VC/Tools/Llvm/x64/bin"
+        "/c/Program Files/Microsoft Visual Studio/17.0/Community/VC/Tools/Llvm/x64/bin"
+    )
+    for dir in "${fallback_dirs[@]}"; do
+        if [[ -f "${dir}/clang-format.exe" ]] && [[ -f "${dir}/clang-tidy.exe" ]]; then
+            export PATH="${dir}:${PATH}"
+            return 0
+        fi
+    done
+
+    return 0
+}
+
 hookBootstrapCheckTools()
 {
+    _cpp_jose_add_llvm_to_path
+
     local platform
     platform="$(uname -s 2>/dev/null || echo unknown)"
 
@@ -17,7 +73,7 @@ hookBootstrapCheckTools()
         required_tools+=(jq)
     fi
 
-    local -a missing_tools
+    local -a missing_tools=()
     local tool_name
     for tool_name in "${required_tools[@]}"; do
         if ! command -v "$tool_name" >/dev/null 2>&1; then
@@ -35,6 +91,10 @@ hookBootstrapCheckTools()
 }
 
 if [[ "${CPP_JOSE_BOOTSTRAP_AUTO_CHECK:-1}" == "1" ]]; then
+    # Configure git to use the tracked hooks directory so pre-commit hooks run automatically.
+    _cpp_jose_bootstrap_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    git -C "${_cpp_jose_bootstrap_dir}" config core.hooksPath .githooks
+    unset _cpp_jose_bootstrap_dir
     hookBootstrapCheckTools
     return $?
 fi

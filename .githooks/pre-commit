@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# pre-commit: reformat code and abort the commit if any files were changed.
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
+# Source bootstrap to validate required tools are present.
+CPP_JOSE_BOOTSTRAP_AUTO_CHECK=0 . "${REPO_ROOT}/bootstrap"
+if ! hookBootstrapCheckTools; then
+    exit 1
+fi
+
+if ! bash "${REPO_ROOT}/scripts/reformat.sh"; then
+    echo "" >&2
+    echo "[pre-commit] Files were reformatted. Stage the changes and recommit." >&2
+    exit 1
+fi
+
+exit 0
