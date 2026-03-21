@@ -1830,7 +1830,8 @@ vector<unsigned char> aesKeyWrap(vector<unsigned char> const &kek,
         throw runtime_error("Failed to initialize AES key wrap: " + getOpenSSLErrorString());
     }
 
-    vector<unsigned char> ciphertext(getSizeAsInt(plaintext) + EVP_CIPHER_CTX_block_size(ctx.get()));
+    vector<unsigned char> ciphertext(getSizeAsInt(plaintext) +
+                                     EVP_CIPHER_CTX_block_size(ctx.get()));
     int output_size = 0;
     if (EVP_EncryptUpdate(ctx.get(),
                           ciphertext.data(),
@@ -1931,14 +1932,18 @@ aesGcmEncrypt(EVP_CIPHER const *cipher,
     }
 
     int len = 0;
-    if (!aad.empty() && EVP_EncryptUpdate(ctx.get(), nullptr, &len, aad.data(), getSizeAsInt(aad)) != 1)
+    if (!aad.empty() &&
+        EVP_EncryptUpdate(ctx.get(), nullptr, &len, aad.data(), getSizeAsInt(aad)) != 1)
     {
         throw runtime_error("Failed to process AAD: " + getOpenSSLErrorString());
     }
 
     vector<unsigned char> ciphertext(plaintext.size());
-    if (EVP_EncryptUpdate(ctx.get(), ciphertext.data(), &len, plaintext.data(), getSizeAsInt(plaintext)) !=
-        1)
+    if (EVP_EncryptUpdate(ctx.get(),
+                          ciphertext.data(),
+                          &len,
+                          plaintext.data(),
+                          getSizeAsInt(plaintext)) != 1)
     {
         throw runtime_error("AES-GCM encryption failed: " + getOpenSSLErrorString());
     }
@@ -1984,7 +1989,8 @@ vector<unsigned char> aesGcmDecrypt(EVP_CIPHER const *cipher,
     }
 
     int len = 0;
-    if (!aad.empty() && EVP_DecryptUpdate(ctx.get(), nullptr, &len, aad.data(), getSizeAsInt(aad)) != 1)
+    if (!aad.empty() &&
+        EVP_DecryptUpdate(ctx.get(), nullptr, &len, aad.data(), getSizeAsInt(aad)) != 1)
     {
         throw runtime_error("Failed to process AAD: " + getOpenSSLErrorString());
     }
@@ -2045,8 +2051,11 @@ aesCbcHmacEncrypt(EVP_CIPHER const *cipher,
 
     vector<unsigned char> ciphertext(plaintext.size() + EVP_CIPHER_block_size(cipher));
     int len = 0;
-    if (EVP_EncryptUpdate(ctx.get(), ciphertext.data(), &len, plaintext.data(), getSizeAsInt(plaintext)) !=
-        1)
+    if (EVP_EncryptUpdate(ctx.get(),
+                          ciphertext.data(),
+                          &len,
+                          plaintext.data(),
+                          getSizeAsInt(plaintext)) != 1)
     {
         throw runtime_error("AES-CBC encryption failed: " + getOpenSSLErrorString());
     }
