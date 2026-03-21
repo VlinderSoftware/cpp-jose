@@ -193,7 +193,8 @@ int main()
         cout << "SHA-256 thumbprint:    " << auto_thumbprint_sha256 << endl;
         cout << "\n✓ Key ID matches SHA-512 thumbprint: "
              << (auto_key.getKeyID() == auto_thumbprint_sha512.get() ? "Yes" : "No") << endl;
-        cout << "SHA-512 length: " << auto_thumbprint_sha512.get().length() << " characters" << endl;
+        cout << "SHA-512 length: " << auto_thumbprint_sha512.get().length() << " characters"
+             << endl;
 
         // Example 8: Key Metadata and Validation
         cout << "\n\n8. Key Metadata and Algorithm Validation" << endl;

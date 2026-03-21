@@ -27,10 +27,15 @@ public:
     static JWKThumbprint compute(JWK const &key, std::string const &algorithm = "SHA-256");
 
     std::string get() const;
-    std::vector<unsigned char> getRaw() const { return value_; }
+    std::vector<unsigned char> getRaw() const
+    {
+        return value_;
+    }
 
-private :
-    JWKThumbprint(std::vector<unsigned char> const &value) : value_(value) {}
+private:
+    JWKThumbprint(std::vector<unsigned char> const &value) : value_(value)
+    {
+    }
 
     /**
      * @brief Compute raw thumbprint bytes
