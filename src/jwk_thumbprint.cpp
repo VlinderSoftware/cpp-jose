@@ -115,11 +115,6 @@ Private::HashAlgorithm getHashAlgorithm(string const &algorithm)
 
 }  // anonymous namespace
 
-string JWKThumbprint::compute(JWK const &key)
-{
-    return compute(key, "SHA-256");
-}
-
 string JWKThumbprint::compute(JWK const &key, string const &algorithm)
 {
     vector<unsigned char> const raw_thumbprint = computeRaw(key, algorithm);

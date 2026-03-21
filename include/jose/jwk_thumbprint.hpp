@@ -18,19 +18,12 @@ class JWKThumbprint
 {
 public:
     /**
-     * @brief Compute JWK thumbprint using SHA-256
-     * @param key JWK to compute thumbprint for
-     * @return Base64URL-encoded thumbprint
-     */
-    static std::string compute(const JWK &key);
-
-    /**
      * @brief Compute JWK thumbprint using specified hash algorithm
      * @param key JWK to compute thumbprint for
      * @param algorithm Hash algorithm (e.g., "SHA-256", "SHA-384", "SHA-512")
      * @return Base64URL-encoded thumbprint
      */
-    static std::string compute(const JWK &key, std::string const &algorithm);
+    static std::string compute(JWK const &key, std::string const &algorithm = "SHA-256");
 
     /**
      * @brief Compute raw thumbprint bytes
@@ -38,7 +31,7 @@ public:
      * @param algorithm Hash algorithm
      * @return Raw thumbprint bytes
      */
-    static std::vector<unsigned char> computeRaw(const JWK &key,
+    static std::vector<unsigned char> computeRaw(JWK const &key,
                                                  std::string const &algorithm = "SHA-256");
 };
 
