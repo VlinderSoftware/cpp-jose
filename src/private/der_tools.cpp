@@ -55,16 +55,16 @@ void appendDERInteger(std::vector<unsigned char> &out, std::vector<unsigned char
 
 std::vector<unsigned char> buildRSAPrivateKeyPKCS1DERFromJSON(json const &json)
 {
-    using Base64Url = Vlinder::JOSE::Base64Url;
+    using Base64URL = Vlinder::JOSE::Base64URL;
 
-    auto n = Base64Url::decode(json.at("n").get<std::string>());
-    auto e = Base64Url::decode(json.at("e").get<std::string>());
-    auto d = Base64Url::decode(json.at("d").get<std::string>());
-    auto p = Base64Url::decode(json.at("p").get<std::string>());
-    auto q = Base64Url::decode(json.at("q").get<std::string>());
-    auto dp = Base64Url::decode(json.at("dp").get<std::string>());
-    auto dq = Base64Url::decode(json.at("dq").get<std::string>());
-    auto qi = Base64Url::decode(json.at("qi").get<std::string>());
+    auto n = Base64URL::decode(json.at("n").get<std::string>());
+    auto e = Base64URL::decode(json.at("e").get<std::string>());
+    auto d = Base64URL::decode(json.at("d").get<std::string>());
+    auto p = Base64URL::decode(json.at("p").get<std::string>());
+    auto q = Base64URL::decode(json.at("q").get<std::string>());
+    auto dp = Base64URL::decode(json.at("dp").get<std::string>());
+    auto dq = Base64URL::decode(json.at("dq").get<std::string>());
+    auto qi = Base64URL::decode(json.at("qi").get<std::string>());
 
     std::vector<unsigned char> body;
     appendDERInteger(body, std::vector<unsigned char>{0});

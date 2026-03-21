@@ -25,7 +25,7 @@ Private::BackEnd &getBackEnd()
 }
 }  // namespace
 
-string Base64Url::encode(vector<unsigned char> const &data)
+string Base64URL::encode(vector<unsigned char> const &data)
 {
     if (data.empty())
     {
@@ -56,13 +56,13 @@ string Base64Url::encode(vector<unsigned char> const &data)
     return result;
 }
 
-string Base64Url::encode(string const &str)
+string Base64URL::encode(string const &str)
 {
     vector<unsigned char> const data(str.begin(), str.end());
     return encode(data);
 }
 
-vector<unsigned char> Base64Url::decode(string const &encoded)
+vector<unsigned char> Base64URL::decode(string const &encoded)
 {
     if (encoded.empty())
     {
@@ -88,7 +88,7 @@ vector<unsigned char> Base64Url::decode(string const &encoded)
     return back_end.base64Decode(base64);
 }
 
-string Base64Url::decodeToString(string const &encoded)
+string Base64URL::decodeToString(string const &encoded)
 {
     auto const data = decode(encoded);
     return string(data.begin(), data.end());

@@ -29,7 +29,7 @@ vector<unsigned char> getOctetKeyMaterial(JWK const &key)
         throw runtime_error("oct JWK missing required 'k' field");
     }
 
-    return Base64Url::decode(key_json["k"].get<string>());
+    return Base64URL::decode(key_json["k"].get<string>());
 }
 
 vector<unsigned char> generateRandomBytes(size_t byte_count)
@@ -269,23 +269,23 @@ string JWE::encrypt(const JWK &key) const
     // Add GCM key wrap IV and tag to header if present
     if (!kek_iv.empty())
     {
-        header["iv"] = Base64Url::encode(kek_iv);
+        header["iv"] = Base64URL::encode(kek_iv);
     }
     if (!kek_tag.empty())
     {
-        header["tag"] = Base64Url::encode(kek_tag);
+        header["tag"] = Base64URL::encode(kek_tag);
     }
 
     // Now encode the header with all fields
     string header_json = header.dump();
-    string encoded_header = Base64Url::encode(header_json);
+    string encoded_header = Base64URL::encode(header_json);
 
-    string encoded_encrypted_key = Base64Url::encode(encrypted_key);
+    string encoded_encrypted_key = Base64URL::encode(encrypted_key);
 
     // Generate IV
     size_t iv_size = getIVSize(impl_->content_algorithm_);
     vector<unsigned char> iv = generateRandomBytes(iv_size);
-    string encoded_iv = Base64Url::encode(iv);
+    string encoded_iv = Base64URL::encode(iv);
 
     // Prepare AAD (Additional Authenticated Data) - the encoded header
     vector<unsigned char> aad(encoded_header.begin(), encoded_header.end());
@@ -295,8 +295,8 @@ string JWE::encrypt(const JWK &key) const
     auto [ciphertext, auth_tag] =
         JWA::encryptContent(impl_->content_algorithm_, cek, iv, plaintext_bytes, aad);
 
-    string encoded_ciphertext = Base64Url::encode(ciphertext);
-    string encoded_auth_tag = Base64Url::encode(auth_tag);
+    string encoded_ciphertext = Base64URL::encode(ciphertext);
+    string encoded_auth_tag = Base64URL::encode(auth_tag);
 
     // Return compact serialization: header.encrypted_key.iv.ciphertext.auth_tag
     return encoded_header + "." + encoded_encrypted_key + "." + encoded_iv + "." +
@@ -329,7 +329,7 @@ string JWE::decrypt(string const &jwe, const JWK &key)
     string encoded_auth_tag = parts[4];
 
     // Decode header to get algorithms
-    string header_json = Base64Url::decodeToString(encoded_header);
+    string header_json = Base64URL::decodeToString(encoded_header);
     json header = json::parse(header_json);
 
     if (!header.contains("alg") || !header.contains("enc"))
@@ -369,7 +369,7 @@ string JWE::decrypt(string const &jwe, const JWK &key)
     }
     else
     {
-        vector<unsigned char> encrypted_key = Base64Url::decode(encoded_encrypted_key);
+        vector<unsigned char> encrypted_key = Base64URL::decode(encoded_encrypted_key);
 
         // Check for GCM key wrap IV and tag in header
         vector<unsigned char> kek_iv;
@@ -377,11 +377,11 @@ string JWE::decrypt(string const &jwe, const JWK &key)
 
         if (header.contains("iv"))
         {
-            kek_iv = Base64Url::decode(header["iv"].get<string>());
+            kek_iv = Base64URL::decode(header["iv"].get<string>());
         }
         if (header.contains("tag"))
         {
-            kek_tag = Base64Url::decode(header["tag"].get<string>());
+            kek_tag = Base64URL::decode(header["tag"].get<string>());
         }
 
         // Pass IV and tag if present (for GCM key wrap)
@@ -396,9 +396,9 @@ string JWE::decrypt(string const &jwe, const JWK &key)
     }
 
     // Decode other components
-    vector<unsigned char> iv = Base64Url::decode(encoded_iv);
-    vector<unsigned char> ciphertext = Base64Url::decode(encoded_ciphertext);
-    vector<unsigned char> auth_tag = Base64Url::decode(encoded_auth_tag);
+    vector<unsigned char> iv = Base64URL::decode(encoded_iv);
+    vector<unsigned char> ciphertext = Base64URL::decode(encoded_ciphertext);
+    vector<unsigned char> auth_tag = Base64URL::decode(encoded_auth_tag);
 
     // Prepare AAD
     vector<unsigned char> aad(encoded_header.begin(), encoded_header.end());
@@ -432,7 +432,7 @@ JWE JWE::fromJSON(string const &jwe)
     string encoded_header = parts[0];
 
     // Decode header
-    string header_json = Base64Url::decodeToString(encoded_header);
+    string header_json = Base64URL::decodeToString(encoded_header);
     json header = json::parse(header_json);
 
     JWE result;

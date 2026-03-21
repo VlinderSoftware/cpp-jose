@@ -531,8 +531,8 @@ TEST_CASE("JWK RSA private JSON reconstructs to importable PKCS#1 DER", "[jwk][r
     auto n_guard = unique_ptr<BIGNUM, decltype(&BN_free)>(n_bn, BN_free);
     auto e_guard = unique_ptr<BIGNUM, decltype(&BN_free)>(e_bn, BN_free);
 
-    REQUIRE(bnToBytes(n_guard.get()) == Base64Url::decode(json["n"].get<string>()));
-    REQUIRE(bnToBytes(e_guard.get()) == Base64Url::decode(json["e"].get<string>()));
+    REQUIRE(bnToBytes(n_guard.get()) == Base64URL::decode(json["n"].get<string>()));
+    REQUIRE(bnToBytes(e_guard.get()) == Base64URL::decode(json["e"].get<string>()));
 }
 #endif
 

@@ -9,7 +9,7 @@ using namespace std;
 using namespace Vlinder::JOSE;
 
 // BDD-style tests for encoding
-SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd]")
+SCENARIO("Base64URL encoding handles various inputs", "[base64url][encoding][bdd]")
 {
     GIVEN("an empty string")
     {
@@ -17,7 +17,7 @@ SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd
 
         WHEN("encoding the empty string")
         {
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("the result should be empty")
             {
@@ -32,7 +32,7 @@ SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd
 
         WHEN("encoding the empty vector")
         {
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("the result should be empty")
             {
@@ -47,7 +47,7 @@ SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd
 
         WHEN("encoding the string")
         {
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("it should be properly base64url encoded")
             {
@@ -57,14 +57,14 @@ SCENARIO("Base64Url encoding handles various inputs", "[base64url][encoding][bdd
     }
 }
 
-SCENARIO("Base64Url encoding removes padding", "[base64url][encoding][padding][bdd]")
+SCENARIO("Base64URL encoding removes padding", "[base64url][encoding][padding][bdd]")
 {
     GIVEN("strings that would normally require padding")
     {
         WHEN("encoding 'Man' (no padding needed)")
         {
             string input = "Man";
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("the result should be 'TWFu'")
             {
@@ -75,7 +75,7 @@ SCENARIO("Base64Url encoding removes padding", "[base64url][encoding][padding][b
         WHEN("encoding 'Ma' (would be TWE= in base64)")
         {
             string input = "Ma";
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("padding should be removed")
             {
@@ -86,7 +86,7 @@ SCENARIO("Base64Url encoding removes padding", "[base64url][encoding][padding][b
         WHEN("encoding 'M' (would be TQ== in base64)")
         {
             string input = "M";
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("all padding should be removed")
             {
@@ -96,7 +96,7 @@ SCENARIO("Base64Url encoding removes padding", "[base64url][encoding][padding][b
     }
 }
 
-SCENARIO("Base64Url uses URL-safe characters", "[base64url][encoding][special-chars][bdd]")
+SCENARIO("Base64URL uses URL-safe characters", "[base64url][encoding][special-chars][bdd]")
 {
     GIVEN("binary data that would produce + or / in standard base64")
     {
@@ -104,7 +104,7 @@ SCENARIO("Base64Url uses URL-safe characters", "[base64url][encoding][special-ch
 
         WHEN("encoding the data")
         {
-            string encoded = Base64Url::encode(input);
+            string encoded = Base64URL::encode(input);
 
             THEN("it should use '-' and '_' instead of '+' and '/'")
             {
@@ -115,24 +115,24 @@ SCENARIO("Base64Url uses URL-safe characters", "[base64url][encoding][special-ch
 }
 
 // Regular test cases for encoding
-TEST_CASE("Base64Url encodes binary data correctly", "[base64url][encoding]")
+TEST_CASE("Base64URL encodes binary data correctly", "[base64url][encoding]")
 {
     vector<unsigned char> input = {0x00, 0x01, 0x02, 0x03, 0xff, 0xfe, 0xfd};
-    string encoded = Base64Url::encode(input);
-    vector<unsigned char> decoded = Base64Url::decode(encoded);
+    string encoded = Base64URL::encode(input);
+    vector<unsigned char> decoded = Base64URL::decode(encoded);
     REQUIRE(input == decoded);
 }
 
-TEST_CASE("Base64Url encodes RFC7515 example", "[base64url][encoding][rfc7515]")
+TEST_CASE("Base64URL encodes RFC7515 example", "[base64url][encoding][rfc7515]")
 {
     // From RFC 7515 Appendix A.1
     string input = "{\"typ\":\"JWT\",\r\n \"alg\":\"HS256\"}";
-    string encoded = Base64Url::encode(input);
+    string encoded = Base64URL::encode(input);
     REQUIRE(encoded == "eyJ0eXAiOiJKV1QiLA0KICJhbGciOiJIUzI1NiJ9");
 }
 
 // BDD-style tests for decoding
-SCENARIO("Base64Url decoding handles various inputs", "[base64url][decoding][bdd]")
+SCENARIO("Base64URL decoding handles various inputs", "[base64url][decoding][bdd]")
 {
     GIVEN("an empty string")
     {
@@ -140,7 +140,7 @@ SCENARIO("Base64Url decoding handles various inputs", "[base64url][decoding][bdd
 
         WHEN("decoding to vector")
         {
-            vector<unsigned char> decoded = Base64Url::decode(input);
+            vector<unsigned char> decoded = Base64URL::decode(input);
 
             THEN("the result should be empty")
             {
@@ -150,7 +150,7 @@ SCENARIO("Base64Url decoding handles various inputs", "[base64url][decoding][bdd
 
         WHEN("decoding to string")
         {
-            string decoded = Base64Url::decodeToString(input);
+            string decoded = Base64URL::decodeToString(input);
 
             THEN("the result should be empty")
             {
@@ -165,7 +165,7 @@ SCENARIO("Base64Url decoding handles various inputs", "[base64url][decoding][bdd
 
         WHEN("decoding to string")
         {
-            string decoded = Base64Url::decodeToString(encoded);
+            string decoded = Base64URL::decodeToString(encoded);
 
             THEN("it should produce the original text")
             {
@@ -175,14 +175,14 @@ SCENARIO("Base64Url decoding handles various inputs", "[base64url][decoding][bdd
     }
 }
 
-SCENARIO("Base64Url decoding handles missing padding", "[base64url][decoding][padding][bdd]")
+SCENARIO("Base64URL decoding handles missing padding", "[base64url][decoding][padding][bdd]")
 {
     GIVEN("encoded strings with missing padding")
     {
         WHEN("decoding 'TWE' (Ma with padding removed)")
         {
             string encoded = "TWE";
-            string decoded = Base64Url::decodeToString(encoded);
+            string decoded = Base64URL::decodeToString(encoded);
 
             THEN("it should correctly decode without padding")
             {
@@ -193,7 +193,7 @@ SCENARIO("Base64Url decoding handles missing padding", "[base64url][decoding][pa
         WHEN("decoding 'TQ' (M with padding removed)")
         {
             string encoded = "TQ";
-            string decoded = Base64Url::decodeToString(encoded);
+            string decoded = Base64URL::decodeToString(encoded);
 
             THEN("it should correctly decode without padding")
             {
@@ -203,7 +203,7 @@ SCENARIO("Base64Url decoding handles missing padding", "[base64url][decoding][pa
     }
 }
 
-SCENARIO("Base64Url decodes URL-safe characters", "[base64url][decoding][special-chars][bdd]")
+SCENARIO("Base64URL decodes URL-safe characters", "[base64url][decoding][special-chars][bdd]")
 {
     GIVEN("encoded string with URL-safe characters")
     {
@@ -211,7 +211,7 @@ SCENARIO("Base64Url decodes URL-safe characters", "[base64url][decoding][special
 
         WHEN("decoding the string")
         {
-            vector<unsigned char> decoded = Base64Url::decode(encoded);
+            vector<unsigned char> decoded = Base64URL::decode(encoded);
 
             THEN("it should correctly interpret '-' and '_'")
             {
@@ -222,24 +222,24 @@ SCENARIO("Base64Url decodes URL-safe characters", "[base64url][decoding][special
     }
 }
 
-TEST_CASE("Base64Url decodes binary data correctly", "[base64url][decoding]")
+TEST_CASE("Base64URL decodes binary data correctly", "[base64url][decoding]")
 {
     vector<unsigned char> original = {0x00, 0x10, 0x83, 0x10, 0x51, 0x87, 0x20, 0x92, 0x8b};
-    string encoded = Base64Url::encode(original);
-    vector<unsigned char> decoded = Base64Url::decode(encoded);
+    string encoded = Base64URL::encode(original);
+    vector<unsigned char> decoded = Base64URL::decode(encoded);
     REQUIRE(original == decoded);
 }
 
 // BDD-style round-trip tests
-SCENARIO("Base64Url encoding and decoding are reversible", "[base64url][round-trip][bdd]")
+SCENARIO("Base64URL encoding and decoding are reversible", "[base64url][round-trip][bdd]")
 {
     GIVEN("various types of data")
     {
         WHEN("encoding and decoding a text string")
         {
             string original = "The quick brown fox jumps over the lazy dog";
-            string encoded = Base64Url::encode(original);
-            string decoded = Base64Url::decodeToString(encoded);
+            string encoded = Base64URL::encode(original);
+            string decoded = Base64URL::decodeToString(encoded);
 
             THEN("the decoded string should match the original")
             {
@@ -250,8 +250,8 @@ SCENARIO("Base64Url encoding and decoding are reversible", "[base64url][round-tr
         WHEN("encoding and decoding a byte vector")
         {
             vector<unsigned char> original = {0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x21};
-            string encoded = Base64Url::encode(original);
-            vector<unsigned char> decoded = Base64Url::decode(encoded);
+            string encoded = Base64URL::encode(original);
+            vector<unsigned char> decoded = Base64URL::decode(encoded);
 
             THEN("the decoded vector should match the original")
             {
@@ -266,8 +266,8 @@ SCENARIO("Base64Url encoding and decoding are reversible", "[base64url][round-tr
             {
                 original.push_back(static_cast<unsigned char>(i));
             }
-            string encoded = Base64Url::encode(original);
-            vector<unsigned char> decoded = Base64Url::decode(encoded);
+            string encoded = Base64URL::encode(original);
+            vector<unsigned char> decoded = Base64URL::decode(encoded);
 
             THEN("all bytes should be preserved")
             {
@@ -278,8 +278,8 @@ SCENARIO("Base64Url encoding and decoding are reversible", "[base64url][round-tr
         WHEN("encoding and decoding UTF-8 text")
         {
             string original = "Hello 世界 🌍";
-            string encoded = Base64Url::encode(original);
-            string decoded = Base64Url::decodeToString(encoded);
+            string encoded = Base64URL::encode(original);
+            string decoded = Base64URL::decodeToString(encoded);
 
             THEN("the UTF-8 characters should be preserved")
             {
@@ -290,71 +290,71 @@ SCENARIO("Base64Url encoding and decoding are reversible", "[base64url][round-tr
 }
 
 // Edge cases
-TEST_CASE("Base64Url handles long strings", "[base64url][edge-cases]")
+TEST_CASE("Base64URL handles long strings", "[base64url][edge-cases]")
 {
     string original(10000, 'A');
-    string encoded = Base64Url::encode(original);
-    string decoded = Base64Url::decodeToString(encoded);
+    string encoded = Base64URL::encode(original);
+    string decoded = Base64URL::decodeToString(encoded);
     REQUIRE(original == decoded);
 }
 
-TEST_CASE("Base64Url handles single byte", "[base64url][edge-cases]")
+TEST_CASE("Base64URL handles single byte", "[base64url][edge-cases]")
 {
     vector<unsigned char> original = {0x42};
-    string encoded = Base64Url::encode(original);
-    vector<unsigned char> decoded = Base64Url::decode(encoded);
+    string encoded = Base64URL::encode(original);
+    vector<unsigned char> decoded = Base64URL::decode(encoded);
     REQUIRE(original == decoded);
 }
 
-TEST_CASE("Base64Url handles two bytes", "[base64url][edge-cases]")
+TEST_CASE("Base64URL handles two bytes", "[base64url][edge-cases]")
 {
     vector<unsigned char> original = {0x42, 0x43};
-    string encoded = Base64Url::encode(original);
-    vector<unsigned char> decoded = Base64Url::decode(encoded);
+    string encoded = Base64URL::encode(original);
+    vector<unsigned char> decoded = Base64URL::decode(encoded);
     REQUIRE(original == decoded);
 }
 
-TEST_CASE("Base64Url handles three bytes", "[base64url][edge-cases]")
+TEST_CASE("Base64URL handles three bytes", "[base64url][edge-cases]")
 {
     vector<unsigned char> original = {0x42, 0x43, 0x44};
-    string encoded = Base64Url::encode(original);
-    vector<unsigned char> decoded = Base64Url::decode(encoded);
+    string encoded = Base64URL::encode(original);
+    vector<unsigned char> decoded = Base64URL::decode(encoded);
     REQUIRE(original == decoded);
 }
 
-TEST_CASE("Base64Url never contains + or /", "[base64url][invariants]")
+TEST_CASE("Base64URL never contains + or /", "[base64url][invariants]")
 {
     vector<unsigned char> input;
     for (int i = 0; i < 256; i++)
     {
         input.push_back(static_cast<unsigned char>(i));
     }
-    string encoded = Base64Url::encode(input);
+    string encoded = Base64URL::encode(input);
     REQUIRE(encoded.find('+') == string::npos);
     REQUIRE(encoded.find('/') == string::npos);
 }
 
-TEST_CASE("Base64Url never contains padding", "[base64url][invariants]")
+TEST_CASE("Base64URL never contains padding", "[base64url][invariants]")
 {
     vector<unsigned char> input1 = {0x42};
-    string encoded1 = Base64Url::encode(input1);
+    string encoded1 = Base64URL::encode(input1);
     REQUIRE(encoded1.find('=') == string::npos);
 
     vector<unsigned char> input2 = {0x42, 0x43};
-    string encoded2 = Base64Url::encode(input2);
+    string encoded2 = Base64URL::encode(input2);
     REQUIRE(encoded2.find('=') == string::npos);
 }
 
 // RFC 7515 test vectors
-TEST_CASE("Base64Url RFC7515 Appendix C example", "[base64url][rfc7515]")
+TEST_CASE("Base64URL RFC7515 Appendix C example", "[base64url][rfc7515]")
 {
     string payload =
         "{\"iss\":\"joe\",\r\n \"exp\":1300819380,\r\n \"http://example.com/is_root\":true}";
-    string encoded = Base64Url::encode(payload);
+    string encoded = Base64URL::encode(payload);
     string expected = "eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmN"
                       "vbS9pc19yb290Ijp0cnVlfQ";
     REQUIRE(encoded == expected);
 
-    string decoded = Base64Url::decodeToString(encoded);
+    string decoded = Base64URL::decodeToString(encoded);
     REQUIRE(decoded == payload);
 }

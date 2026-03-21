@@ -10,7 +10,7 @@ namespace JOSE {
 /**
  * @brief Base64URL encoding/decoding utilities
  */
-class Base64Url
+class Base64URL
 {
 public:
     /**

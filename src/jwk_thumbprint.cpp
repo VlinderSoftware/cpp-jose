@@ -115,10 +115,14 @@ Private::HashAlgorithm getHashAlgorithm(string const &algorithm)
 
 }  // anonymous namespace
 
-string JWKThumbprint::compute(JWK const &key, string const &algorithm)
+JWKThumbprint JWKThumbprint::compute(JWK const &key, string const &algorithm)
 {
-    vector<unsigned char> const raw_thumbprint = computeRaw(key, algorithm);
-    return Base64Url::encode(raw_thumbprint);
+    return JWKThumbprint(computeRaw(key, algorithm));
+}
+
+string JWKThumbprint::get() const
+{
+    return Base64URL::encode(value_);
 }
 
 vector<unsigned char> JWKThumbprint::computeRaw(JWK const &key, string const &algorithm)
@@ -128,6 +132,42 @@ vector<unsigned char> JWKThumbprint::computeRaw(JWK const &key, string const &al
     vector<unsigned char> const input(canonical_json.begin(), canonical_json.end());
     auto const &back_end = getBackEnd();
     return back_end.hash(hash_algorithm, input);
+}
+
+ostream &operator<<(ostream &os, JWKThumbprint const &thumbprint)
+{
+    os << thumbprint.get();
+    return os;
+}
+
+bool operator==(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return lhs.getRaw() == rhs.getRaw();
+}
+
+bool operator!=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return !(lhs == rhs);
+}
+
+bool operator<(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return lhs.getRaw() < rhs.getRaw();
+}
+
+bool operator<=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return lhs.getRaw() <= rhs.getRaw();
+}
+
+bool operator>(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return lhs.getRaw() > rhs.getRaw();
+}
+
+bool operator>=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return lhs.getRaw() >= rhs.getRaw();
 }
 
 }  // namespace JOSE
