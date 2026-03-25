@@ -140,12 +140,12 @@ ostream &operator<<(ostream &os, JWKThumbprint const &thumbprint)
     return os;
 }
 
-
 bool operator==(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 {
     auto const &lhs_raw = lhs.getRaw();
     auto const &rhs_raw = rhs.getRaw();
-    return (lhs_raw.size() == rhs_raw.size()) && equal(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin());
+    return (lhs_raw.size() == rhs_raw.size()) &&
+           equal(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin());
 }
 
 bool operator!=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
