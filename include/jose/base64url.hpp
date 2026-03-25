@@ -1,6 +1,7 @@
 #ifndef JOSE_BASE64URL_HPP
 #define JOSE_BASE64URL_HPP
 
+#include <span>
 #include <string>
 #include <vector>
 
@@ -13,6 +14,13 @@ namespace JOSE {
 class Base64URL
 {
 public:
+    /**
+     * @brief Encode data to base64url format
+     * @param data Data to encode
+     * @return Base64URL encoded string
+     */
+    static std::string encode(std::span<unsigned char const> const &data);
+
     /**
      * @brief Encode data to base64url format
      * @param data Data to encode

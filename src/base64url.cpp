@@ -25,7 +25,7 @@ Private::BackEnd &getBackEnd()
 }
 }  // namespace
 
-string Base64URL::encode(vector<unsigned char> const &data)
+string Base64URL::encode(span<unsigned char const> const &data)
 {
     if (data.empty())
     {
@@ -54,6 +54,11 @@ string Base64URL::encode(vector<unsigned char> const &data)
     }
 
     return result;
+}
+
+string Base64URL::encode(vector<unsigned char> const &data)
+{
+    return encode(span<unsigned char const>(data.data(), data.size()));
 }
 
 string Base64URL::encode(string const &str)

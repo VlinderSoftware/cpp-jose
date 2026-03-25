@@ -2,6 +2,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -237,6 +238,8 @@ public:
 
     /// Base64 encode (standard alphabet, no line breaks, with padding)
     std::string base64Encode(std::vector<unsigned char> const &data) const;
+    /// Base64 encode (standard alphabet, no line breaks, with padding)
+    std::string base64Encode(std::span<unsigned char const> const &data) const;
     /// Base64 decode (standard or URL-safe alphabet, optional padding)
     std::vector<unsigned char> base64Decode(std::string const &encoded) const;
 

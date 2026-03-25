@@ -303,7 +303,7 @@ vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorit
     return this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
 }
 
-string BackEnd::base64Encode(vector<unsigned char> const &data) const
+string BackEnd::base64Encode(span<unsigned char const> const &data) const
 {
     if (data.empty())
     {
@@ -344,6 +344,11 @@ string BackEnd::base64Encode(vector<unsigned char> const &data) const
     }
 
     return out;
+}
+
+string BackEnd::base64Encode(vector<unsigned char> const &data) const
+{
+    return base64Encode(span<unsigned char const>(data.data(), data.size()));
 }
 
 vector<unsigned char> BackEnd::base64Decode(string const &encoded) const

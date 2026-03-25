@@ -140,9 +140,12 @@ ostream &operator<<(ostream &os, JWKThumbprint const &thumbprint)
     return os;
 }
 
+
 bool operator==(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 {
-    return lhs.getRaw() == rhs.getRaw();
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return (lhs_raw.size() == rhs_raw.size()) && equal(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin());
 }
 
 bool operator!=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
@@ -152,22 +155,30 @@ bool operator!=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 
 bool operator<(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 {
-    return lhs.getRaw() < rhs.getRaw();
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return lexicographical_compare(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin(), rhs_raw.end());
 }
 
 bool operator<=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 {
-    return lhs.getRaw() <= rhs.getRaw();
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return !lexicographical_compare(rhs_raw.begin(), rhs_raw.end(), lhs_raw.begin(), lhs_raw.end());
 }
 
 bool operator>(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 {
-    return lhs.getRaw() > rhs.getRaw();
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return lexicographical_compare(rhs_raw.begin(), rhs_raw.end(), lhs_raw.begin(), lhs_raw.end());
 }
 
 bool operator>=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
 {
-    return lhs.getRaw() >= rhs.getRaw();
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return !lexicographical_compare(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin(), rhs_raw.end());
 }
 
 }  // namespace JOSE

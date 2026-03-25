@@ -149,7 +149,7 @@ TEST_CASE("ComputeRawThumbprint", "[jwa][computerawthumbprint]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    vector<unsigned char> rawThumbprint = JWKThumbprint::compute(key).getRaw();
+    auto rawThumbprint = JWKThumbprint::compute(key).getRaw();
 
     REQUIRE_FALSE(rawThumbprint.empty());
     // SHA-256 produces 32 bytes
@@ -160,7 +160,7 @@ TEST_CASE("ComputeRawThumbprintSHA384", "[jwa][computerawthumbprintsha384]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    vector<unsigned char> rawThumbprint = JWKThumbprint::compute(key, "SHA-384").getRaw();
+    auto rawThumbprint = JWKThumbprint::compute(key, "SHA-384").getRaw();
 
     REQUIRE_FALSE(rawThumbprint.empty());
     // SHA-384 produces 48 bytes
@@ -171,7 +171,7 @@ TEST_CASE("ComputeRawThumbprintSHA512", "[jwa][computerawthumbprintsha512]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    vector<unsigned char> rawThumbprint = JWKThumbprint::compute(key, "SHA-512").getRaw();
+    auto rawThumbprint = JWKThumbprint::compute(key, "SHA-512").getRaw();
 
     REQUIRE_FALSE(rawThumbprint.empty());
     // SHA-512 produces 64 bytes
@@ -183,7 +183,7 @@ TEST_CASE("RawThumbprintMatchesEncodedThumbprint", "[jwa][rawthumbprintmatchesen
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
     string encoded = JWKThumbprint::compute(key).get();
-    vector<unsigned char> raw = JWKThumbprint::compute(key).getRaw();
+    auto raw = JWKThumbprint::compute(key).getRaw();
 
     // Encode the raw thumbprint and compare
     string encodedFromRaw = Base64URL::encode(raw);
