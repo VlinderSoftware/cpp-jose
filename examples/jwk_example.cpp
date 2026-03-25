@@ -182,7 +182,7 @@ int main()
         cout << "\n\n7. Automatic Thumbprints as Key IDs" << endl;
         cout << "==========================================" << endl;
 
-        cout << "\nAll generated keys automatically use SHA-512 thumbprint as Key ID:" << endl;
+        cout << "\nAll generated keys automatically use SHA-256 thumbprint as Key ID:" << endl;
 
         JWK auto_key = JWK::generateRSA(JWK::Use::signature, 2048);
         auto auto_thumbprint_sha512 = JWKThumbprint::compute(auto_key, "SHA-512");
@@ -191,9 +191,11 @@ int main()
         cout << "\nAuto-generated Key ID: " << auto_key.getKeyID() << endl;
         cout << "SHA-512 thumbprint:    " << auto_thumbprint_sha512 << endl;
         cout << "SHA-256 thumbprint:    " << auto_thumbprint_sha256 << endl;
-        cout << "\n✓ Key ID matches SHA-512 thumbprint: "
-             << (auto_key.getKeyID() == auto_thumbprint_sha512.get() ? "Yes" : "No") << endl;
+        cout << "\n✓ Key ID matches SHA-256 thumbprint: "
+             << (auto_key.getKeyID() == auto_thumbprint_sha256.get() ? "Yes" : "No") << endl;
         cout << "SHA-512 length: " << auto_thumbprint_sha512.get().length() << " characters"
+             << endl;
+        cout << "SHA-256 length: " << auto_thumbprint_sha256.get().length() << " characters"
              << endl;
 
         // Example 8: Key Metadata and Validation
