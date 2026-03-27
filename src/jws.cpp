@@ -95,8 +95,8 @@ string JWS::sign(const JWK &key) const
     }
 
     string header_json = header.dump();
-    string encoded_header = Base64Url::encode(header_json);
-    string encoded_payload = Base64Url::encode(impl_->payload_);
+    string encoded_header = Base64URL::encode(header_json);
+    string encoded_payload = Base64URL::encode(impl_->payload_);
 
     // Create signing input
     string signing_input = encoded_header + "." + encoded_payload;
@@ -113,7 +113,7 @@ string JWS::sign(const JWK &key) const
         signature = JWA::sign(impl_->algorithm_, key, signing_input_bytes);
     }
 
-    string encoded_signature = Base64Url::encode(signature);
+    string encoded_signature = Base64URL::encode(signature);
 
     // Return compact serialization
     return signing_input + "." + encoded_signature;
@@ -137,7 +137,7 @@ bool JWS::verify(string const &jws, const JWK &key)
         string encoded_signature = jws.substr(second_dot + 1);
 
         // Decode header to get algorithm
-        string header_json = Base64Url::decodeToString(encoded_header);
+        string header_json = Base64URL::decodeToString(encoded_header);
         json header = json::parse(header_json);
 
         if (!header.contains("alg"))
@@ -157,7 +157,7 @@ bool JWS::verify(string const &jws, const JWK &key)
         }
 
         // Decode signature
-        vector<unsigned char> signature = Base64Url::decode(encoded_signature);
+        vector<unsigned char> signature = Base64URL::decode(encoded_signature);
 
         // Verify
         string signing_input = encoded_header + "." + encoded_payload;
@@ -186,8 +186,8 @@ JWS JWS::parse(string const &jws)
     string encoded_payload = jws.substr(first_dot + 1, second_dot - first_dot - 1);
 
     // Decode
-    string header_json = Base64Url::decodeToString(encoded_header);
-    string payload = Base64Url::decodeToString(encoded_payload);
+    string header_json = Base64URL::decodeToString(encoded_header);
+    string payload = Base64URL::decodeToString(encoded_payload);
 
     // Parse header
     json header = json::parse(header_json);

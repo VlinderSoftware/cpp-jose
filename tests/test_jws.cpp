@@ -576,7 +576,7 @@ TEST_CASE("JWS_NoneDowngradeAttackRejected", "[jws][nonedowngradeattackrejected]
     string real_token = jws.sign(key);
 
     // Replace the header with one claiming alg:none and strip the signature
-    string tampered_header = Base64Url::encode(R"({"alg":"none"})");
+    string tampered_header = Base64URL::encode(R"({"alg":"none"})");
     size_t first_dot = real_token.find('.');
     size_t second_dot = real_token.find('.', first_dot + 1);
     string tampered = tampered_header + real_token.substr(first_dot, second_dot - first_dot + 1);

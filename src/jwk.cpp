@@ -179,7 +179,7 @@ void ensureKeyID(JWK &jwk)
 {
     if (jwk.getKeyID().empty())
     {
-        jwk.setKeyID(JWKThumbprint::compute(jwk));
+        jwk.setKeyID(JWKThumbprint::compute(jwk).get());
     }
 }
 
@@ -360,11 +360,11 @@ string JWK::toJSON(bool include_private) const
 
         if (!n.empty())
         {
-            json_obj["n"] = Base64Url::encode(n);
+            json_obj["n"] = Base64URL::encode(n);
         }
         if (!e.empty())
         {
-            json_obj["e"] = Base64Url::encode(e);
+            json_obj["e"] = Base64URL::encode(e);
         }
 
         if (include_private)
@@ -382,12 +382,12 @@ string JWK::toJSON(bool include_private) const
                 !d.empty() && !p.empty() && !q.empty() && !dp.empty() && !dq.empty() && !qi.empty();
             if (has_full_private)
             {
-                json_obj["d"] = Base64Url::encode(d);
-                json_obj["p"] = Base64Url::encode(p);
-                json_obj["q"] = Base64Url::encode(q);
-                json_obj["dp"] = Base64Url::encode(dp);
-                json_obj["dq"] = Base64Url::encode(dq);
-                json_obj["qi"] = Base64Url::encode(qi);
+                json_obj["d"] = Base64URL::encode(d);
+                json_obj["p"] = Base64URL::encode(p);
+                json_obj["q"] = Base64URL::encode(q);
+                json_obj["dp"] = Base64URL::encode(dp);
+                json_obj["dq"] = Base64URL::encode(dq);
+                json_obj["qi"] = Base64URL::encode(qi);
             }
         }
     }
@@ -402,15 +402,15 @@ string JWK::toJSON(bool include_private) const
 
         if (!x.empty())
         {
-            json_obj["x"] = Base64Url::encode(x);
+            json_obj["x"] = Base64URL::encode(x);
         }
         if (!y.empty())
         {
-            json_obj["y"] = Base64Url::encode(y);
+            json_obj["y"] = Base64URL::encode(y);
         }
         if (include_private && !d.empty())
         {
-            json_obj["d"] = Base64Url::encode(d);
+            json_obj["d"] = Base64URL::encode(d);
         }
     }
     else if (impl_->key_type_ == KeyType::okp && impl_->key_)
@@ -429,7 +429,7 @@ string JWK::toJSON(bool include_private) const
         auto x(okp_key->getX());
         if (!x.empty())
         {
-            json_obj["x"] = Base64Url::encode(x);
+            json_obj["x"] = Base64URL::encode(x);
         }
 
         if (include_private)
@@ -437,7 +437,7 @@ string JWK::toJSON(bool include_private) const
             auto d(okp_key->getD());
             if (!d.empty())
             {
-                json_obj["d"] = Base64Url::encode(d);
+                json_obj["d"] = Base64URL::encode(d);
             }
         }
 #endif
@@ -448,7 +448,7 @@ string JWK::toJSON(bool include_private) const
         auto k(oct_key->getK());
         if (!k.empty())
         {
-            json_obj["k"] = Base64Url::encode(k);
+            json_obj["k"] = Base64URL::encode(k);
         }
     }
     return json_obj.dump();
@@ -537,25 +537,25 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
             {
                 throw runtime_error("Missing required RSA parameters");
             }
-            auto n_bytes = Base64Url::decode(jwk_json["n"].get<string>());
-            auto e_bytes = Base64Url::decode(jwk_json["e"].get<string>());
+            auto n_bytes = Base64URL::decode(jwk_json["n"].get<string>());
+            auto e_bytes = Base64URL::decode(jwk_json["e"].get<string>());
             auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
-                               ? Base64Url::decode(jwk_json["d"].get<string>())
+                               ? Base64URL::decode(jwk_json["d"].get<string>())
                                : vector<unsigned char>{};
             auto p_bytes = !ignore_private_if_present && jwk_json.contains("p")
-                               ? Base64Url::decode(jwk_json["p"].get<string>())
+                               ? Base64URL::decode(jwk_json["p"].get<string>())
                                : vector<unsigned char>{};
             auto q_bytes = !ignore_private_if_present && jwk_json.contains("q")
-                               ? Base64Url::decode(jwk_json["q"].get<string>())
+                               ? Base64URL::decode(jwk_json["q"].get<string>())
                                : vector<unsigned char>{};
             auto dp_bytes = !ignore_private_if_present && jwk_json.contains("dp")
-                                ? Base64Url::decode(jwk_json["dp"].get<string>())
+                                ? Base64URL::decode(jwk_json["dp"].get<string>())
                                 : vector<unsigned char>{};
             auto dq_bytes = !ignore_private_if_present && jwk_json.contains("dq")
-                                ? Base64Url::decode(jwk_json["dq"].get<string>())
+                                ? Base64URL::decode(jwk_json["dq"].get<string>())
                                 : vector<unsigned char>{};
             auto qi_bytes = !ignore_private_if_present && jwk_json.contains("qi")
-                                ? Base64Url::decode(jwk_json["qi"].get<string>())
+                                ? Base64URL::decode(jwk_json["qi"].get<string>())
                                 : vector<unsigned char>{};
 
             bool const has_d = !d_bytes.empty();
@@ -598,10 +598,10 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
                 throw runtime_error("Missing required EC parameters");
             }
 
-            auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
-            auto y_bytes = Base64Url::decode(jwk_json["y"].get<string>());
+            auto x_bytes = Base64URL::decode(jwk_json["x"].get<string>());
+            auto y_bytes = Base64URL::decode(jwk_json["y"].get<string>());
             auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
-                               ? Base64Url::decode(jwk_json["d"].get<string>())
+                               ? Base64URL::decode(jwk_json["d"].get<string>())
                                : vector<unsigned char>{};
 
             impl.key_ = std::move(
@@ -618,9 +618,9 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
                 throw runtime_error("Missing required OKP parameters");
             }
 
-            auto x_bytes = Base64Url::decode(jwk_json["x"].get<string>());
+            auto x_bytes = Base64URL::decode(jwk_json["x"].get<string>());
             auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
-                               ? Base64Url::decode(jwk_json["d"].get<string>())
+                               ? Base64URL::decode(jwk_json["d"].get<string>())
                                : vector<unsigned char>{};
             impl.key_ =
                 std::move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
@@ -634,7 +634,7 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
                 throw runtime_error("Missing required 'k' parameter for symmetric key");
             }
             auto k_bytes = !ignore_private_if_present && jwk_json.contains("k")
-                               ? Base64Url::decode(jwk_json["k"].get<string>())
+                               ? Base64URL::decode(jwk_json["k"].get<string>())
                                : vector<unsigned char>{};
             impl.key_ = make_unique<Private::OctKey>(k_bytes);
             break;

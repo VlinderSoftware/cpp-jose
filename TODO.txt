@@ -2,9 +2,9 @@
     [x] JWA
     [x] JWK
     [x] JWKS
+    [x] JWK Thumbprints
     [ ] JWS
     [ ] JWE
-    [ ] JWK Thumbprints
     [ ] JWT
     [ ] Base64URL
 

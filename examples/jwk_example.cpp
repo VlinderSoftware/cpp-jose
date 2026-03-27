@@ -148,16 +148,16 @@ int main()
         cout << "\nComputing thumbprints for different key types..." << endl;
 
         cout << "\n--- RSA Key Thumbprint ---" << endl;
-        string rsa_thumbprint = JWKThumbprint::compute(rsa_key);
+        auto rsa_thumbprint = JWKThumbprint::compute(rsa_key);
         cout << "SHA-256: " << rsa_thumbprint << endl;
 
-        string rsa_thumbprint_384 = JWKThumbprint::compute(rsa_key, "SHA-384");
+        auto rsa_thumbprint_384 = JWKThumbprint::compute(rsa_key, "SHA-384");
         cout << "SHA-384: " << rsa_thumbprint_384 << endl;
 
         cout << "\n--- EC Key Thumbprint ---" << endl;
         try
         {
-            string ec_thumbprint = JWKThumbprint::compute(ec_key_256);
+            auto ec_thumbprint = JWKThumbprint::compute(ec_key_256);
             cout << "SHA-256: " << ec_thumbprint << endl;
         }
         catch (exception const &)
@@ -169,7 +169,7 @@ int main()
         cout << "\n--- Symmetric Key Thumbprint ---" << endl;
         try
         {
-            string oct_thumbprint = JWKThumbprint::compute(oct_key_256);
+            auto oct_thumbprint = JWKThumbprint::compute(oct_key_256);
             cout << "SHA-256: " << oct_thumbprint << endl;
         }
         catch (exception const &)
@@ -182,18 +182,21 @@ int main()
         cout << "\n\n7. Automatic Thumbprints as Key IDs" << endl;
         cout << "==========================================" << endl;
 
-        cout << "\nAll generated keys automatically use SHA-512 thumbprint as Key ID:" << endl;
+        cout << "\nAll generated keys automatically use SHA-256 thumbprint as Key ID:" << endl;
 
         JWK auto_key = JWK::generateRSA(JWK::Use::signature, 2048);
-        string auto_thumbprint_sha512 = JWKThumbprint::compute(auto_key, "SHA-512");
-        string auto_thumbprint_sha256 = JWKThumbprint::compute(auto_key, "SHA-256");
+        auto auto_thumbprint_sha512 = JWKThumbprint::compute(auto_key, "SHA-512");
+        auto auto_thumbprint_sha256 = JWKThumbprint::compute(auto_key, "SHA-256");
 
         cout << "\nAuto-generated Key ID: " << auto_key.getKeyID() << endl;
         cout << "SHA-512 thumbprint:    " << auto_thumbprint_sha512 << endl;
         cout << "SHA-256 thumbprint:    " << auto_thumbprint_sha256 << endl;
-        cout << "\n✓ Key ID matches SHA-512 thumbprint: "
-             << (auto_key.getKeyID() == auto_thumbprint_sha512 ? "Yes" : "No") << endl;
-        cout << "SHA-512 length: " << auto_thumbprint_sha512.length() << " characters" << endl;
+        cout << "\n✓ Key ID matches SHA-256 thumbprint: "
+             << (auto_key.getKeyID() == auto_thumbprint_sha256.get() ? "Yes" : "No") << endl;
+        cout << "SHA-512 length: " << auto_thumbprint_sha512.get().length() << " characters"
+             << endl;
+        cout << "SHA-256 length: " << auto_thumbprint_sha256.get().length() << " characters"
+             << endl;
 
         // Example 8: Key Metadata and Validation
         cout << "\n\n8. Key Metadata and Algorithm Validation" << endl;

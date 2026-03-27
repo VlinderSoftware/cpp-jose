@@ -433,7 +433,7 @@ static int cmdJweInspect(Args const &args)
     if (dot == string::npos)
         throw runtime_error("Invalid JWE compact token: no '.' separator found");
 
-    string header_json = Base64Url::decodeToString(token.substr(0, dot));
+    string header_json = Base64URL::decodeToString(token.substr(0, dot));
     cout << header_json << "\n";
     return 0;
 }
@@ -563,7 +563,7 @@ static int cmdJwtInspect(Args const &args)
     auto dot2 = (dot1 != string::npos) ? token.find('.', dot1 + 1) : string::npos;
     if (dot1 != string::npos && dot2 != string::npos)
     {
-        string raw_payload = Base64Url::decodeToString(token.substr(dot1 + 1, dot2 - dot1 - 1));
+        string raw_payload = Base64URL::decodeToString(token.substr(dot1 + 1, dot2 - dot1 - 1));
         cout << "payload: " << raw_payload << "\n\n";
     }
 

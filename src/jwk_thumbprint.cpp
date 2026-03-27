@@ -115,15 +115,14 @@ Private::HashAlgorithm getHashAlgorithm(string const &algorithm)
 
 }  // anonymous namespace
 
-string JWKThumbprint::compute(JWK const &key)
+JWKThumbprint JWKThumbprint::compute(JWK const &key, string const &algorithm)
 {
-    return compute(key, "SHA-256");
+    return JWKThumbprint(computeRaw(key, algorithm));
 }
 
-string JWKThumbprint::compute(JWK const &key, string const &algorithm)
+string JWKThumbprint::get() const
 {
-    vector<unsigned char> const raw_thumbprint = computeRaw(key, algorithm);
-    return Base64Url::encode(raw_thumbprint);
+    return Base64URL::encode(value_);
 }
 
 vector<unsigned char> JWKThumbprint::computeRaw(JWK const &key, string const &algorithm)
@@ -133,6 +132,53 @@ vector<unsigned char> JWKThumbprint::computeRaw(JWK const &key, string const &al
     vector<unsigned char> const input(canonical_json.begin(), canonical_json.end());
     auto const &back_end = getBackEnd();
     return back_end.hash(hash_algorithm, input);
+}
+
+ostream &operator<<(ostream &os, JWKThumbprint const &thumbprint)
+{
+    os << thumbprint.get();
+    return os;
+}
+
+bool operator==(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return (lhs_raw.size() == rhs_raw.size()) &&
+           equal(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin());
+}
+
+bool operator!=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    return !(lhs == rhs);
+}
+
+bool operator<(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return lexicographical_compare(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin(), rhs_raw.end());
+}
+
+bool operator<=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return !lexicographical_compare(rhs_raw.begin(), rhs_raw.end(), lhs_raw.begin(), lhs_raw.end());
+}
+
+bool operator>(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return lexicographical_compare(rhs_raw.begin(), rhs_raw.end(), lhs_raw.begin(), lhs_raw.end());
+}
+
+bool operator>=(JWKThumbprint const &lhs, JWKThumbprint const &rhs)
+{
+    auto const &lhs_raw = lhs.getRaw();
+    auto const &rhs_raw = rhs.getRaw();
+    return !lexicographical_compare(lhs_raw.begin(), lhs_raw.end(), rhs_raw.begin(), rhs_raw.end());
 }
 
 }  // namespace JOSE
