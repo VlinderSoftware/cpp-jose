@@ -3,10 +3,10 @@
     [x] JWK
     [x] JWKS
     [x] JWK Thumbprints
+    [x] Base64URL
     [ ] JWS
     [ ] JWE
     [ ] JWT
-    [ ] Base64URL
 
 [ ] Add functional tests for import & export:
     [x] Import an RSA from JSON, exported public key only, use the validate 
