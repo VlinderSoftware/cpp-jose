@@ -413,6 +413,7 @@ TEST_CASE("ComputeOKPX25519Thumbprint", "[jwa][computeokpx25519thumbprint]")
     REQUIRE(43 == thumbprint.length());
 }
 
+#if JOSE_USE_OPENSSL
 TEST_CASE("OKPPrivateKeyThumbprintMatchesPublicKey",
           "[jwa][okpprivatekeythumbprintmatchespublickey]")
 {
@@ -425,6 +426,7 @@ TEST_CASE("OKPPrivateKeyThumbprintMatchesPublicKey",
 
     REQUIRE(private_thumbprint == public_thumbprint);
 }
+#endif
 
 // Comparison operator tests
 TEST_CASE("SameKeyThumbprintOrderingOperators", "[jwa][samekeythumbprintorderingoperators]")
