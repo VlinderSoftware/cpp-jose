@@ -413,7 +413,8 @@ TEST_CASE("ComputeOKPX25519Thumbprint", "[jwa][computeokpx25519thumbprint]")
     REQUIRE(43 == thumbprint.length());
 }
 
-TEST_CASE("OKPPrivateKeyThumbprintMatchesPublicKey", "[jwa][okpprivatekeythumbprintmatchespublickey]")
+TEST_CASE("OKPPrivateKeyThumbprintMatchesPublicKey",
+          "[jwa][okpprivatekeythumbprintmatchespublickey]")
 {
     JWK private_key = JWK::generateOKP(JWK::Use::signature);
     JWKThumbprint private_thumbprint = JWKThumbprint::compute(private_key);
