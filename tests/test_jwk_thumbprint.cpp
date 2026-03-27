@@ -395,6 +395,7 @@ TEST_CASE("RFC7638KnownAnswerTest", "[jwa][rfc7638knownanswertest]")
 }
 
 // OKP (Ed25519 / X25519) thumbprint tests
+#if JOSE_USE_OPENSSL
 TEST_CASE("ComputeOKPEd25519Thumbprint", "[jwa][computeokped25519thumbprint]")
 {
     JWK key = JWK::generateOKP(JWK::Use::signature);
@@ -413,7 +414,6 @@ TEST_CASE("ComputeOKPX25519Thumbprint", "[jwa][computeokpx25519thumbprint]")
     REQUIRE(43 == thumbprint.length());
 }
 
-#if JOSE_USE_OPENSSL
 TEST_CASE("OKPPrivateKeyThumbprintMatchesPublicKey",
           "[jwa][okpprivatekeythumbprintmatchespublickey]")
 {
