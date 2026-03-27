@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <set>
+#include <sstream>
 #include <string>
 
 #include "jose/jose.hpp"
@@ -377,4 +378,123 @@ TEST_CASE("ManyKeysProduceUniqueThumbprints", "[jwa][manykeysproduceuniquethumbp
     }
 
     REQUIRE(100 == thumbprints.size());
+}
+
+// RFC 7638 Section 3.1 known-answer test
+TEST_CASE("RFC7638KnownAnswerTest", "[jwa][rfc7638knownanswertest]")
+{
+    // Key and expected thumbprint taken verbatim from RFC 7638 Section 3.1
+    string const key_json =
+        R"({"kty":"RSA","n":"0vx7agoebGcQSuuPiLJXZptN9nndrQmbXEps2aiAFbWhM78LhWx4cbbfAAtVT86zwu1RK7aPFFxuhDR1L6tSoc_BJECPebWKRXjBZCiFV4n3oknjhMstn64tZ_2W-5JsGY4Hc5n9yBXArwl93lqt7_RN5w6Cf0h4QyQ5v-65YGjQR0_FDW2QvzqY368QQMicAtaSqzs8KJZgnYb9c7d0zgdAZHzu6qMQvRL5hajrn1n91CbOpbISD08qNLyrdkt-bFTWhAI4vMQFh6WeZu0fM4lFd2NcRwr3XPksINHaQ-G_xBniIqbw0Ls1jF44-csFCur-kEgU8awapJzKnqDKgw","e":"AQAB","alg":"RS256","kid":"2011-04-29"})";
+
+    JWK key = JWK::fromJSON(key_json);
+    string thumbprint = JWKThumbprint::compute(key).get();
+
+    // Expected value from RFC 7638 Section 3.1
+    REQUIRE("NzbLsXh8uDCcd-6MNwXF4W_7noWXFZAfHkxZsRGC9Xs" == thumbprint);
+}
+
+// OKP (Ed25519 / X25519) thumbprint tests
+TEST_CASE("ComputeOKPEd25519Thumbprint", "[jwa][computeokped25519thumbprint]")
+{
+    JWK key = JWK::generateOKP(JWK::Use::signature);
+    string thumbprint = JWKThumbprint::compute(key).get();
+
+    REQUIRE_FALSE(thumbprint.empty());
+    REQUIRE(43 == thumbprint.length());
+}
+
+TEST_CASE("ComputeOKPX25519Thumbprint", "[jwa][computeokpx25519thumbprint]")
+{
+    JWK key = JWK::generateOKP(JWK::Use::encryption);
+    string thumbprint = JWKThumbprint::compute(key).get();
+
+    REQUIRE_FALSE(thumbprint.empty());
+    REQUIRE(43 == thumbprint.length());
+}
+
+TEST_CASE("OKPPrivateKeyThumbprintMatchesPublicKey", "[jwa][okpprivatekeythumbprintmatchespublickey]")
+{
+    JWK private_key = JWK::generateOKP(JWK::Use::signature);
+    JWKThumbprint private_thumbprint = JWKThumbprint::compute(private_key);
+
+    string public_key_json = private_key.toJSON(false);
+    JWK public_key = JWK::fromJSON(public_key_json);
+    JWKThumbprint public_thumbprint = JWKThumbprint::compute(public_key);
+
+    REQUIRE(private_thumbprint == public_thumbprint);
+}
+
+// Comparison operator tests
+TEST_CASE("SameKeyThumbprintOrderingOperators", "[jwa][samekeythumbprintorderingoperators]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWKThumbprint tp1 = JWKThumbprint::compute(key);
+    JWKThumbprint tp2 = JWKThumbprint::compute(key);
+
+    REQUIRE(tp1 == tp2);
+    REQUIRE_FALSE(tp1 != tp2);
+    REQUIRE(tp1 <= tp2);
+    REQUIRE(tp1 >= tp2);
+    REQUIRE_FALSE(tp1 < tp2);
+    REQUIRE_FALSE(tp1 > tp2);
+}
+
+TEST_CASE("DifferentKeyThumbprintOrderingConsistency",
+          "[jwa][differentkeythumbprintorderingconsistency]")
+{
+    JWK key1 = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWK key2 = JWK::generateRSA(JWK::Use::signature, 2048);
+
+    JWKThumbprint tp1 = JWKThumbprint::compute(key1);
+    JWKThumbprint tp2 = JWKThumbprint::compute(key2);
+
+    // Two different thumbprints must satisfy strict weak ordering
+    if (tp1 < tp2)
+    {
+        REQUIRE(tp2 > tp1);
+        REQUIRE(tp1 <= tp2);
+        REQUIRE(tp2 >= tp1);
+        REQUIRE_FALSE(tp1 > tp2);
+        REQUIRE_FALSE(tp2 < tp1);
+        REQUIRE_FALSE(tp1 >= tp2);
+        REQUIRE_FALSE(tp2 <= tp1);
+        REQUIRE(tp1 != tp2);
+        REQUIRE_FALSE(tp1 == tp2);
+    }
+    else
+    {
+        // tp2 < tp1 (a SHA-256 collision is computationally infeasible)
+        REQUIRE(tp2 < tp1);
+        REQUIRE(tp1 > tp2);
+        REQUIRE(tp2 <= tp1);
+        REQUIRE(tp1 >= tp2);
+        REQUIRE(tp1 != tp2);
+        REQUIRE_FALSE(tp1 == tp2);
+    }
+}
+
+// Stream output operator test
+TEST_CASE("ThumbprintStreamOutput", "[jwa][thumbprintstreamoutput]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWKThumbprint thumbprint = JWKThumbprint::compute(key);
+
+    ostringstream oss;
+    oss << thumbprint;
+
+    REQUIRE(thumbprint.get() == oss.str());
+    REQUIRE_FALSE(oss.str().empty());
+    REQUIRE(43 == oss.str().length());
+}
+
+// Invalid / unsupported hash algorithm throws
+TEST_CASE("InvalidAlgorithmThrows", "[jwa][invalidalgorithmthrows]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+
+    REQUIRE_THROWS(JWKThumbprint::compute(key, "MD5"));
+    REQUIRE_THROWS(JWKThumbprint::compute(key, "SHA-1"));
+    REQUIRE_THROWS(JWKThumbprint::compute(key, "BLAKE2b"));
+    REQUIRE_THROWS(JWKThumbprint::compute(key, ""));
 }
