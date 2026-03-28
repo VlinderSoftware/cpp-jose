@@ -68,9 +68,10 @@ public:
     }
 
 protected:
-    virtual std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
-                                             Key *key,
-                                             std::span<unsigned char const> const &data) const override
+    virtual std::vector<unsigned char>
+    sign_(SignatureAlgorithm algorithm,
+          Key *key,
+          std::span<unsigned char const> const &data) const override
     {
         return {};
     }

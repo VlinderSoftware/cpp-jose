@@ -118,7 +118,7 @@ public:
      * @brief Get key ID
      */
     std::string getKeyID() const;
-    
+
     /**
      * @brief Check if key use is set
      */

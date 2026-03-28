@@ -116,8 +116,9 @@ BackEnd::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char
     return sign(algorithm, key, std::span<unsigned char const>(data.data(), data.size()));
 }
 
-vector<unsigned char>
-BackEnd::sign(SignatureAlgorithm algorithm, JWK const &key, span<unsigned char const> const &data) const
+vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
+                                    JWK const &key,
+                                    span<unsigned char const> const &data) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)

@@ -394,7 +394,8 @@ TEST_CASE("PS512SignAndVerify", "[jwa][ps512signandverify]")
 TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string token = sign(key, JWA::SignatureAlgorithm::rs256, string("original message")).toCompact();
+    string token =
+        sign(key, JWA::SignatureAlgorithm::rs256, string("original message")).toCompact();
 
     // Tamper with signature
     size_t lastDot = token.rfind('.');
@@ -409,7 +410,8 @@ TEST_CASE("TamperedSignatureFails", "[jwa][tamperedsignaturefails]")
 TEST_CASE("TamperedDataFails", "[jwa][tampereddatafails]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string token = sign(key, JWA::SignatureAlgorithm::rs256, string("original message")).toCompact();
+    string token =
+        sign(key, JWA::SignatureAlgorithm::rs256, string("original message")).toCompact();
 
     // Tamper with payload (middle segment)
     size_t firstDot = token.find('.');

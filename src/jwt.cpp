@@ -267,7 +267,11 @@ string JWT::sign(const JWK &key, string const &algorithm) const
         // Otherwise keep RS256 for RSA keys
     }
 
-    return JOSE::sign(key, JWA::signatureAlgorithmFromString(actual_algorithm), string("JWT"), payload).toCompact();
+    return JOSE::sign(key,
+                      JWA::signatureAlgorithmFromString(actual_algorithm),
+                      string("JWT"),
+                      payload)
+        .toCompact();
 }
 
 JWT JWT::verify(string const &jwt, const JWK &key)

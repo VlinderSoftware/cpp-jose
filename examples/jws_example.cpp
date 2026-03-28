@@ -26,7 +26,8 @@ void demonstrateAlgorithm(string const &alg_name, JWA::SignatureAlgorithm alg, c
 
     auto payload = string("This is a test message for " + alg_name);
 
-    string signed_jws = sign(key, alg, "JWS", span<char const>(payload.data(), payload.size())).toCompact();
+    string signed_jws =
+        sign(key, alg, "JWS", span<char const>(payload.data(), payload.size())).toCompact();
     cout << "Signed JWS: " << signed_jws.substr(0, 60) << "..." << endl;
 
     auto parsed = JWS::fromCompact(signed_jws);
@@ -34,8 +35,8 @@ void demonstrateAlgorithm(string const &alg_name, JWA::SignatureAlgorithm alg, c
     bool verified = verify(parsed, key);
     cout << "Verification: " << (verified ? "✓ SUCCESS" : "✗ FAILED") << endl;
 
-    //TODO
-//    cout << "Payload: " << parsed.getPayload() << endl;
+    // TODO
+    //    cout << "Payload: " << parsed.getPayload() << endl;
 }
 
 int main()
@@ -87,15 +88,20 @@ int main()
         cout << "==========================================" << endl;
 
         auto payload = string("{\"userId\":\"12345\",\"action\":\"login\"}");
-        auto custom_signed = sign(hmac_key_256, JWA::SignatureAlgorithm::hs256, "JWT", {{"cty", "application/json"}, {"custom", "header-value"}}, span<char const>(payload.data(), payload.size())).toCompact();
+        auto custom_signed = sign(hmac_key_256,
+                                  JWA::SignatureAlgorithm::hs256,
+                                  "JWT",
+                                  {{"cty", "application/json"}, {"custom", "header-value"}},
+                                  span<char const>(payload.data(), payload.size()))
+                                 .toCompact();
 
         cout << "\nSigned JWS with custom headers" << endl;
 
         JWS custom_parsed = JWS::fromCompact(custom_signed);
 
-        //TODO
-        // cout << "Header: " << custom_parsed.getHeader() << endl;
-        // cout << "Payload: " << custom_parsed.getPayload() << endl;
+        // TODO
+        //  cout << "Header: " << custom_parsed.getHeader() << endl;
+        //  cout << "Payload: " << custom_parsed.getPayload() << endl;
 
         bool custom_verified = verify(custom_parsed, hmac_key_256);
         cout << "Verification: " << (custom_verified ? "✓ SUCCESS" : "✗ FAILED") << endl;
@@ -104,8 +110,12 @@ int main()
         cout << "\n\n5. JWS Compact Serialization" << endl;
         cout << "==========================================" << endl;
 
-        string format_payload = "This is a test message to demonstrate JWS compact serialization format.";
-        auto format_example = sign(hmac_key_256, JWA::SignatureAlgorithm::hs256, "JWS", span<char const>(format_payload.data(), format_payload.size()));
+        string format_payload =
+            "This is a test message to demonstrate JWS compact serialization format.";
+        auto format_example = sign(hmac_key_256,
+                                   JWA::SignatureAlgorithm::hs256,
+                                   "JWS",
+                                   span<char const>(format_payload.data(), format_payload.size()));
 
         string compact_jws = format_example.toCompact();
         cout << "\nJWS Compact Format: Header.Payload.Signature" << endl;

@@ -12,7 +12,10 @@ using namespace Vlinder::JOSE;
 TEST_CASE("JWS_CreateSimpleJWS", "[jws][createsimplejws]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string token = sign(key, JWA::SignatureAlgorithm::hs256, std::span<char const>("test payload", strlen("test payload"))).toCompact();
+    string token = sign(key,
+                        JWA::SignatureAlgorithm::hs256,
+                        std::span<char const>("test payload", strlen("test payload")))
+                       .toCompact();
     REQUIRE_FALSE(token.empty());
 
     // Should have 3 parts separated by dots
@@ -48,7 +51,12 @@ TEST_CASE("JWS_CreateJWSWithAllAlgorithms", "[jws][createjwswithallalgorithms]")
 TEST_CASE("JWS_SetCustomHeaderParam", "[jws][setcustomheaderparam]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string token = sign(key, JWA::SignatureAlgorithm::hs256, string("JWT"), map<string, string>{{"custom", "value"}}, string("test")).toCompact();
+    string token = sign(key,
+                        JWA::SignatureAlgorithm::hs256,
+                        string("JWT"),
+                        map<string, string>{{"custom", "value"}},
+                        string("test"))
+                       .toCompact();
 
     string header = Base64URL::decodeToString(token.substr(0, token.find('.')));
     REQUIRE(string::npos != header.find("custom"));
@@ -58,7 +66,8 @@ TEST_CASE("JWS_SetCustomHeaderParam", "[jws][setcustomheaderparam]")
 TEST_CASE("JWS_GetHeader", "[jws][getheader]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string token = sign(key, JWA::SignatureAlgorithm::hs256, string("JWT"), string("test")).toCompact();
+    string token =
+        sign(key, JWA::SignatureAlgorithm::hs256, string("JWT"), string("test")).toCompact();
 
     string header = Base64URL::decodeToString(token.substr(0, token.find('.')));
     REQUIRE_FALSE(header.empty());
@@ -108,7 +117,8 @@ TEST_CASE("JWS_VerifyWithWrongKeyFails", "[jws][verifywithwrongkeyfails]")
 TEST_CASE("JWS_VerifyTamperedPayloadFails", "[jws][verifytamperedpayloadfails]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string token = sign(key, JWA::SignatureAlgorithm::hs256, string("original payload")).toCompact();
+    string token =
+        sign(key, JWA::SignatureAlgorithm::hs256, string("original payload")).toCompact();
 
     // Tamper with token by modifying the payload part
     size_t firstDot = token.find('.');
@@ -152,7 +162,8 @@ TEST_CASE("JWS_ParseJWS", "[jws][parsejws]")
 TEST_CASE("JWS_ParseAndGetPayload", "[jws][parseandgetpayload]")
 {
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-    string token = sign(key, JWA::SignatureAlgorithm::rs256, string("This is the payload content")).toCompact();
+    string token = sign(key, JWA::SignatureAlgorithm::rs256, string("This is the payload content"))
+                       .toCompact();
 
     JWS parsed = JWS::fromCompact(token);
     auto payload_bytes = parsed.getPayload();
@@ -250,12 +261,12 @@ TEST_CASE("JWS_JSONPayload", "[jws][jsonpayload]")
 TEST_CASE("JWS_MultipleHeaderParams", "[jws][multipleheaderparams]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string token = sign(
-        key,
-        JWA::SignatureAlgorithm::hs256,
-        string("JWT"),
-        map<string, string>{{"custom1", "value1"}, {"custom2", "value2"}},
-        string("test")).toCompact();
+    string token = sign(key,
+                        JWA::SignatureAlgorithm::hs256,
+                        string("JWT"),
+                        map<string, string>{{"custom1", "value1"}, {"custom2", "value2"}},
+                        string("test"))
+                       .toCompact();
 
     string header = Base64URL::decodeToString(token.substr(0, token.find('.')));
     REQUIRE(string::npos != header.find("custom1"));
@@ -266,7 +277,8 @@ TEST_CASE("JWS_MultipleHeaderParams", "[jws][multipleheaderparams]")
 TEST_CASE("JWS_JWS_RSAPublicKeyVerification", "[jws][rsapublickeyverification]")
 {
     JWK privateKey = JWK::generateRSA(JWK::Use::signature, 2048);
-    JWS jws = sign(privateKey, JWA::SignatureAlgorithm::rs256, string("message for public verification"));
+    JWS jws =
+        sign(privateKey, JWA::SignatureAlgorithm::rs256, string("message for public verification"));
 
     // Extract public key
     string publicKeyJson = privateKey.toJSON(false);
@@ -379,7 +391,8 @@ TEST_CASE("JWS_NoneDowngradeAttackRejected", "[jws][nonedowngradeattackrejected]
     // the caller supplies a key is a well-known algorithm-confusion attack.
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
 
-    string real_token = sign(key, JWA::SignatureAlgorithm::hs256, string(R"({"sub":"admin"})")).toCompact();
+    string real_token =
+        sign(key, JWA::SignatureAlgorithm::hs256, string(R"({"sub":"admin"})")).toCompact();
 
     // Replace the header with one claiming alg:none and strip the signature
     string tampered_header = Base64URL::encode(string(R"({"alg":"none"})"));

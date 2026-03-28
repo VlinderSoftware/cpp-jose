@@ -42,13 +42,8 @@ struct JWS::Impl
          string const &header_b64,
          string const &payload_b64,
          vector<unsigned char> const &signature)
-        : payload_(payload),
-          algorithm_(algorithm),
-          kid_(kid),
-          typ_(typ),
-          header_params_(header_params),
-          header_b64_(header_b64),
-          payload_b64_(payload_b64),
+        : payload_(payload), algorithm_(algorithm), kid_(kid), typ_(typ),
+          header_params_(header_params), header_b64_(header_b64), payload_b64_(payload_b64),
           signature_(signature)
     {
     }
@@ -78,9 +73,14 @@ JWS SignAttorney::construct(vector<unsigned char> payload,
                             string payload_b64,
                             vector<unsigned char> signature)
 {
-    auto impl = make_unique<JWS::Impl>(
-        move(payload), alg, move(kid), move(typ), move(header_params),
-        move(header_b64), move(payload_b64), move(signature));
+    auto impl = make_unique<JWS::Impl>(move(payload),
+                                       alg,
+                                       move(kid),
+                                       move(typ),
+                                       move(header_params),
+                                       move(header_b64),
+                                       move(payload_b64),
+                                       move(signature));
     return JWS(move(impl));
 }
 
@@ -97,7 +97,7 @@ JWS &JWS::operator=(const JWS &other)
     return *this;
 }
 
-JWS& JWS::swap(JWS& other) noexcept
+JWS &JWS::swap(JWS &other) noexcept
 {
     using std::swap;
     swap(impl_, other.impl_);
@@ -111,7 +111,8 @@ vector<unsigned char> JWS::getPayload() const
 
 string JWS::toCompact() const
 {
-    return impl_->header_b64_ + "." + impl_->payload_b64_ + "." + Base64URL::encode(impl_->signature_);
+    return impl_->header_b64_ + "." + impl_->payload_b64_ + "." +
+           Base64URL::encode(impl_->signature_);
 }
 
 string JWS::toJSON(bool flattened) const
@@ -260,8 +261,7 @@ pair<optional<JWS>, bool> JWS::tryLoad(string const &input) noexcept
     return fromJSON(input, nothrow);
 }
 
-JWS::JWS(unique_ptr<Impl> impl)
-    : impl_(std::move(impl))
+JWS::JWS(unique_ptr<Impl> impl) : impl_(std::move(impl))
 {
 }
 
@@ -280,7 +280,13 @@ bool verify(JWS const &jws, JWK const &key)
 
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::span<char const> const &payload)
 {
-    return sign(key, alg, "", {}, std::span<unsigned char const>(reinterpret_cast<const unsigned char *>(payload.data()), payload.size()));
+    return sign(
+        key,
+        alg,
+        "",
+        {},
+        std::span<unsigned char const>(reinterpret_cast<unsigned char const *>(payload.data()),
+                                       payload.size()));
 }
 
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::span<unsigned char const> const &payload)
@@ -288,22 +294,48 @@ JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::span<unsigned char co
     return sign(key, alg, "", {}, payload);
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::span<char const> const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::span<char const> const &payload)
 {
-    return sign(key, alg, type, {}, std::span<unsigned char const>(reinterpret_cast<const unsigned char *>(payload.data()), payload.size()));
+    return sign(
+        key,
+        alg,
+        type,
+        {},
+        std::span<unsigned char const>(reinterpret_cast<unsigned char const *>(payload.data()),
+                                       payload.size()));
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::span<unsigned char const> const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::span<unsigned char const> const &payload)
 {
     return sign(key, alg, type, {}, payload);
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::map< std::string, std::string > const &header_params, std::span<char const> const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::map<std::string, std::string> const &header_params,
+         std::span<char const> const &payload)
 {
-    return sign(key, alg, type, header_params, std::span<unsigned char const>(reinterpret_cast<const unsigned char *>(payload.data()), payload.size()));
+    return sign(
+        key,
+        alg,
+        type,
+        header_params,
+        std::span<unsigned char const>(reinterpret_cast<unsigned char const *>(payload.data()),
+                                       payload.size()));
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::map< std::string, std::string > const &header_params, std::span<unsigned char const> const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::map<std::string, std::string> const &header_params,
+         std::span<unsigned char const> const &payload)
 {
     // Check that the key is suitable for signing with the specified algorithm
     if (!key.hasUse() || key.getUse() != JWK::Use::signature)
@@ -316,13 +348,16 @@ JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, s
     // Build JOSE header
     json header = json::object();
     header["alg"] = JWA::toString(alg);
-    if (!kid.empty()) {
+    if (!kid.empty())
+    {
         header["kid"] = kid;
     }
-    if (!type.empty()) {
+    if (!type.empty())
+    {
         header["typ"] = type;
     }
-    for (auto const &param : header_params)    {
+    for (auto const &param : header_params)
+    {
         header[param.first] = param.second;
     }
 
@@ -336,16 +371,21 @@ JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, s
     vector<unsigned char> signature;
     if (alg != JWA::SignatureAlgorithm::none)
     {
-        auto const signing_span = span<unsigned char const>(
-            reinterpret_cast<unsigned char const *>(signing_input.data()), signing_input.size());
+        auto const signing_span =
+            span<unsigned char const>(reinterpret_cast<unsigned char const *>(signing_input.data()),
+                                      signing_input.size());
         signature = getBackEnd().sign(alg, key, signing_span);
     }
     // else: none algorithm → empty signature
 
-    return SignAttorney::construct(
-        vector<unsigned char>(payload.begin(), payload.end()),
-        alg, kid, type, header_params,
-        header_b64, payload_b64, signature);
+    return SignAttorney::construct(vector<unsigned char>(payload.begin(), payload.end()),
+                                   alg,
+                                   kid,
+                                   type,
+                                   header_params,
+                                   header_b64,
+                                   payload_b64,
+                                   signature);
 }
 
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::vector<unsigned char> const &payload)
@@ -353,12 +393,19 @@ JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::vector<unsigned char>
     return sign(key, alg, "", {}, std::span<unsigned char const>(payload.data(), payload.size()));
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::vector<unsigned char> const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::vector<unsigned char> const &payload)
 {
     return sign(key, alg, type, {}, std::span<unsigned char const>(payload.data(), payload.size()));
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::map< std::string, std::string > const &header_params, std::string const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::map<std::string, std::string> const &header_params,
+         std::string const &payload)
 {
     return sign(key, alg, type, header_params, span<char const>(payload.data(), payload.size()));
 }
@@ -368,10 +415,13 @@ JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &payload
     return sign(key, alg, "", {}, std::span<char const>(payload.data(), payload.size()));
 }
 
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type, std::string const &payload)
+JWS sign(JWK const &key,
+         JWA::SignatureAlgorithm alg,
+         std::string const &type,
+         std::string const &payload)
 {
     return sign(key, alg, type, {}, std::span<char const>(payload.data(), payload.size()));
 }
 
-}
-}
+}  // namespace JOSE
+}  // namespace Vlinder

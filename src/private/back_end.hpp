@@ -250,8 +250,9 @@ public:
     ///// Get hash algorithm for signature
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;
 protected:
-    virtual std::vector<unsigned char>
-    sign_(SignatureAlgorithm algorithm, Key *key, std::span<unsigned char const> const &data) const = 0;
+    virtual std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
+                                             Key *key,
+                                             std::span<unsigned char const> const &data) const = 0;
     virtual bool verify_(SignatureAlgorithm algorithm,
                          Key *key,
                          std::vector<unsigned char> const &data,

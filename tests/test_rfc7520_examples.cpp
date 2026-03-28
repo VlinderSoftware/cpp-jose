@@ -115,7 +115,9 @@ TEST_CASE("Section4_1_RSA_v15_Signature", "[jwa][section4-1-rsa-v15-signature]")
     // Generate a key for testing (we don't have the exact RFC key)
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    string token = sign(key, JWA::SignatureAlgorithm::rs256, span<char const>(payload.data(), payload.size())).toCompact();
+    string token =
+        sign(key, JWA::SignatureAlgorithm::rs256, span<char const>(payload.data(), payload.size()))
+            .toCompact();
     REQUIRE_FALSE(token.empty());
 
     // Verify
@@ -150,7 +152,9 @@ TEST_CASE("Section4_3_ECDSA_Signature", "[jwa][section4-3-ecdsa-signature]")
 
     JWK key = JWK::generateEC(JWK::Use::signature, "P-521");
 
-    string token = sign(key, JWA::SignatureAlgorithm::es512, span<char const>(payload.data(), payload.size())).toCompact();
+    string token =
+        sign(key, JWA::SignatureAlgorithm::es512, span<char const>(payload.data(), payload.size()))
+            .toCompact();
     REQUIRE_FALSE(token.empty());
 
     REQUIRE(verify(JWS::fromCompact(token), key));

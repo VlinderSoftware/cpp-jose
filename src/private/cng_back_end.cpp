@@ -1983,8 +1983,9 @@ unique_ptr<Key> CNGBackEnd::generateOkp(string const &curve,
     throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
-vector<unsigned char>
-CNGBackEnd::sign_(SignatureAlgorithm algorithm, Key *key, std::span<unsigned char const> const &data) const
+vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
+                                        Key *key,
+                                        std::span<unsigned char const> const &data) const
 {
     if (key == nullptr)
     {
