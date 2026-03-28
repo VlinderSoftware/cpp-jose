@@ -70,16 +70,6 @@ public:
     };
 
     /**
-     * @brief Sign data with the specified algorithm
-     * @param algorithm Signature algorithm
-     * @param key Key to use for signing
-     * @param data Data to sign
-     * @return Signature
-     */
-    static std::vector<unsigned char>  // TODO should be a JWS
-    sign(SignatureAlgorithm algorithm, const JWK &key, std::vector<unsigned char> const &data);
-
-    /**
      * @brief Verify signature
      * @param algorithm Signature algorithm
      * @param key Key to use for verification

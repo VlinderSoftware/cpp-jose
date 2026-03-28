@@ -250,11 +250,6 @@ string JWT::sign(const JWK &key, string const &algorithm) const
 
     string payload = claims_json.dump();
 
-    // Create JWS
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setType("JWT");
-
     // Determine algorithm: if "RS256" default is used but key is not RSA, pick appropriate
     // algorithm
     string actual_algorithm = algorithm;
@@ -272,22 +267,13 @@ string JWT::sign(const JWK &key, string const &algorithm) const
         // Otherwise keep RS256 for RSA keys
     }
 
-    jws.setAlgorithm(JWA::signatureAlgorithmFromString(actual_algorithm));
-
-    // Copy key ID if present
-    string kid = key.getKeyID();
-    if (!kid.empty())
-    {
-        jws.setKeyID(kid);
-    }
-
-    return jws.sign(key);
+    return JOSE::sign(key, JWA::signatureAlgorithmFromString(actual_algorithm), string("JWT"), payload).toCompact();
 }
 
 JWT JWT::verify(string const &jwt, const JWK &key)
 {
-    // Verify using JWS
-    if (!JWS::verify(jwt, key))
+    JWS jws = JWS::fromCompact(jwt);
+    if (!JOSE::verify(jws, key))
     {
         throw runtime_error("JWT signature verification failed");
     }
@@ -299,10 +285,11 @@ JWT JWT::verify(string const &jwt, const JWK &key)
 JWT JWT::parse(string const &jwt)
 {
     // Parse as JWS
-    JWS jws = JWS::parse(jwt);
+    JWS jws = JWS::fromCompact(jwt);
 
     // Parse payload as JSON
-    string payload = jws.getPayload();
+    auto payload_bytes = jws.getPayload();
+    string payload(payload_bytes.begin(), payload_bytes.end());
     json claims_json = json::parse(payload);
 
     if (!claims_json.is_object())

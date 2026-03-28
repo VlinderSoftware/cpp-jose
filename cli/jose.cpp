@@ -301,16 +301,8 @@ static int cmdJwsSign(Args const &args)
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
 
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(it->second);
+    cout << sign(key, it->second, span<char const>(payload.data(), payload.size())).toCompact() << "\n";
 
-    if (string kid = args.get("kid"); !kid.empty())
-        jws.setKeyID(kid);
-    if (string typ = args.get("typ"); !typ.empty())
-        jws.setType(typ);
-
-    cout << jws.sign(key) << "\n";
     return 0;
 }
 
@@ -320,8 +312,14 @@ static int cmdJwsVerify(Args const &args)
     string token   = trim(readInput(args.input()));
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
+    auto jws_opt = JWS::tryLoad(token);
+    if (!jws_opt.second)
+    {
+        cerr << "Failed to parse JWS token\n";
+        return 1;
+    }
 
-    if (!JWS::verify(token, key))
+    if (!verify(*jws_opt.first, key))
     {
         cerr << "Signature verification FAILED\n";
         return 1;
@@ -333,10 +331,17 @@ static int cmdJwsVerify(Args const &args)
 static int cmdJwsInspect(Args const &args)
 {
     string token = trim(readInput(args.input()));
-    JWS jws      = JWS::parse(token);
+    auto jws_opt = JWS::tryLoad(token);
+    if (!jws_opt.second)
+    {
+        cerr << "Failed to parse JWS token\n";
+        return 1;
+    }
+    auto jws = *jws_opt.first;
 
-    cout << "header : " << jws.getHeader() << "\n"
-         << "payload: " << jws.getPayload() << "\n";
+    //TODO
+    // cout << "header : " << jws.getHeader() << "\n"
+    //      << "payload: " << jws.getPayload() << "\n";
     return 0;
 }
 

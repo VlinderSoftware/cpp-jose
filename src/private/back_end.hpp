@@ -191,6 +191,10 @@ public:
                                     JWK const &key,
                                     std::vector<unsigned char> const &data) const;
 
+    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
+                                    JWK const &key,
+                                    std::span<unsigned char const> const &data) const;
+
     bool verify(SignatureAlgorithm algorithm,
                 JWK const &key,
                 std::vector<unsigned char> const &data,
@@ -247,7 +251,7 @@ public:
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;
 protected:
     virtual std::vector<unsigned char>
-    sign_(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const = 0;
+    sign_(SignatureAlgorithm algorithm, Key *key, std::span<unsigned char const> const &data) const = 0;
     virtual bool verify_(SignatureAlgorithm algorithm,
                          Key *key,
                          std::vector<unsigned char> const &data,

@@ -133,7 +133,7 @@ public:
 protected:
     std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
                                      Key *key,
-                                     std::vector<unsigned char> const &data) const override;
+                                     std::span<unsigned char const> const &data) const override;
     bool verify_(SignatureAlgorithm algorithm,
                  Key *key,
                  std::vector<unsigned char> const &data,

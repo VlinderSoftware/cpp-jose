@@ -1984,7 +1984,7 @@ unique_ptr<Key> CNGBackEnd::generateOkp(string const &curve,
 }
 
 vector<unsigned char>
-CNGBackEnd::sign_(SignatureAlgorithm algorithm, Key *key, vector<unsigned char> const &data) const
+CNGBackEnd::sign_(SignatureAlgorithm algorithm, Key *key, std::span<unsigned char const> const &data) const
 {
     if (key == nullptr)
     {

@@ -8,6 +8,8 @@
     [ ] JWE
     [ ] JWT
 
+[ ] on second thought, the nothrow versions can just return an optional<> rather than a pair<optional<>, bool>: if the optional<> is empty it failed
+
 [ ] Add functional tests for import & export:
     [x] Import an RSA from JSON, exported public key only, use the validate 
         signature

@@ -112,24 +112,20 @@ TEST_CASE("Section4_1_RSA_v15_Signature", "[jwa][section4-1-rsa-v15-signature]")
                      "step onto the road, and if you don't keep your feet, there\xe2\x80\x99s "
                      "no knowing where you might be swept off to.";
 
-    // Create JWS
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::rs256);
-
     // Generate a key for testing (we don't have the exact RFC key)
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    string token = jws.sign(key);
+    string token = sign(key, JWA::SignatureAlgorithm::rs256, span<char const>(payload.data(), payload.size())).toCompact();
     REQUIRE_FALSE(token.empty());
 
     // Verify
-    bool verified = JWS::verify(token, key);
+    bool verified = verify(JWS::fromCompact(token), key);
     REQUIRE(verified);
 
     // Parse and check payload
-    JWS parsed = JWS::parse(token);
-    REQUIRE(payload == parsed.getPayload());
+    JWS parsed = JWS::fromCompact(token);
+    auto parsed_bytes = parsed.getPayload();
+    REQUIRE(payload == string(parsed_bytes.begin(), parsed_bytes.end()));
 }
 
 TEST_CASE("Section4_2_RSA_PSS_Signature", "[jwa][section4-2-rsa-pss-signature]")
@@ -139,17 +135,10 @@ TEST_CASE("Section4_2_RSA_PSS_Signature", "[jwa][section4-2-rsa-pss-signature]")
                      "step onto the road, and if you don't keep your feet, there\xe2\x80\x99s "
                      "no knowing where you might be swept off to.";
 
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::ps384);
-
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
-
-    string token = jws.sign(key);
-    REQUIRE_FALSE(token.empty());
-
-    bool verified = JWS::verify(token, key);
-    REQUIRE(verified);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::ps384, payload);
+    REQUIRE_FALSE(jws.toCompact().empty());
+    REQUIRE(verify(jws, key));
 }
 
 TEST_CASE("Section4_3_ECDSA_Signature", "[jwa][section4-3-ecdsa-signature]")
@@ -159,17 +148,12 @@ TEST_CASE("Section4_3_ECDSA_Signature", "[jwa][section4-3-ecdsa-signature]")
                      "step onto the road, and if you don't keep your feet, there\xe2\x80\x99s "
                      "no knowing where you might be swept off to.";
 
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::es512);
-
     JWK key = JWK::generateEC(JWK::Use::signature, "P-521");
 
-    string token = jws.sign(key);
+    string token = sign(key, JWA::SignatureAlgorithm::es512, span<char const>(payload.data(), payload.size())).toCompact();
     REQUIRE_FALSE(token.empty());
 
-    bool verified = JWS::verify(token, key);
-    REQUIRE(verified);
+    REQUIRE(verify(JWS::fromCompact(token), key));
 }
 
 TEST_CASE("Section4_4_HMAC_SHA2_Signature", "[jwa][section4-4-hmac-sha2-signature]")
@@ -179,17 +163,10 @@ TEST_CASE("Section4_4_HMAC_SHA2_Signature", "[jwa][section4-4-hmac-sha2-signatur
                      "step onto the road, and if you don't keep your feet, there\xe2\x80\x99s "
                      "no knowing where you might be swept off to.";
 
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
-
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-
-    string token = jws.sign(key);
-    REQUIRE_FALSE(token.empty());
-
-    bool verified = JWS::verify(token, key);
-    REQUIRE(verified);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, payload);
+    REQUIRE_FALSE(jws.toCompact().empty());
+    REQUIRE(verify(jws, key));
 }
 
 TEST_CASE("Section4_5_DetachedSignature", "[jwa][section4-5-detachedsignature]")
@@ -199,18 +176,12 @@ TEST_CASE("Section4_5_DetachedSignature", "[jwa][section4-5-detachedsignature]")
                      "step onto the road, and if you don't keep your feet, there\xe2\x80\x99s "
                      "no knowing where you might be swept off to.";
 
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(JWA::SignatureAlgorithm::hs256);
-
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-
-    string token = jws.sign(key);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, payload);
 
     // For detached content, the payload would be removed from the token
     // This is implementation-specific; here we just verify the standard flow works
-    bool verified = JWS::verify(token, key);
-    REQUIRE(verified);
+    REQUIRE(verify(jws, key));
 }
 
 // Section 5 - JSON Web Encryption Examples
@@ -401,15 +372,11 @@ TEST_CASE("RoundTripWithDifferentAlgorithms", "[jwa][roundtripwithdifferentalgor
 
     for (auto const &[alg, key] : testCases)
     {
-        JWS jws;
-        jws.setPayload(payload);
-        jws.setAlgorithm(alg);
+        JWS jws = sign(key, alg, payload);
+        REQUIRE(verify(jws, key));
 
-        string token = jws.sign(key);
-        bool verified = JWS::verify(token, key);
-        REQUIRE(verified);
-
-        JWS parsed = JWS::parse(token);
-        REQUIRE(payload == parsed.getPayload());
+        JWS parsed = JWS::fromCompact(jws.toCompact());
+        auto parsed_bytes = parsed.getPayload();
+        REQUIRE(payload == string(parsed_bytes.begin(), parsed_bytes.end()));
     }
 }

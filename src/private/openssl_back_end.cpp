@@ -2187,7 +2187,7 @@ vector<unsigned char> aesCbcHmacDecrypt(EVP_CIPHER const *cipher,
 
 vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
                                             Key *key,
-                                            vector<unsigned char> const &data) const
+                                            span<unsigned char const> const &data) const
 {
     switch (algorithm)
     {
@@ -2220,11 +2220,11 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::ps256:
         case SignatureAlgorithm::ps384:
         case SignatureAlgorithm::ps512:
-            return signRsa(algorithm, key, data);
+            return signRsa(algorithm, key, vector<unsigned char>(data.begin(), data.end()));
         case SignatureAlgorithm::es256:
         case SignatureAlgorithm::es384:
         case SignatureAlgorithm::es512:
-            return signEc(algorithm, key, data);
+            return signEc(algorithm, key, vector<unsigned char>(data.begin(), data.end()));
         default:
             throw runtime_error("Unsupported signature algorithm");
     }
