@@ -1247,7 +1247,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
 }
 
 vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
-                                           vector<unsigned char> const &data) const
+                                           span<unsigned char const> const &data) const
 {
     EVP_MD const *md = nullptr;
     switch (algorithm)

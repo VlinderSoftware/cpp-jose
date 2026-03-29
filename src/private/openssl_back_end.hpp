@@ -126,7 +126,7 @@ public:
                                      std::vector<unsigned char> const &d_bytes) const override;
 
     std::vector<unsigned char> hash(HashAlgorithm algorithm,
-                                    std::vector<unsigned char> const &data) const override;
+                                    std::span<unsigned char const> const &data) const override;
 
     std::string getErrorString() const override;
 
