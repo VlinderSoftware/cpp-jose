@@ -1,6 +1,7 @@
 #ifndef JOSE_JWS_HPP
 #define JOSE_JWS_HPP
 
+#include <iostream>
 #include <memory>
 #include <span>
 #include <string>
@@ -281,6 +282,14 @@ JWS sign(JWK const &key,
  * @return true if signature is valid, false otherwise
  */
 bool verify(JWS const &jws, JWK const &key);
+
+std::ostream &operator<<(std::ostream &os, JWS const &jws);
+bool operator==(JWS const &lhs, JWS const &rhs);
+bool operator!=(JWS const &lhs, JWS const &rhs);
+bool operator<(JWS const &lhs, JWS const &rhs);
+bool operator<=(JWS const &lhs, JWS const &rhs);
+bool operator>(JWS const &lhs, JWS const &rhs);
+bool operator>=(JWS const &lhs, JWS const &rhs);
 
 }  // namespace JOSE
 }  // namespace Vlinder

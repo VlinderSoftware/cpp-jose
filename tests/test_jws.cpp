@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <map>
+#include <sstream>
 #include <string>
 
 #include "jose/jose.hpp"
@@ -821,4 +822,128 @@ TEST_CASE("JWS_FromJSONPreservesKid", "[jws][fromjsonpreserveskid]")
     // Round-trip through general JSON
     JWS parsed = JWS::fromJSON(JWS::fromCompact(compact).toJSON(false));
     REQUIRE(verify(parsed, key));
+}
+
+// ─── operator<< ──────────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_StreamOutput", "[jws][operators][streamoutput]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("stream payload"));
+
+    std::ostringstream oss;
+    oss << jws;
+    string output = oss.str();
+
+    // The streamed output must be identical to toCompact()
+    REQUIRE(output == jws.toCompact());
+    // Must be a valid compact token (two dots)
+    REQUIRE(string::npos != output.find('.'));
+}
+
+// ─── operator== ──────────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_EqualityIdentical", "[jws][operators][equality]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string compact = sign(key, JWA::SignatureAlgorithm::hs256, string("eq payload")).toCompact();
+    JWS a = JWS::fromCompact(compact);
+    JWS b = JWS::fromCompact(compact);
+
+    REQUIRE(a == b);
+}
+
+TEST_CASE("JWS_EqualityCopyIsEqual", "[jws][operators][equality]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("copy payload"));
+    JWS copy = original;
+
+    REQUIRE(original == copy);
+}
+
+// ─── operator!= ──────────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_InequalityDifferentPayloads", "[jws][operators][inequality]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS a = sign(key, JWA::SignatureAlgorithm::hs256, string("payload A"));
+    JWS b = sign(key, JWA::SignatureAlgorithm::hs256, string("payload B"));
+
+    REQUIRE(a != b);
+}
+
+TEST_CASE("JWS_InequalityFalseForCopy", "[jws][operators][inequality]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("ineq payload"));
+    JWS copy = original;
+
+    REQUIRE_FALSE(original != copy);
+}
+
+// ─── operator< / operator<= / operator> / operator>= ─────────────────────────
+
+TEST_CASE("JWS_OrderingReflexivity", "[jws][operators][ordering]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string compact = sign(key, JWA::SignatureAlgorithm::hs256, string("ref payload")).toCompact();
+    JWS a = JWS::fromCompact(compact);
+    JWS b = JWS::fromCompact(compact);
+
+    // a == b → not less, not greater; both <= and >=
+    REQUIRE_FALSE(a < b);
+    REQUIRE_FALSE(a > b);
+    REQUIRE(a <= b);
+    REQUIRE(a >= b);
+}
+
+TEST_CASE("JWS_OrderingConsistentWithCompact", "[jws][operators][ordering]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS a = sign(key, JWA::SignatureAlgorithm::hs256, string("alpha"));
+    JWS b = sign(key, JWA::SignatureAlgorithm::hs256, string("beta"));
+
+    string ca = a.toCompact();
+    string cb = b.toCompact();
+
+    // The operators must agree with lexicographic string comparison of the
+    // compact serializations that back them.
+    REQUIRE((a < b) == (ca < cb));
+    REQUIRE((a <= b) == (ca <= cb));
+    REQUIRE((a > b) == (ca > cb));
+    REQUIRE((a >= b) == (ca >= cb));
+    REQUIRE((a == b) == (ca == cb));
+    REQUIRE((a != b) == (ca != cb));
+}
+
+TEST_CASE("JWS_OrderingStrictAsymmetry", "[jws][operators][ordering]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+
+    // Create two tokens; at least one of the three orderings must hold strictly.
+    string compact_a = sign(key, JWA::SignatureAlgorithm::hs256, string("strict A")).toCompact();
+    string compact_b = sign(key, JWA::SignatureAlgorithm::hs256, string("strict B")).toCompact();
+
+    JWS a = JWS::fromCompact(compact_a);
+    JWS b = JWS::fromCompact(compact_b);
+
+    if (compact_a < compact_b)
+    {
+        REQUIRE(a < b);
+        REQUIRE(a <= b);
+        REQUIRE_FALSE(a > b);
+        REQUIRE_FALSE(a >= b);
+    }
+    else if (compact_a > compact_b)
+    {
+        REQUIRE(a > b);
+        REQUIRE(a >= b);
+        REQUIRE_FALSE(a < b);
+        REQUIRE_FALSE(a <= b);
+    }
+    else
+    {
+        REQUIRE(a == b);
+    }
 }

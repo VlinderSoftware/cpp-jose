@@ -73,15 +73,15 @@ JWS SignAttorney::construct(vector<unsigned char> payload,
                             string payload_b64,
                             vector<unsigned char> signature)
 {
-    auto impl = make_unique<JWS::Impl>(move(payload),
+    auto impl = make_unique<JWS::Impl>(std::move(payload),
                                        alg,
-                                       move(kid),
-                                       move(typ),
-                                       move(header_params),
-                                       move(header_b64),
-                                       move(payload_b64),
-                                       move(signature));
-    return JWS(move(impl));
+                                       std::move(kid),
+                                       std::move(typ),
+                                       std::move(header_params),
+                                       std::move(header_b64),
+                                       std::move(payload_b64),
+                                       std::move(signature));
+    return JWS(std::move(impl));
 }
 
 JWS::JWS(const JWS &other) : impl_(make_unique<Impl>(*other.impl_))
@@ -172,7 +172,7 @@ JWS JWS::fromCompact(string const &compact)
     auto signature = Base64URL::decode(sig_b64);
 
     Impl impl(payload_bytes, alg, kid, typ, header_params, header_b64, payload_b64, signature);
-    return JWS(make_unique<Impl>(move(impl)));
+    return JWS(make_unique<Impl>(std::move(impl)));
 }
 
 pair<optional<JWS>, bool> JWS::fromCompact(string const &compact, nothrow_t const &) noexcept
@@ -421,6 +421,43 @@ JWS sign(JWK const &key,
          std::string const &payload)
 {
     return sign(key, alg, type, {}, std::span<char const>(payload.data(), payload.size()));
+}
+
+ostream &operator<<(ostream &os, JWS const &jws)
+{
+    os << jws.toCompact();
+    return os;
+}
+bool operator==(JWS const &lhs, JWS const &rhs)
+{
+    string const lhs_compact = lhs.toCompact();
+    string const rhs_compact = rhs.toCompact();
+    return lhs_compact == rhs_compact;
+}
+
+bool operator!=(JWS const &lhs, JWS const &rhs)
+{
+    return !(lhs == rhs);
+}
+
+bool operator<(JWS const &lhs, JWS const &rhs)
+{
+    return lhs.toCompact() < rhs.toCompact();
+}
+
+bool operator<=(JWS const &lhs, JWS const &rhs)
+{
+    return lhs.toCompact() <= rhs.toCompact();
+}
+
+bool operator>(JWS const &lhs, JWS const &rhs)
+{
+    return lhs.toCompact() > rhs.toCompact();
+}
+
+bool operator>=(JWS const &lhs, JWS const &rhs)
+{
+    return lhs.toCompact() >= rhs.toCompact();
 }
 
 }  // namespace JOSE
