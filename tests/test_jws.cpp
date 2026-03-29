@@ -597,7 +597,8 @@ TEST_CASE("JWS_FromJSONNothrowInvalid", "[jws][fromjsonnothrowinvalid]")
 TEST_CASE("JWS_TryLoadFromCompact", "[jws][tryloadfromcompact]")
 {
     JWK key = JWK::generateOct(JWK::Use::signature, 256);
-    string compact = sign(key, JWA::SignatureAlgorithm::hs256, string("tryload compact")).toCompact();
+    string compact =
+        sign(key, JWA::SignatureAlgorithm::hs256, string("tryload compact")).toCompact();
 
     auto [jws_opt, ok] = JWS::tryLoad(compact);
     REQUIRE(ok);
@@ -778,7 +779,7 @@ TEST_CASE("JWS_RSAToJSONFromJSONVerifies", "[jws][rsatojsonfromjsonverifies]")
 
     // Both serialization formats must round-trip.
     JWS from_flat = JWS::fromJSON(original.toJSON(true));
-    JWS from_gen  = JWS::fromJSON(original.toJSON(false));
+    JWS from_gen = JWS::fromJSON(original.toJSON(false));
 
     REQUIRE(verify(from_flat, key));
     REQUIRE(verify(from_gen, key));
@@ -791,7 +792,7 @@ TEST_CASE("JWS_ECToJSONFromJSONVerifies", "[jws][ectojsonfromjsonverifies]")
     JWS original = sign(key, JWA::SignatureAlgorithm::es384, payload_str);
 
     JWS from_flat = JWS::fromJSON(original.toJSON(true));
-    JWS from_gen  = JWS::fromJSON(original.toJSON(false));
+    JWS from_gen = JWS::fromJSON(original.toJSON(false));
 
     REQUIRE(verify(from_flat, key));
     REQUIRE(verify(from_gen, key));
