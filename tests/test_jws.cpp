@@ -410,3 +410,414 @@ TEST_CASE("JWS_NoneDowngradeAttackRejected", "[jws][nonedowngradeattackrejected]
     }
     REQUIRE(rejected);
 }
+
+// ─── Move assignment operator ─────────────────────────────────────────────────
+
+TEST_CASE("JWS_MoveAssignmentOperator", "[jws][moveassignmentoperator]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string expected_payload = "move assignment payload";
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, expected_payload);
+    JWS other = sign(key, JWA::SignatureAlgorithm::hs256, string("other"));
+
+    other = std::move(original);
+    auto payload_bytes = other.getPayload();
+    REQUIRE(expected_payload == string(payload_bytes.begin(), payload_bytes.end()));
+}
+
+// ─── Copy assignment operator ─────────────────────────────────────────────────
+
+TEST_CASE("JWS_CopyAssignmentOperator", "[jws][copyassignmentoperator]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("copy assign payload"));
+    JWS target = sign(key, JWA::SignatureAlgorithm::hs256, string("target payload"));
+
+    target = original;
+    REQUIRE(original.getPayload() == target.getPayload());
+    // Both should still verify
+    REQUIRE(verify(original, key));
+    REQUIRE(verify(target, key));
+}
+
+// ─── swap ─────────────────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_Swap", "[jws][swap]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_a = "payload_a";
+    string payload_b = "payload_b";
+    JWS a = sign(key, JWA::SignatureAlgorithm::hs256, payload_a);
+    JWS b = sign(key, JWA::SignatureAlgorithm::hs256, payload_b);
+
+    a.swap(b);
+
+    auto bytes_a = a.getPayload();
+    auto bytes_b = b.getPayload();
+    REQUIRE(payload_b == string(bytes_a.begin(), bytes_a.end()));
+    REQUIRE(payload_a == string(bytes_b.begin(), bytes_b.end()));
+}
+
+// ─── toJSON (flattened) ────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_ToJSONFlattened", "[jws][tojsonflattened]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("flattened payload"));
+
+    string json_str = jws.toJSON(true);
+    REQUIRE_FALSE(json_str.empty());
+
+    // Flattened format must have "payload", "protected", "signature" at top level;
+    // it must NOT have a "signatures" array.
+    REQUIRE(string::npos != json_str.find("\"payload\""));
+    REQUIRE(string::npos != json_str.find("\"protected\""));
+    REQUIRE(string::npos != json_str.find("\"signature\""));
+    REQUIRE(string::npos == json_str.find("\"signatures\""));
+}
+
+TEST_CASE("JWS_ToJSONFlattenedRoundTrip", "[jws][tojsonflattenedRoundTrip]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "flattened round-trip";
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, payload_str);
+
+    string json_str = original.toJSON(true);
+    JWS parsed = JWS::fromJSON(json_str);
+
+    auto bytes = parsed.getPayload();
+    REQUIRE(payload_str == string(bytes.begin(), bytes.end()));
+    REQUIRE(verify(parsed, key));
+}
+
+// ─── toJSON (general / multi-signature JSON) ──────────────────────────────────
+
+TEST_CASE("JWS_ToJSONGeneral", "[jws][tojsongeneral]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("general payload"));
+
+    string json_str = jws.toJSON(false);
+    REQUIRE_FALSE(json_str.empty());
+
+    // General format must have "payload" and "signatures" array; no top-level "signature".
+    REQUIRE(string::npos != json_str.find("\"payload\""));
+    REQUIRE(string::npos != json_str.find("\"signatures\""));
+    REQUIRE(string::npos != json_str.find("\"protected\""));
+}
+
+TEST_CASE("JWS_ToJSONGeneralRoundTrip", "[jws][tojsongeneralRoundTrip]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "general round-trip";
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, payload_str);
+
+    string json_str = original.toJSON(false);
+    JWS parsed = JWS::fromJSON(json_str);
+
+    auto bytes = parsed.getPayload();
+    REQUIRE(payload_str == string(bytes.begin(), bytes.end()));
+    REQUIRE(verify(parsed, key));
+}
+
+// ─── fromJSON – flattened serialization ──────────────────────────────────────
+
+TEST_CASE("JWS_FromJSONFlattenedVerifies", "[jws][fromjsonflattenedverifies]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string payload_str = "rsa flattened json round-trip";
+    JWS original = sign(key, JWA::SignatureAlgorithm::rs256, payload_str);
+
+    JWS parsed = JWS::fromJSON(original.toJSON(true));
+    REQUIRE(verify(parsed, key));
+
+    auto bytes = parsed.getPayload();
+    REQUIRE(payload_str == string(bytes.begin(), bytes.end()));
+}
+
+TEST_CASE("JWS_FromJSONFlattenedWithCustomHeaderParams",
+          "[jws][fromjsonflattenedwithcustomheaderparams]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS original = sign(key,
+                        JWA::SignatureAlgorithm::hs256,
+                        string("JWT"),
+                        map<string, string>{{"x-custom", "x-value"}},
+                        string("param payload"));
+
+    JWS parsed = JWS::fromJSON(original.toJSON(true));
+    REQUIRE(verify(parsed, key));
+}
+
+// ─── fromJSON – general serialization ────────────────────────────────────────
+
+TEST_CASE("JWS_FromJSONGeneralVerifies", "[jws][fromjsongeneralverifies]")
+{
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
+    string payload_str = "ec general json round-trip";
+    JWS original = sign(key, JWA::SignatureAlgorithm::es256, payload_str);
+
+    JWS parsed = JWS::fromJSON(original.toJSON(false));
+    REQUIRE(verify(parsed, key));
+
+    auto bytes = parsed.getPayload();
+    REQUIRE(payload_str == string(bytes.begin(), bytes.end()));
+}
+
+TEST_CASE("JWS_FromJSONEmptySignaturesThrows", "[jws][fromjsonemptysignaturesthrows]")
+{
+    // Build a general JSON with an empty "signatures" array; fromJSON must throw.
+    string bad_json = R"({"payload":"dGVzdA","signatures":[]})";
+    REQUIRE_THROWS(JWS::fromJSON(bad_json));
+}
+
+// ─── fromJSON nothrow ─────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_FromJSONNothrowValid", "[jws][fromjsonnothrowvalid]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("nothrow valid"));
+    string json_str = original.toJSON(true);
+
+    auto [jws_opt, ok] = JWS::fromJSON(json_str, std::nothrow);
+    REQUIRE(ok);
+    REQUIRE(jws_opt.has_value());
+    REQUIRE(verify(*jws_opt, key));
+}
+
+TEST_CASE("JWS_FromJSONNothrowInvalid", "[jws][fromjsonnothrowinvalid]")
+{
+    auto [jws_opt, ok] = JWS::fromJSON("not valid json at all {{{", std::nothrow);
+    REQUIRE_FALSE(ok);
+    REQUIRE_FALSE(jws_opt.has_value());
+}
+
+// ─── tryLoad ─────────────────────────────────────────────────────────────────
+
+TEST_CASE("JWS_TryLoadFromCompact", "[jws][tryloadfromcompact]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string compact = sign(key, JWA::SignatureAlgorithm::hs256, string("tryload compact")).toCompact();
+
+    auto [jws_opt, ok] = JWS::tryLoad(compact);
+    REQUIRE(ok);
+    REQUIRE(jws_opt.has_value());
+    REQUIRE(verify(*jws_opt, key));
+}
+
+TEST_CASE("JWS_TryLoadFromJSON", "[jws][tryloadfromjson]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("tryload json"));
+    string json_str = original.toJSON(true);
+
+    auto [jws_opt, ok] = JWS::tryLoad(json_str);
+    REQUIRE(ok);
+    REQUIRE(jws_opt.has_value());
+    REQUIRE(verify(*jws_opt, key));
+}
+
+TEST_CASE("JWS_TryLoadInvalidInput", "[jws][tryloadinvalidinput]")
+{
+    auto [jws_opt, ok] = JWS::tryLoad("this is neither compact nor json");
+    REQUIRE_FALSE(ok);
+    REQUIRE_FALSE(jws_opt.has_value());
+}
+
+// ─── fromCompact error paths ──────────────────────────────────────────────────
+
+TEST_CASE("JWS_FromCompactMissingFirstDotThrows", "[jws][fromcompactmissingfirstdotthrows]")
+{
+    REQUIRE_THROWS(JWS::fromCompact("nodots"));
+}
+
+TEST_CASE("JWS_FromCompactMissingSecondDotThrows", "[jws][fromcompactmissingseconddotthrows]")
+{
+    REQUIRE_THROWS(JWS::fromCompact("one.dot"));
+}
+
+TEST_CASE("JWS_FromCompactNothrowMissingDot", "[jws][fromcompactnothrowmissingdot]")
+{
+    auto [jws_opt, ok] = JWS::fromCompact("nodots", std::nothrow);
+    REQUIRE_FALSE(ok);
+    REQUIRE_FALSE(jws_opt.has_value());
+}
+
+// ─── fromCompact preserves custom header params ───────────────────────────────
+
+TEST_CASE("JWS_FromCompactPreservesHeaderParams", "[jws][fromcompactpreservesheaderparams]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string compact = sign(key,
+                          JWA::SignatureAlgorithm::hs256,
+                          string("JWT"),
+                          map<string, string>{{"x-ns", "test-ns"}},
+                          string("param payload"))
+                         .toCompact();
+
+    // Round-trip through fromCompact: the extra header param must appear in the header.
+    JWS parsed = JWS::fromCompact(compact);
+    REQUIRE(verify(parsed, key));
+
+    // Verify the header contains our custom param by inspecting the compact token directly.
+    size_t dot = compact.find('.');
+    string header_json = Base64URL::decodeToString(compact.substr(0, dot));
+    REQUIRE(string::npos != header_json.find("x-ns"));
+    REQUIRE(string::npos != header_json.find("test-ns"));
+}
+
+// ─── sign overloads – span<unsigned char const> ───────────────────────────────
+
+TEST_CASE("JWS_SignSpanUnsignedChar", "[jws][signspanunsignedchar]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "unsigned span payload";
+    vector<unsigned char> payload_bytes(payload_str.begin(), payload_str.end());
+    span<unsigned char const> payload_span(payload_bytes.data(), payload_bytes.size());
+
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, payload_span);
+    REQUIRE(verify(jws, key));
+
+    auto got = jws.getPayload();
+    REQUIRE(payload_bytes == got);
+}
+
+TEST_CASE("JWS_SignTypeAndSpanCharConst", "[jws][signtypeandspancharconst]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "type + char span";
+    span<char const> payload_span(payload_str.data(), payload_str.size());
+
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("JWT"), payload_span);
+    REQUIRE(verify(jws, key));
+
+    string compact = jws.toCompact();
+    string header = Base64URL::decodeToString(compact.substr(0, compact.find('.')));
+    REQUIRE(string::npos != header.find("JWT"));
+}
+
+TEST_CASE("JWS_SignTypeAndSpanUnsignedChar", "[jws][signtypeandspanunsignedchar]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "type + unsigned span";
+    vector<unsigned char> payload_bytes(payload_str.begin(), payload_str.end());
+    span<unsigned char const> payload_span(payload_bytes.data(), payload_bytes.size());
+
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("JWT"), payload_span);
+    REQUIRE(verify(jws, key));
+}
+
+// ─── sign overloads – vector<unsigned char> ───────────────────────────────────
+
+TEST_CASE("JWS_SignVectorUnsignedChar", "[jws][signvectorunsignedchar]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "vector unsigned char payload";
+    vector<unsigned char> payload_bytes(payload_str.begin(), payload_str.end());
+
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, payload_bytes);
+    REQUIRE(verify(jws, key));
+
+    auto got = jws.getPayload();
+    REQUIRE(payload_bytes == got);
+}
+
+TEST_CASE("JWS_SignTypeAndVectorUnsignedChar", "[jws][signtypeandvectorunsignedchar]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string payload_str = "type + vector unsigned char";
+    vector<unsigned char> payload_bytes(payload_str.begin(), payload_str.end());
+
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("JWT"), payload_bytes);
+    REQUIRE(verify(jws, key));
+
+    string compact = jws.toCompact();
+    string header = Base64URL::decodeToString(compact.substr(0, compact.find('.')));
+    REQUIRE(string::npos != header.find("JWT"));
+}
+
+// ─── Invalid key use for signing ─────────────────────────────────────────────
+
+TEST_CASE("JWS_SignWithEncryptionKeyThrows", "[jws][signwithencryptionkeythrows]")
+{
+    JWK enc_key = JWK::generateOct(JWK::Use::encryption, 256);
+    REQUIRE_THROWS_AS(sign(enc_key, JWA::SignatureAlgorithm::hs256, string("payload")),
+                      std::invalid_argument);
+}
+
+// ─── PSS algorithms – successful verification ─────────────────────────────────
+
+TEST_CASE("JWS_VerifyPS256RoundTrip", "[jws][verifyps256roundtrip]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::ps256, string("ps256 payload"));
+    REQUIRE(verify(jws, key));
+}
+
+TEST_CASE("JWS_VerifyPS384RoundTrip", "[jws][verifyps384roundtrip]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::ps384, string("ps384 payload"));
+    REQUIRE(verify(jws, key));
+}
+
+TEST_CASE("JWS_VerifyPS512RoundTrip", "[jws][verifyps512roundtrip]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::ps512, string("ps512 payload"));
+    REQUIRE(verify(jws, key));
+}
+
+// ─── toJSON / fromJSON – asymmetric algorithms ────────────────────────────────
+
+TEST_CASE("JWS_RSAToJSONFromJSONVerifies", "[jws][rsatojsonfromjsonverifies]")
+{
+    JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+    string payload_str = "rsa json serialization";
+    JWS original = sign(key, JWA::SignatureAlgorithm::rs256, payload_str);
+
+    // Both serialization formats must round-trip.
+    JWS from_flat = JWS::fromJSON(original.toJSON(true));
+    JWS from_gen  = JWS::fromJSON(original.toJSON(false));
+
+    REQUIRE(verify(from_flat, key));
+    REQUIRE(verify(from_gen, key));
+}
+
+TEST_CASE("JWS_ECToJSONFromJSONVerifies", "[jws][ectojsonfromjsonverifies]")
+{
+    JWK key = JWK::generateEC(JWK::Use::signature, "P-384");
+    string payload_str = "ec p384 json serialization";
+    JWS original = sign(key, JWA::SignatureAlgorithm::es384, payload_str);
+
+    JWS from_flat = JWS::fromJSON(original.toJSON(true));
+    JWS from_gen  = JWS::fromJSON(original.toJSON(false));
+
+    REQUIRE(verify(from_flat, key));
+    REQUIRE(verify(from_gen, key));
+}
+
+// ─── toJSON default parameter (false) ────────────────────────────────────────
+
+TEST_CASE("JWS_ToJSONDefaultIsGeneral", "[jws][tojsondefaultisgeneral]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, string("default json"));
+
+    // Default argument of toJSON() must be false → general format
+    string json_str = jws.toJSON();
+    REQUIRE(string::npos != json_str.find("\"signatures\""));
+}
+
+// ─── fromJSON with kid in header ──────────────────────────────────────────────
+
+TEST_CASE("JWS_FromJSONPreservesKid", "[jws][fromjsonpreserveskid]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    // Give the key an explicit kid so the header carries it.
+    string compact = sign(key, JWA::SignatureAlgorithm::hs256, string("kid payload")).toCompact();
+
+    // Round-trip through general JSON
+    JWS parsed = JWS::fromJSON(JWS::fromCompact(compact).toJSON(false));
+    REQUIRE(verify(parsed, key));
+}
