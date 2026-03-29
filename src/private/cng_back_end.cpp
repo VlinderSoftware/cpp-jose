@@ -2886,7 +2886,7 @@ vector<unsigned char> CNGBackEnd::decryptContent_(ContentEncryptionAlgorithm alg
 }
 
 vector<unsigned char> CNGBackEnd::hash(HashAlgorithm algorithm,
-                                       vector<unsigned char> const &data) const
+                                       span<unsigned char const> const &data) const
 {
     wchar_t const *algorithm_name(nullptr);
     switch (algorithm)

@@ -13,7 +13,7 @@ class TestBackEnd : public BackEnd
 {
 public:
     vector<unsigned char> hash(HashAlgorithm /*algorithm*/,
-                               vector<unsigned char> const & /*data*/) const override
+                               span<unsigned char const> const & /*data*/) const override
     {
         return vector<unsigned char>(32, 0xAA);
     }

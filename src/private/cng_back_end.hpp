@@ -130,8 +130,8 @@ public:
                 std::vector<unsigned char> const &x_bytes,
                 std::vector<unsigned char> const &d_bytes) const override;
 
-    virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
-                                            std::vector<unsigned char> const &data) const override;
+    virtual std::vector<unsigned char>
+    hash(HashAlgorithm algorithm, std::span<unsigned char const> const &data) const override;
 
     /// Backend-specific error string
     virtual std::string getErrorString() const override;

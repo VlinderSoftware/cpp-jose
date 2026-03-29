@@ -232,7 +232,7 @@ public:
                                               std::vector<unsigned char> const &tag) const;
 
     virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
-                                            std::vector<unsigned char> const &data) const = 0;
+                                            std::span<unsigned char const> const &data) const = 0;
 
     /// Returns a backend-specific error string (stub for non-OpenSSL backends)
     virtual std::string getErrorString() const
