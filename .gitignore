@@ -1,6 +1,7 @@
 # Build directories
 build/
 build-*/
+build_*/
 cmake-build-*/
 
 # Build artifacts
@@ -9,6 +10,7 @@ cmake-build-*/
 *.so
 *.dylib
 *.exe
+*.gcov
 
 # IDE and editor files
 .vscode/
