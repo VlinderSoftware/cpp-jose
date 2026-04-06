@@ -376,8 +376,8 @@ TEST_CASE("JWS_NoneAlgorithmNonEmptySignatureRejected",
     token += "AAAA";  // non-empty signature
 
     bool rejected = true;
-    auto [jws_opt, ok] = JWS::fromCompact(token, std::nothrow);
-    if (ok && jws_opt.has_value())
+    auto jws_opt = JWS::fromCompact(token, std::nothrow);
+    if (jws_opt.has_value())
     {
         rejected = !verify(*jws_opt, key);
     }
@@ -404,8 +404,8 @@ TEST_CASE("JWS_NoneDowngradeAttackRejected", "[jws][nonedowngradeattackrejected]
     tampered += '.';
 
     bool rejected = true;
-    auto [jws_opt, ok] = JWS::fromCompact(tampered, std::nothrow);
-    if (ok && jws_opt.has_value())
+    auto jws_opt = JWS::fromCompact(tampered, std::nothrow);
+    if (jws_opt.has_value())
     {
         rejected = !verify(*jws_opt, key);
     }
@@ -580,16 +580,14 @@ TEST_CASE("JWS_FromJSONNothrowValid", "[jws][fromjsonnothrowvalid]")
     JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("nothrow valid"));
     string json_str = original.toJSON(true);
 
-    auto [jws_opt, ok] = JWS::fromJSON(json_str, std::nothrow);
-    REQUIRE(ok);
+    auto jws_opt = JWS::fromJSON(json_str, std::nothrow);
     REQUIRE(jws_opt.has_value());
     REQUIRE(verify(*jws_opt, key));
 }
 
 TEST_CASE("JWS_FromJSONNothrowInvalid", "[jws][fromjsonnothrowinvalid]")
 {
-    auto [jws_opt, ok] = JWS::fromJSON("not valid json at all {{{", std::nothrow);
-    REQUIRE_FALSE(ok);
+    auto jws_opt = JWS::fromJSON("not valid json at all {{{", std::nothrow);
     REQUIRE_FALSE(jws_opt.has_value());
 }
 
@@ -601,8 +599,7 @@ TEST_CASE("JWS_TryLoadFromCompact", "[jws][tryloadfromcompact]")
     string compact =
         sign(key, JWA::SignatureAlgorithm::hs256, string("tryload compact")).toCompact();
 
-    auto [jws_opt, ok] = JWS::tryLoad(compact);
-    REQUIRE(ok);
+    auto jws_opt = JWS::tryLoad(compact);
     REQUIRE(jws_opt.has_value());
     REQUIRE(verify(*jws_opt, key));
 }
@@ -613,16 +610,14 @@ TEST_CASE("JWS_TryLoadFromJSON", "[jws][tryloadfromjson]")
     JWS original = sign(key, JWA::SignatureAlgorithm::hs256, string("tryload json"));
     string json_str = original.toJSON(true);
 
-    auto [jws_opt, ok] = JWS::tryLoad(json_str);
-    REQUIRE(ok);
+    auto jws_opt = JWS::tryLoad(json_str);
     REQUIRE(jws_opt.has_value());
     REQUIRE(verify(*jws_opt, key));
 }
 
 TEST_CASE("JWS_TryLoadInvalidInput", "[jws][tryloadinvalidinput]")
 {
-    auto [jws_opt, ok] = JWS::tryLoad("this is neither compact nor json");
-    REQUIRE_FALSE(ok);
+    auto jws_opt = JWS::tryLoad("this is neither compact nor json");
     REQUIRE_FALSE(jws_opt.has_value());
 }
 
@@ -640,8 +635,7 @@ TEST_CASE("JWS_FromCompactMissingSecondDotThrows", "[jws][fromcompactmissingseco
 
 TEST_CASE("JWS_FromCompactNothrowMissingDot", "[jws][fromcompactnothrowmissingdot]")
 {
-    auto [jws_opt, ok] = JWS::fromCompact("nodots", std::nothrow);
-    REQUIRE_FALSE(ok);
+    auto jws_opt = JWS::fromCompact("nodots", std::nothrow);
     REQUIRE_FALSE(jws_opt.has_value());
 }
 

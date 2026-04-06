@@ -175,15 +175,15 @@ JWS JWS::fromCompact(string const &compact)
     return JWS(make_unique<Impl>(std::move(impl)));
 }
 
-pair<optional<JWS>, bool> JWS::fromCompact(string const &compact, nothrow_t const &) noexcept
+optional<JWS> JWS::fromCompact(string const &compact, nothrow_t const &) noexcept
 {
     try
     {
-        return {fromCompact(compact), true};
+        return fromCompact(compact);
     }
     catch (...)
     {
-        return {nullopt, false};
+        return nullopt;
     }
 }
 
@@ -239,24 +239,24 @@ JWS JWS::fromJSON(string const &json_str)
     return JWS(make_unique<Impl>(std::move(impl)));
 }
 
-pair<optional<JWS>, bool> JWS::fromJSON(string const &json_str, nothrow_t const &) noexcept
+optional<JWS> JWS::fromJSON(string const &json_str, nothrow_t const &) noexcept
 {
     try
     {
-        return {fromJSON(json_str), true};
+        return fromJSON(json_str);
     }
     catch (...)
     {
-        return {nullopt, false};
+        return nullopt;
     }
 }
 
-pair<optional<JWS>, bool> JWS::tryLoad(string const &input) noexcept
+optional<JWS> JWS::tryLoad(string const &input) noexcept
 {
-    auto [jws, ok] = fromCompact(input, nothrow);
-    if (ok)
+    auto jws = fromCompact(input, nothrow);
+    if (jws.has_value())
     {
-        return {std::move(jws), true};
+        return jws;
     }
     return fromJSON(input, nothrow);
 }

@@ -50,7 +50,7 @@ public:
      * @param input Compact or JSON serialization string
      * @return Pair of optional JWS object and success flag
      */
-    static std::pair<std::optional<JWS>, bool> tryLoad(std::string const &input) noexcept;
+    static std::optional<JWS> tryLoad(std::string const &input) noexcept;
 
     /**
      * @brief Try to load JWS from JSON serialization
@@ -58,8 +58,7 @@ public:
      * @param nothrow If true, do not throw exceptions on failure
      * @return Pair of optional JWS object and success flag
      */
-    static std::pair<std::optional<JWS>, bool> fromJSON(std::string const &json,
-                                                        std::nothrow_t const &) noexcept;
+    static std::optional<JWS> fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
 
     /**
      * @brief Try to load JWS from compact serialization
@@ -67,8 +66,8 @@ public:
      * @param nothrow If true, do not throw exceptions on failure
      * @return Pair of optional JWS object and success flag
      */
-    static std::pair<std::optional<JWS>, bool> fromCompact(std::string const &compact,
-                                                           std::nothrow_t const &) noexcept;
+    static std::optional<JWS> fromCompact(std::string const &compact,
+                                          std::nothrow_t const &) noexcept;
 
     /**
      * @brief Serialize to compact format (three base64url-encoded parts separated by dots)

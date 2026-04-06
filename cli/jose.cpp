@@ -313,13 +313,13 @@ static int cmdJwsVerify(Args const &args)
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
     auto jws_opt = JWS::tryLoad(token);
-    if (!jws_opt.second)
+    if (!jws_opt.has_value())
     {
         cerr << "Failed to parse JWS token\n";
         return 1;
     }
 
-    if (!verify(*jws_opt.first, key))
+    if (!verify(*jws_opt, key))
     {
         cerr << "Signature verification FAILED\n";
         return 1;
@@ -332,12 +332,12 @@ static int cmdJwsInspect(Args const &args)
 {
     string token = trim(readInput(args.input()));
     auto jws_opt = JWS::tryLoad(token);
-    if (!jws_opt.second)
+    if (!jws_opt.has_value())
     {
         cerr << "Failed to parse JWS token\n";
         return 1;
     }
-    auto jws = *jws_opt.first;
+    auto jws = *jws_opt;
 
     //TODO
     // cout << "header : " << jws.getHeader() << "\n"
