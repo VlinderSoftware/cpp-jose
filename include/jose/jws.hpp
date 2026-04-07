@@ -8,8 +8,10 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <type_traits>
 #include <vector>
 
+#include "base64url.hpp"
 #include "jwa.hpp"
 
 namespace Vlinder {
@@ -90,6 +92,24 @@ public:
      * @return Payload bytes
      */
     std::vector<unsigned char> getPayload() const;
+
+    /**
+     * @brief Get the payload as T.
+     *
+     * Supported specialisations:
+     *   - `std::string`  — returns the payload bytes as a UTF-8 string.
+     *   - `std::string` with `base64url_encode = true` — returns the payload
+     *     as a base64url-encoded string (no padding).
+     *   - `std::vector<unsigned char>` — identical to the non-template overload.
+     *
+     * @tparam T  `std::string` or `std::vector<unsigned char>`.
+     * @param base64url_encode  When `T` is `std::string`, encode the bytes as
+     *                          base64url instead of treating them as raw text.
+     *                          Ignored when `T` is `std::vector<unsigned char>`.
+     * @return Payload as `T`.
+     */
+    template <typename T>
+    T getPayload(bool base64url_encode = false) const;
 
 private:
     struct Impl;
@@ -292,6 +312,26 @@ bool operator<(JWS const &lhs, JWS const &rhs);
 bool operator<=(JWS const &lhs, JWS const &rhs);
 bool operator>(JWS const &lhs, JWS const &rhs);
 bool operator>=(JWS const &lhs, JWS const &rhs);
+
+// ─── getPayload<T> template definition ──────────────────────────────────────
+
+template <typename T>
+inline T JWS::getPayload(bool base64url_encode) const
+{
+    if constexpr (std::is_same_v<T, std::string>)
+    {
+        if (base64url_encode)
+            return Base64URL::encode(getPayload());
+        auto const bytes = getPayload();
+        return std::string(bytes.begin(), bytes.end());
+    }
+    else
+    {
+        static_assert(std::is_same_v<T, std::vector<unsigned char>>,
+                      "getPayload<T>: T must be std::string or std::vector< unsigned char >");
+        return getPayload();
+    }
+}
 
 }  // namespace JOSE
 }  // namespace Vlinder

@@ -942,3 +942,45 @@ TEST_CASE("JWS_OrderingStrictAsymmetry", "[jws][operators][ordering]")
         REQUIRE(a == b);
     }
 }
+
+// ─── getPayload<T> template overloads ────────────────────────────────────────
+
+TEST_CASE("JWS_GetPayloadAsString", "[jws][getpayload][string]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string const expected = "hello from getPayload<string>";
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, expected);
+
+    string actual = jws.getPayload<string>();
+
+    REQUIRE(actual == expected);
+}
+
+TEST_CASE("JWS_GetPayloadAsStringBase64Url", "[jws][getpayload][base64url]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string const payload = "base64url encoded payload";
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, payload);
+
+    string encoded = jws.getPayload<string>(true);
+
+    // Must be the base64url-encoded form of the raw payload bytes.
+    vector<unsigned char> raw = jws.getPayload();
+    string expected_b64 = Base64URL::encode(raw);
+    REQUIRE(encoded == expected_b64);
+
+    // Must not contain padding characters.
+    REQUIRE(string::npos == encoded.find('='));
+}
+
+TEST_CASE("JWS_GetPayloadAsVectorTemplate", "[jws][getpayload][vector]")
+{
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string const payload = "vector template payload";
+    JWS jws = sign(key, JWA::SignatureAlgorithm::hs256, payload);
+
+    vector<unsigned char> via_template = jws.getPayload<vector<unsigned char>>();
+    vector<unsigned char> via_non_template = jws.getPayload();
+
+    REQUIRE(via_template == via_non_template);
+}

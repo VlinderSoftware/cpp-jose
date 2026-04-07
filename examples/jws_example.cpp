@@ -34,9 +34,7 @@ void demonstrateAlgorithm(string const &alg_name, JWA::SignatureAlgorithm alg, c
 
     bool verified = verify(parsed, key);
     cout << "Verification: " << (verified ? "✓ SUCCESS" : "✗ FAILED") << endl;
-
-    // TODO
-    //    cout << "Payload: " << parsed.getPayload() << endl;
+    cout << "Payload: " << parsed.getPayload<string>() << endl;
 }
 
 int main()
