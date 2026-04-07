@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+check_only=0
+for arg in "$@"; do
+    case "${arg}" in
+        --check-only | -CheckOnly) check_only=1 ;;
+        *) echo "Unknown argument: ${arg}" >&2; exit 1 ;;
+    esac
+done
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="${script_dir}"
 
@@ -53,10 +61,15 @@ fi
 echo "Using clang-format: $(command -v clang-format)"
 echo "Files discovered: ${#files[@]}"
 
-# First pass: check whether any files need reformatting.
+# Use --output-replacements-xml to detect whether a file needs reformatting
+# without passing the formatted content through the shell (which would mangle
+# multi-byte UTF-8 in comments/string literals on some locales).
+# clang-format emits a self-closing <replacements/> tag when the file is already
+# formatted; otherwise it emits one or more <replacement ...> elements.
 needs_formatting=()
 for file in "${files[@]}"; do
-    if ! diff -q "${file}" <(clang-format --style=file "${file}") >/dev/null 2>&1; then
+    xml="$(clang-format --style=file --output-replacements-xml "${file}")"
+    if echo "${xml}" | grep -q '<replacement '; then
         rel="${file#${repo_root}/}"
         needs_formatting+=("${rel}")
     fi
@@ -67,7 +80,15 @@ if [[ ${#needs_formatting[@]} -eq 0 ]]; then
     exit 0
 fi
 
-# Second pass: reformat in place.
+if [[ ${check_only} -eq 1 ]]; then
+    echo "Files requiring formatting:"
+    for rel in "${needs_formatting[@]}"; do
+        echo " - ${rel}"
+    done
+    exit 1
+fi
+
+# Reformat in place.
 for file in "${files[@]}"; do
     clang-format -i --style=file "${file}"
 done
@@ -76,6 +97,4 @@ echo "Reformatted ${#needs_formatting[@]} file(s):"
 for rel in "${needs_formatting[@]}"; do
     echo "  ${rel}"
 done
-
-# Return 1 to signal that files were changed.
-exit 1
+exit 0
