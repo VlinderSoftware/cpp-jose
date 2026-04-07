@@ -293,16 +293,41 @@ static int cmdJwsSign(Args const &args)
 {
     string alg_s   = args.require("alg");
     string key_src = args.require("key");
+    string kid     = args.get("kid");
+    string typ     = args.get("typ");
     string payload = readInput(args.input());
 
     auto it = kSigAlgs.find(alg_s);
     if (it == kSigAlgs.end())
         throw runtime_error("Unknown signature algorithm: " + alg_s);
 
-    JWK key = JWK::fromJSON(trim(readInput(key_src)));
+    string key_json = trim(readInput(key_src));
 
-    cout << sign(key, it->second, span<char const>(payload.data(), payload.size())).toCompact() << "\n";
+    // If --kid is given, try to resolve from a JWK Set first.
+    JWK key = [&]() -> JWK
+    {
+        if (!kid.empty())
+        {
+            optional<JWKSet> ks;
+            try { ks = JWKSet::fromJSON(key_json); } catch (...) {}
+            if (ks)
+            {
+                auto entry = ks->getKey(kid);  // throws if kid is absent
+                if (!holds_alternative<JWK>(entry))
+                    throw runtime_error("Key '" + kid + "' is a JWE, not a signing key");
+                return get<JWK>(entry);
+            }
+        }
+        return JWK::fromJSON(key_json);
+    }();
 
+    // RFC 7515 §4.1.9: typ is optional with no defined default for general JWS.
+    span<char const> const payload_span(payload.data(), payload.size());
+    cout << (typ.empty()
+                 ? sign(key, it->second, payload_span)
+                 : sign(key, it->second, typ, payload_span))
+                .toCompact()
+         << "\n";
     return 0;
 }
 
@@ -358,10 +383,10 @@ static void helpJws()
         "  inspect  Decode and display header and payload (no verification)\n"
         "\n"
         "sign options:\n"
-        "  --key FILE   JWK key file (required)\n"
+        "  --key FILE   JWK key file or JWK Set file (required)\n"
         "  --alg ALG    Algorithm: HS256|RS256|ES256|PS256|...  (required)\n"
-        "  --kid ID     Key ID to embed in header\n"
-        "  --typ TYPE   typ header (e.g. JWT)\n"
+        "  --kid ID     Select signing key by ID from a JWK Set\n"
+        "  --typ TYPE   typ header value; omitted by default (RFC 7515 §4.1.9)\n"
         "\n"
         "verify options:\n"
         "  --key FILE   JWK key file (required)\n";

@@ -234,7 +234,7 @@ public:
     std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                     std::vector<unsigned char> const &data) const
     {
-        return hash(algorithm, std::span<unsigned char const>{ data });
+        return hash(algorithm, std::span<unsigned char const>{data});
     }
     virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                             std::span<unsigned char const> const &data) const = 0;
