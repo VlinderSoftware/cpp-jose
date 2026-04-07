@@ -189,7 +189,7 @@ optional<JWS> JWS::fromCompact(string const &compact, nothrow_t const &) noexcep
 
 JWS JWS::fromJSON(string const &json_str)
 {
-    json j = json::parse(json_str);
+    json const j = json::parse(json_str);
 
     string payload_b64;
     string header_b64;
