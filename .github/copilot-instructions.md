@@ -53,3 +53,23 @@
 - **Environment file pattern:** If the workspace depends on environment variables, include a tracked `dot-env` template and an untracked `.env` file for local values.
 - **Secrets handling:** `.env` must remain gitignored and must not be committed. `dot-env` should contain keys/placeholders only (no secrets).
 - **Sync rule:** When adding or changing required environment variables, update `dot-env` in the same change.
+
+## Development Process Overview
+
+This project follows a strict TDD/BDD workflow. Detailed per-phase instructions live in `.github/instructions/` and are loaded automatically by Copilot based on which files you are editing:
+
+| Phase | Instruction file | Activates when editing |
+|-------|-----------------|------------------------|
+| **1 — Design** | [`01-design.instructions.md`](.github/instructions/01-design.instructions.md) | `include/**/*.hpp`, `src/**/*.hpp` |
+| **2 — Test (TDD/BDD)** | [`02-tdd-bdd.instructions.md`](.github/instructions/02-tdd-bdd.instructions.md) | `tests/**/*.cpp`, `tests/**/*.hpp` |
+| **3 — Implementation** | [`03-implementation.instructions.md`](.github/instructions/03-implementation.instructions.md) | `src/**/*.cpp`, `cli/**/*.cpp`, `examples/**/*.cpp` |
+| **4 — Code Review** | [`04-review.instructions.md`](.github/instructions/04-review.instructions.md) | All files (`**`) |
+| **5 — Pull Request** | [`05-pull-request.instructions.md`](.github/instructions/05-pull-request.instructions.md) | All files (`**`) |
+
+### Process in Brief
+
+1. **Design** — Finalise the header/interface first. Trace every addition to an RFC in `doc/`.
+2. **Write failing tests** — Use Catch2 `SCENARIO`/`GIVEN`/`WHEN`/`THEN` for behaviour tests; `TEST_CASE` for unit-level checks. Include RFC 7520 test vectors for any serialisation change.
+3. **Implement** — Make the tests green with the minimum necessary code. Run `clang-format` and `clang-tidy` before committing.
+4. **Review** — Every PR must pass the style checklist in `04-review.instructions.md`. Coverage on modified `src/` files must be ≥ **85 %**.
+5. **PR** — Use the PR description template, ensure the CI matrix is fully green, and squash-merge into `dev`.
