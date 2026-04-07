@@ -10,6 +10,17 @@ When reviewing code changes in this repository, verify every item below. A revie
 
 ## 1. Style Enforcement
 
+### 1.0 Reformat Script (`clang-format`)
+
+- [ ] `scripts/Reformat.ps1 -CheckOnly` exits **0** — no files need reformatting.
+
+```powershell
+# Run from the repo root after bootstrapping
+.\scripts\Reformat.ps1 -CheckOnly
+```
+
+The script checks all `.cpp` / `.hpp` / `.h` / `.ipp` / `.inl` files under `src/`, `include/`, `tests/`, and `examples/`. Any exit code other than 0 is a **FAIL** — block the review until the author re-runs `./scripts/Reformat.ps1` (without `-CheckOnly`) and pushes the formatted commit.
+
 ### 1.1 `const` Placement (East-const)
 
 - [ ] All `const` qualifiers appear **after** the type: `T const t`, `T const &t`, `T const *p`.
@@ -156,7 +167,7 @@ If the change touches JWS, JWE, JWK, or JWT serialisation:
 | All sections PASS | Decision |
 |-------------------|----------|
 | Yes | Approve |
-| Style failures only | Request changes (non-blocking if clang-format/tidy will auto-fix) |
+| Style failures only | Request changes (non-blocking **only** if `Reformat.ps1` will auto-fix; block otherwise) |
 | Coverage < 85 % | Block — request additional tests |
 | Security failure | Block immediately |
 | Architecture violation | Block — discuss before proceeding |

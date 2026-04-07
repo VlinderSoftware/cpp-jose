@@ -155,10 +155,18 @@ All other braces follow Allman style (opening brace on a new line).
 
 ## After Writing Code
 
-1. Run `clang-format` on every modified file:
+1. Run the repo reformat script to apply `clang-format` to **all** source files in `src/`, `include/`, `tests/`, and `examples/`:
    ```powershell
-   clang-format -i src/jws.cpp src/private/openssl_back_end.cpp
+   .\scripts\Reformat.ps1
    ```
+   Then verify the result is clean (script exits 0, nothing left to format):
+   ```powershell
+   .\scripts\Reformat.ps1 -CheckOnly
+   ```
+   The `-CheckOnly` flag exits 1 and lists any files still needing formatting — **the check must pass before committing**.
+
+   > **Never** run `clang-format` on individual files in isolation; always use `Reformat.ps1` so the scope matches the CI check exactly.
+
 2. Run `clang-tidy`:
    ```powershell
    clang-tidy src/jws.cpp -- -std=c++20 -I include
