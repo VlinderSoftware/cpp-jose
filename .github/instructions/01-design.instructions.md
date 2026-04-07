@@ -38,7 +38,47 @@ Before designing a new interface:
 - Include order: C++ Standard Library → third-party → project headers.
 - **Never** add `using namespace` to a header.
 - All names must be fully qualified (`std::vector`, `std::unique_ptr`, etc.).
-- Doxygen comments (`///`) on every public type, function, and enum value.
+- Doxygen `///` or `/** */` comments on every public type, function, and enum value.
+
+### Doxygen Correctness Rules
+
+Every Doxygen comment must accurately describe the declaration it precedes. Common mistakes to avoid:
+
+| Mistake | Correct approach |
+|---------|----------------|
+| `@return` describes a type that no longer matches (e.g. "Pair of X and Y" when the function returns `std::optional<X>`) | Mirror the actual return type word-for-word |
+| `@param` name does not match the parameter name in the signature | Copy the exact identifier from the declaration |
+| `@param` documents a parameter that does not exist in the signature | Remove the `@param` |
+| Unnamed (tag-type) parameters with a `@param` entry | Remove the `@param`; describe the overload's behaviour in `@brief` instead |
+| `@brief` describes a different operation than what the function does | Re-read the function signature before writing the brief |
+
+Specific patterns for this project:
+
+```cpp
+// WRONG — return type mismatch
+/// @return Pair of optional JWS object and success flag
+std::optional< JWS > fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
+
+// CORRECT
+/// @return std::optional<JWS> containing the loaded token if valid, or empty
+///         if the input could not be parsed.
+std::optional< JWS > fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
+
+// WRONG — @param name does not match the declared identifier
+/// @param input  Compact or JSON serialization string
+static JWS fromCompact(std::string const &compact);
+
+// CORRECT
+/// @param compact  Compact (three-part dot-delimited) serialization string
+static JWS fromCompact(std::string const &compact);
+
+// WRONG — documents a parameter that does not exist in this overload
+/// @param type    Type header field (e.g., "JWT")
+JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &payload);
+
+// CORRECT — no @param type when the overload has no type parameter
+JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &payload);
+```
 
 ## Naming in Headers
 

@@ -153,19 +153,41 @@ namespace Vlinder::JOSE
 
 All other braces follow Allman style (opening brace on a new line).
 
+## Doxygen Comments
+
+When adding or modifying a public function, update (or add) its Doxygen comment to match the current signature:
+
+- `@brief` must describe what **this** function does — not a copy-paste from a related overload.
+- Every named parameter must have a matching `@param`; every `@param` must match a real parameter name in the declaration. Delete `@param` lines for removed parameters.
+- Unnamed tag-type parameters (e.g. `std::nothrow_t const &`) must **not** have a `@param` entry. Document the non-throwing behaviour in `@brief` instead.
+- `@return` must accurately name the actual return type:
+  - `std::optional<T>` → "…containing X if valid, or empty if parsing fails" — **never** "Pair of X and flag".
+  - `void` → omit `@return`.
+- When you change a function's signature (add/remove/rename a parameter, change the return type), update the comment in the **same commit**.
+
 ## After Writing Code
 
 1. Run the repo reformat script to apply `clang-format` to **all** source files in `src/`, `include/`, `tests/`, and `examples/`:
    ```powershell
+   # Windows
    .\scripts\Reformat.ps1
+   ```
+   ```bash
+   # Linux / macOS
+   ./scripts/reformat.sh
    ```
    Then verify the result is clean (script exits 0, nothing left to format):
    ```powershell
+   # Windows
    .\scripts\Reformat.ps1 -CheckOnly
    ```
-   The `-CheckOnly` flag exits 1 and lists any files still needing formatting — **the check must pass before committing**.
+   ```bash
+   # Linux / macOS
+   ./scripts/reformat.sh --check-only
+   ```
+   The check flag exits 1 and lists any files still needing formatting — **the check must pass before committing**.
 
-   > **Never** run `clang-format` on individual files in isolation; always use `Reformat.ps1` so the scope matches the CI check exactly.
+   > **Never** run `clang-format` on individual files in isolation; always use the reformat script so the scope matches the CI check exactly.
 
 2. Run `clang-tidy`:
    ```powershell

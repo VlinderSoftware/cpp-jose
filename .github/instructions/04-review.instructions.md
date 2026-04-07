@@ -12,14 +12,19 @@ When reviewing code changes in this repository, verify every item below. A revie
 
 ### 1.0 Reformat Script (`clang-format`)
 
-- [ ] `scripts/Reformat.ps1 -CheckOnly` exits **0** — no files need reformatting.
+- [ ] The reformat script exits **0** — no files need reformatting.
 
 ```powershell
-# Run from the repo root after bootstrapping
+# Windows (PowerShell) — run from the repo root after bootstrapping
 .\scripts\Reformat.ps1 -CheckOnly
 ```
 
-The script checks all `.cpp` / `.hpp` / `.h` / `.ipp` / `.inl` files under `src/`, `include/`, `tests/`, and `examples/`. Any exit code other than 0 is a **FAIL** — block the review until the author re-runs `./scripts/Reformat.ps1` (without `-CheckOnly`) and pushes the formatted commit.
+```bash
+# Linux / macOS
+./scripts/reformat.sh --check-only
+```
+
+The script checks all `.cpp` / `.hpp` / `.h` / `.ipp` / `.inl` files under `src/`, `include/`, `tests/`, and `examples/`. Any exit code other than 0 is a **FAIL** — block the review until the author re-runs the script (without `-CheckOnly` / `--check-only`) and pushes the formatted commit.
 
 ### 1.1 `const` Placement (East-const)
 
@@ -156,9 +161,22 @@ If the change touches JWS, JWE, JWK, or JWT serialisation:
 
 ## 6. Documentation
 
-- [ ] Public API functions have `///` Doxygen comments.
+### 6.1 Doxygen Present
+
+- [ ] Every new or modified public function / type has a `///` or `/** */` Doxygen comment.
 - [ ] RFC section references appear in comments next to non-obvious logic.
 - [ ] `TODO.txt` is updated if the change is partial or defers something.
+
+### 6.2 Doxygen Accuracy
+
+For every Doxygen comment on a changed declaration, verify:
+
+- [ ] `@param` names match the declared parameter names exactly — no phantom params, no missing params.
+- [ ] Unnamed (tag-type) parameters (e.g. `std::nothrow_t const &`) have **no** `@param` entry; the non-throwing behaviour is described in `@brief`.
+- [ ] `@return` accurately names the return type (e.g. `std::optional<JWS>`, not "Pair of optional X and flag").
+- [ ] `@brief` describes the operation **this overload** performs, not a copy-paste from a sibling overload.
+
+Failures in 6.2 are a **block** — misleading docs are treated the same as a runtime bug for API consumers.
 
 ---
 
