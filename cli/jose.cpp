@@ -308,14 +308,20 @@ static int cmdJwsSign(Args const &args)
     {
         if (!kid.empty())
         {
-            optional<JWKSet> ks;
-            try { ks = JWKSet::fromJSON(key_json); } catch (...) {}
-            if (ks)
+            bool parsed_as_set = false;
+            try
             {
-                auto entry = ks->getKey(kid);  // throws if kid is absent
+                JWKSet ks = JWKSet::fromJSON(key_json);
+                parsed_as_set = true;
+                auto entry = ks.getKey(kid);
                 if (!holds_alternative<JWK>(entry))
                     throw runtime_error("Key '" + kid + "' is a JWE, not a signing key");
                 return get<JWK>(entry);
+            }
+            catch (...)
+            {
+                if (parsed_as_set)
+                    throw;  // getKey error (kid not found, wrong type); don't swallow
             }
         }
         return JWK::fromJSON(key_json);
@@ -364,11 +370,16 @@ static int cmdJwsInspect(Args const &args)
     }
     auto jws = *jws_opt;
 
-    auto const header = jws.header().toJSON();
-    auto const payload = jws.payload();
+    // Decode the header directly from the compact token's first segment.
+    auto dot1 = token.find('.');
+    string header_json = (dot1 != string::npos)
+                             ? Base64URL::decodeToString(token.substr(0, dot1))
+                             : string{};
 
-    cout << "header : " << header << "\n"
-         << "payload: " << string(payload.begin(), payload.end()) << "\n";
+    auto raw_payload = jws.getPayload();
+
+    cout << "header : " << header_json << "\n"
+         << "payload: " << string(raw_payload.begin(), raw_payload.end()) << "\n";
     return 0;
 }
 
