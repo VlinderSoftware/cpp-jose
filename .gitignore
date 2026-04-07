@@ -29,3 +29,4 @@ Testing/
 
 # Machine-local CMake presets
 CMakeUserPresets.json
+*.hpp.fmt*
