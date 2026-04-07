@@ -1,8 +1,11 @@
 #ifndef JOSE_JWS_HPP
 #define JOSE_JWS_HPP
 
-#include <iostream>
+#include <iosfwd>
+#include <map>
 #include <memory>
+#include <new>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>

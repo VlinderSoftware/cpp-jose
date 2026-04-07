@@ -339,9 +339,11 @@ static int cmdJwsInspect(Args const &args)
     }
     auto jws = *jws_opt;
 
-    //TODO
-    // cout << "header : " << jws.getHeader() << "\n"
-    //      << "payload: " << jws.getPayload() << "\n";
+    auto const header = jws.header().toJSON();
+    auto const payload = jws.payload();
+
+    cout << "header : " << header << "\n"
+         << "payload: " << string(payload.begin(), payload.end()) << "\n";
     return 0;
 }
 
