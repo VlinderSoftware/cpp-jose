@@ -37,8 +37,8 @@ public:
     JWS &swap(JWS &other) noexcept;
 
     /**
-     * @brief Load JWS from compact or JSON serialization
-     * @param input Compact or JSON serialization string
+     * @brief Load JWS from compact (three-part dot-delimited) serialization
+     * @param compact Compact serialization string
      * @return JWS object
      */
     static JWS fromCompact(std::string const &compact);
@@ -51,25 +51,26 @@ public:
     static JWS fromJSON(std::string const &json);
 
     /**
-     * @brief Try to load JWS from compact or JSON serialization
+     * @brief Try to load JWS from compact or JSON serialization without throwing
      * @param input Compact or JSON serialization string
-     * @return Pair of optional JWS object and success flag
+     * @return `std::optional<JWS>` containing the loaded token if valid, or
+     *         empty if the input could not be parsed.
      */
     static std::optional<JWS> tryLoad(std::string const &input) noexcept;
 
     /**
-     * @brief Try to load JWS from JSON serialization
+     * @brief Try to load JWS from JSON serialization without throwing
      * @param json JSON serialization string
-     * @param nothrow If true, do not throw exceptions on failure
-     * @return Pair of optional JWS object and success flag
+     * @return `std::optional<JWS>` containing the loaded token if valid, or
+     *         empty if the input could not be parsed.
      */
     static std::optional<JWS> fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
 
     /**
-     * @brief Try to load JWS from compact serialization
+     * @brief Try to load JWS from compact serialization without throwing
      * @param compact Compact serialization string
-     * @param nothrow If true, do not throw exceptions on failure
-     * @return Pair of optional JWS object and success flag
+     * @return `std::optional<JWS>` containing the loaded token if valid, or
+     *         empty if the input could not be parsed.
      */
     static std::optional<JWS> fromCompact(std::string const &compact,
                                           std::nothrow_t const &) noexcept;
@@ -97,10 +98,10 @@ public:
      * @brief Get the payload as T.
      *
      * Supported specialisations:
-     *   - `std::string`  — returns the payload bytes as a UTF-8 string.
-     *   - `std::string` with `base64url_encode = true` — returns the payload
+     *   - `std::string` -- returns the payload bytes as a UTF-8 string.
+     *   - `std::string` with `base64url_encode = true` -- returns the payload
      *     as a base64url-encoded string (no padding).
-     *   - `std::vector<unsigned char>` — identical to the non-template overload.
+     *   - `std::vector<unsigned char>` -- identical to the non-template overload.
      *
      * @tparam T  `std::string` or `std::vector<unsigned char>`.
      * @param base64url_encode  When `T` is `std::string`, encode the bytes as
@@ -235,8 +236,7 @@ JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::vector<unsigned char>
  * @brief Sign payload with the specified key and algorithm
  * @param key Key to use for signing
  * @param alg Signature algorithm
- * @param type Type (e.g., "JWT")
- * @param payload Data to sign
+ * @param payload Data to sign (interpreted as raw bytes)
  * @return JWS object representing the signed data
  */
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &payload);
@@ -313,7 +313,7 @@ bool operator<=(JWS const &lhs, JWS const &rhs);
 bool operator>(JWS const &lhs, JWS const &rhs);
 bool operator>=(JWS const &lhs, JWS const &rhs);
 
-// ─── getPayload<T> template definition ──────────────────────────────────────
+// --- getPayload<T> template definition
 
 template <typename T>
 inline T JWS::getPayload(bool base64url_encode) const
