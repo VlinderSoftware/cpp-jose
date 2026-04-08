@@ -4,6 +4,8 @@
 #include <sstream>
 #include <string>
 
+#include <nlohmann/json.hpp>
+
 #include "jose/jose.hpp"
 
 using namespace std;
@@ -571,6 +573,64 @@ TEST_CASE("JWS_FromJSONEmptySignaturesThrows", "[jws][fromjsonemptysignaturesthr
     // Build a general JSON with an empty "signatures" array; fromJSON must throw.
     string bad_json = R"({"payload":"dGVzdA","signatures":[]})";
     REQUIRE_THROWS(JWS::fromJSON(bad_json));
+}
+
+TEST_CASE("JWS_FromJSONMultiSignatureAllVerify", "[jws][fromjsonmultisignatureallverify]")
+{
+    // A general-format JWS with two signatures (same key, same alg): both must verify.
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string single = sign(key, JWA::SignatureAlgorithm::hs256, string("payload")).toJSON(false);
+
+    // Duplicate the signatures entry to produce a two-signature general JWS.
+    auto j = nlohmann::json::parse(single);
+    auto sig_entry = j["signatures"][0];
+    j["signatures"].push_back(sig_entry);
+
+    JWS multi = JWS::fromJSON(j.dump());
+    REQUIRE(verify(multi, key));
+}
+
+TEST_CASE("JWS_FromJSONMultiSignatureOneBadFails", "[jws][fromjsonmultisignatureonebad]")
+{
+    // If one of the applicable signatures is tampered with, verify() must fail.
+    JWK key = JWK::generateOct(JWK::Use::signature, 256);
+    string single = sign(key, JWA::SignatureAlgorithm::hs256, string("payload")).toJSON(false);
+
+    auto j = nlohmann::json::parse(single);
+    // Duplicate the entry, then corrupt the second signature.
+    auto sig_entry = j["signatures"][0];
+    string const good_sig = sig_entry["signature"].get<string>();
+    // Flip the first character to produce an invalid base64url value.
+    string bad_sig = good_sig;
+    bad_sig[0] = (bad_sig[0] == 'A') ? 'B' : 'A';
+    sig_entry["signature"] = bad_sig;
+    j["signatures"].push_back(sig_entry);
+
+    JWS multi = JWS::fromJSON(j.dump());
+    REQUIRE_FALSE(verify(multi, key));
+}
+
+TEST_CASE("JWS_FromJSONMultiSignatureDifferentKeyTypes", "[jws][fromjsonmultisignaturedifferentkeys]")
+{
+    // A JWS signed with both HS256 and RS256; verify with only the oct key
+    // must succeed (RS256 entry is skipped as incompatible key type).
+    JWK oct_key = JWK::generateOct(JWK::Use::signature, 256);
+    JWK rsa_key = JWK::generateRSA(JWK::Use::signature, 2048);
+
+    string payload_str = "mixed key type payload";
+    string hs_json = sign(oct_key, JWA::SignatureAlgorithm::hs256, payload_str).toJSON(false);
+    string rs_json = sign(rsa_key, JWA::SignatureAlgorithm::rs256, payload_str).toJSON(false);
+
+    auto jh = nlohmann::json::parse(hs_json);
+    auto jr = nlohmann::json::parse(rs_json);
+    // Build combined JWS: same payload, both signature entries.
+    auto combined = nlohmann::json::object();
+    combined["payload"] = jh["payload"];
+    combined["signatures"] = nlohmann::json::array({jh["signatures"][0], jr["signatures"][0]});
+
+    JWS multi = JWS::fromJSON(combined.dump());
+    REQUIRE(verify(multi, oct_key));
+    REQUIRE(verify(multi, rsa_key));
 }
 
 // ─── fromJSON nothrow ─────────────────────────────────────────────────────────

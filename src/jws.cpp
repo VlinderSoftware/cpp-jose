@@ -33,7 +33,19 @@ Private::BackEnd &getBackEnd()
 
 struct JWS::Impl
 {
+    struct SignatureEntry
+    {
+        JWA::SignatureAlgorithm algorithm_ = JWA::SignatureAlgorithm::rs256;
+        string kid_;
+        string typ_;
+        map<string, string> header_params_;
+        string header_b64_;
+        vector<unsigned char> signature_;
+    };
+
     Impl() = default;
+
+    /// Single-signature constructor — used by sign() and fromCompact().
     Impl(vector<unsigned char> const &payload,
          JWA::SignatureAlgorithm algorithm,
          string const &kid,
@@ -42,20 +54,22 @@ struct JWS::Impl
          string const &header_b64,
          string const &payload_b64,
          vector<unsigned char> const &signature)
-        : payload_(payload), algorithm_(algorithm), kid_(kid), typ_(typ),
-          header_params_(header_params), header_b64_(header_b64), payload_b64_(payload_b64),
-          signature_(signature)
+        : payload_(payload), payload_b64_(payload_b64)
+    {
+        signatures_.push_back({algorithm, kid, typ, header_params, header_b64, signature});
+    }
+
+    /// Multi-signature constructor — used by fromJSON() for general serialization.
+    Impl(vector<unsigned char> const &payload,
+         string const &payload_b64,
+         vector<SignatureEntry> signatures)
+        : payload_(payload), payload_b64_(payload_b64), signatures_(std::move(signatures))
     {
     }
 
     vector<unsigned char> payload_;
-    JWA::SignatureAlgorithm algorithm_ = JWA::SignatureAlgorithm::rs256;
-    string kid_;
-    string typ_;
-    map<string, string> header_params_;
-    string header_b64_;
     string payload_b64_;
-    vector<unsigned char> signature_;
+    vector<SignatureEntry> signatures_;
 };
 
 JWS::~JWS() = default;
@@ -111,27 +125,46 @@ vector<unsigned char> JWS::getPayload() const
 
 string JWS::toCompact() const
 {
-    return impl_->header_b64_ + "." + impl_->payload_b64_ + "." +
-           Base64URL::encode(impl_->signature_);
+    if (impl_->signatures_.size() != 1)
+    {
+        throw runtime_error(
+            "toCompact() requires exactly one signature; this JWS has " +
+            to_string(impl_->signatures_.size()));
+    }
+    auto const &sig = impl_->signatures_[0];
+    return sig.header_b64_ + "." + impl_->payload_b64_ + "." +
+           Base64URL::encode(sig.signature_);
 }
 
 string JWS::toJSON(bool flattened) const
 {
-    string const sig_b64 = Base64URL::encode(impl_->signature_);
     if (flattened)
     {
+        if (impl_->signatures_.size() != 1)
+        {
+            throw runtime_error(
+                "toJSON(flattened) requires exactly one signature; this JWS has " +
+                to_string(impl_->signatures_.size()));
+        }
+        auto const &sig = impl_->signatures_[0];
         json j = json::object();
         j["payload"] = impl_->payload_b64_;
-        j["protected"] = impl_->header_b64_;
-        j["signature"] = sig_b64;
+        j["protected"] = sig.header_b64_;
+        j["signature"] = Base64URL::encode(sig.signature_);
         return j.dump();
     }
-    json sig_obj = json::object();
-    sig_obj["protected"] = impl_->header_b64_;
-    sig_obj["signature"] = sig_b64;
+    // General serialization — supports multiple signatures (RFC 7515 §7.2)
+    json sigs_arr = json::array();
+    for (auto const &sig : impl_->signatures_)
+    {
+        json sig_obj = json::object();
+        sig_obj["protected"] = sig.header_b64_;
+        sig_obj["signature"] = Base64URL::encode(sig.signature_);
+        sigs_arr.push_back(sig_obj);
+    }
     json j = json::object();
     j["payload"] = impl_->payload_b64_;
-    j["signatures"] = json::array({sig_obj});
+    j["signatures"] = sigs_arr;
     return j.dump();
 }
 
@@ -191,52 +224,54 @@ JWS JWS::fromJSON(string const &json_str)
 {
     json const j = json::parse(json_str);
 
+    auto const parse_sig_entry = [](string const &hdr_b64, string const &sig_b64) -> Impl::SignatureEntry
+    {
+        json header = json::parse(Base64URL::decodeToString(hdr_b64));
+        string const alg_str = header.value("alg", "");
+        JWA::SignatureAlgorithm alg = JWA::signatureAlgorithmFromString(alg_str);
+        string const kid = header.value("kid", "");
+        string const typ = header.value("typ", "");
+        map<string, string> header_params;
+        for (auto const &[k, v] : header.items())
+        {
+            if (k != "alg" && k != "kid" && k != "typ" && v.is_string())
+            {
+                header_params[k] = v.get<string>();
+            }
+        }
+        return {alg, kid, typ, header_params, hdr_b64, Base64URL::decode(sig_b64)};
+    };
+
     string payload_b64;
-    string header_b64;
-    string sig_b64;
+    vector<Impl::SignatureEntry> entries;
 
     if (j.contains("signatures"))
     {
-        // General JWS JSON serialization
-        payload_b64 = j["payload"].get<string>();
-        auto const &sigs = j["signatures"];
+        // General JWS JSON serialization (RFC 7515 §7.2)
+        payload_b64 = j.at("payload").get<string>();
+        auto const &sigs = j.at("signatures");
         if (sigs.empty())
         {
             throw runtime_error("JWS JSON has no signatures");
         }
-        auto const &first = sigs[0];
-        header_b64 = first["protected"].get<string>();
-        sig_b64 = first["signature"].get<string>();
+        for (auto const &entry : sigs)
+        {
+            entries.push_back(parse_sig_entry(
+                entry.at("protected").get<string>(),
+                entry.at("signature").get<string>()));
+        }
     }
     else
     {
-        // Flattened JWS JSON serialization
-        payload_b64 = j["payload"].get<string>();
-        header_b64 = j["protected"].get<string>();
-        sig_b64 = j["signature"].get<string>();
-    }
-
-    json header = json::parse(Base64URL::decodeToString(header_b64));
-
-    string alg_str = header.value("alg", "");
-    JWA::SignatureAlgorithm alg = JWA::signatureAlgorithmFromString(alg_str);
-    string kid = header.value("kid", "");
-    string typ = header.value("typ", "");
-
-    map<string, string> header_params;
-    for (auto const &[k, v] : header.items())
-    {
-        if (k != "alg" && k != "kid" && k != "typ" && v.is_string())
-        {
-            header_params[k] = v.get<string>();
-        }
+        // Flattened JWS JSON serialization (RFC 7515 §7.2.2)
+        payload_b64 = j.at("payload").get<string>();
+        entries.push_back(parse_sig_entry(
+            j.at("protected").get<string>(),
+            j.at("signature").get<string>()));
     }
 
     auto payload_bytes = Base64URL::decode(payload_b64);
-    auto signature = Base64URL::decode(sig_b64);
-
-    Impl impl(payload_bytes, alg, kid, typ, header_params, header_b64, payload_b64, signature);
-    return JWS(make_unique<Impl>(std::move(impl)));
+    return JWS(make_unique<Impl>(payload_bytes, payload_b64, std::move(entries)));
 }
 
 optional<JWS> JWS::fromJSON(string const &json_str, nothrow_t const &) noexcept
@@ -265,17 +300,65 @@ JWS::JWS(unique_ptr<Impl> impl) : impl_(std::move(impl))
 {
 }
 
+namespace {
+bool isCompatibleWithKey(JWA::SignatureAlgorithm alg, JWK const &key)
+{
+    switch (alg)
+    {
+        case JWA::SignatureAlgorithm::hs256:
+        case JWA::SignatureAlgorithm::hs384:
+        case JWA::SignatureAlgorithm::hs512:
+            return key.getKeyType() == JWK::KeyType::oct;
+        case JWA::SignatureAlgorithm::rs256:
+        case JWA::SignatureAlgorithm::rs384:
+        case JWA::SignatureAlgorithm::rs512:
+        case JWA::SignatureAlgorithm::ps256:
+        case JWA::SignatureAlgorithm::ps384:
+        case JWA::SignatureAlgorithm::ps512:
+            return key.getKeyType() == JWK::KeyType::rsa;
+        case JWA::SignatureAlgorithm::es256:
+        case JWA::SignatureAlgorithm::es384:
+        case JWA::SignatureAlgorithm::es512:
+            return key.getKeyType() == JWK::KeyType::ec;
+        case JWA::SignatureAlgorithm::none:
+            return false;  // alg:none is never acceptable for verification (RFC 7515 §8.4)
+    }
+    return false;
+}
+
+bool kidMatches(string const &sig_kid, JWK const &key)
+{
+    string const key_kid = key.getKeyID();
+    // If either kid is empty, do not filter by kid.
+    if (sig_kid.empty() || key_kid.empty())
+        return true;
+    return sig_kid == key_kid;
+}
+}  // namespace
+
 bool verify(JWS const &jws, JWK const &key)
 {
     auto const &impl = *jws.impl_;
-    // Reject none-algorithm to prevent algorithm-confusion attacks (RFC 7515 §8.4)
-    if (impl.algorithm_ == JWA::SignatureAlgorithm::none)
+    bool found_applicable = false;
+    for (auto const &sig : impl.signatures_)
     {
-        return false;
+        // Skip signatures whose algorithm is incompatible with this key type,
+        // or whose kid does not match the key's kid (when both are non-empty).
+        if (!isCompatibleWithKey(sig.algorithm_, key) || !kidMatches(sig.kid_, key))
+        {
+            continue;
+        }
+        found_applicable = true;
+        string const signing_input = sig.header_b64_ + "." + impl.payload_b64_;
+        vector<unsigned char> const signing_input_bytes(signing_input.begin(), signing_input.end());
+        // Any compatible signature that fails to verify causes the whole check to fail.
+        if (!getBackEnd().verify(sig.algorithm_, key, signing_input_bytes, sig.signature_))
+        {
+            return false;
+        }
     }
-    string const signing_input = impl.header_b64_ + "." + impl.payload_b64_;
-    vector<unsigned char> const signing_input_bytes(signing_input.begin(), signing_input.end());
-    return getBackEnd().verify(impl.algorithm_, key, signing_input_bytes, impl.signature_);
+    // If no signature was applicable to this key, verification fails.
+    return found_applicable;
 }
 
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::span<char const> const &payload)
