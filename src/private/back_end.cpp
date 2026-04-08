@@ -113,7 +113,7 @@ BackEnd::concatKDF(vector<unsigned char> const &shared_secret /* Z in the spec *
 vector<unsigned char>
 BackEnd::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data) const
 {
-    return sign(algorithm, key, std::span<unsigned char const>(data.data(), data.size()));
+    return sign(algorithm, key, span<unsigned char const>(data.data(), data.size()));
 }
 
 vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
