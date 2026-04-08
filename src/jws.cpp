@@ -343,10 +343,10 @@ JWS sign(JWK const &key,
         throw std::invalid_argument("Key use must be 'signature' for signing");
     }
 
-    // Reject reserved JOSE header parameter names in header_params (RFC 7515 §4.1).
-    // Allowing callers to override alg, kid, or typ via header_params would create
-    // an inconsistent JWS whose header claims a different algorithm than the one
-    // used to compute the signature, breaking verification.
+    // Reject the JOSE header parameter names that are set explicitly by sign().
+    // header_params may contain other JOSE header members, but it must not
+    // override alg, kid, or typ because that would create an inconsistent JWS
+    // whose protected header does not match the signing inputs chosen here.
     static constexpr char const *reserved[] = {"alg", "kid", "typ"};
     for (auto const &param : header_params)
     {
