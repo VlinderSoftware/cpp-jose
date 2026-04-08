@@ -1,10 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include <cstring>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <string>
-
-#include <nlohmann/json.hpp>
 
 #include "jose/jose.hpp"
 
@@ -610,7 +609,8 @@ TEST_CASE("JWS_FromJSONMultiSignatureOneBadFails", "[jws][fromjsonmultisignature
     REQUIRE_FALSE(verify(multi, key));
 }
 
-TEST_CASE("JWS_FromJSONMultiSignatureDifferentKeyTypes", "[jws][fromjsonmultisignaturedifferentkeys]")
+TEST_CASE("JWS_FromJSONMultiSignatureDifferentKeyTypes",
+          "[jws][fromjsonmultisignaturedifferentkeys]")
 {
     // A JWS signed with both HS256 and RS256; verify with only the oct key
     // must succeed (RS256 entry is skipped as incompatible key type).

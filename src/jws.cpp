@@ -127,13 +127,11 @@ string JWS::toCompact() const
 {
     if (impl_->signatures_.size() != 1)
     {
-        throw runtime_error(
-            "toCompact() requires exactly one signature; this JWS has " +
-            to_string(impl_->signatures_.size()));
+        throw runtime_error("toCompact() requires exactly one signature; this JWS has " +
+                            to_string(impl_->signatures_.size()));
     }
     auto const &sig = impl_->signatures_[0];
-    return sig.header_b64_ + "." + impl_->payload_b64_ + "." +
-           Base64URL::encode(sig.signature_);
+    return sig.header_b64_ + "." + impl_->payload_b64_ + "." + Base64URL::encode(sig.signature_);
 }
 
 string JWS::toJSON(bool flattened) const
@@ -142,9 +140,8 @@ string JWS::toJSON(bool flattened) const
     {
         if (impl_->signatures_.size() != 1)
         {
-            throw runtime_error(
-                "toJSON(flattened) requires exactly one signature; this JWS has " +
-                to_string(impl_->signatures_.size()));
+            throw runtime_error("toJSON(flattened) requires exactly one signature; this JWS has " +
+                                to_string(impl_->signatures_.size()));
         }
         auto const &sig = impl_->signatures_[0];
         json j = json::object();
@@ -224,7 +221,8 @@ JWS JWS::fromJSON(string const &json_str)
 {
     json const j = json::parse(json_str);
 
-    auto const parse_sig_entry = [](string const &hdr_b64, string const &sig_b64) -> Impl::SignatureEntry
+    auto const parse_sig_entry = [](string const &hdr_b64,
+                                    string const &sig_b64) -> Impl::SignatureEntry
     {
         json header = json::parse(Base64URL::decodeToString(hdr_b64));
         string const alg_str = header.value("alg", "");
@@ -256,18 +254,16 @@ JWS JWS::fromJSON(string const &json_str)
         }
         for (auto const &entry : sigs)
         {
-            entries.push_back(parse_sig_entry(
-                entry.at("protected").get<string>(),
-                entry.at("signature").get<string>()));
+            entries.push_back(parse_sig_entry(entry.at("protected").get<string>(),
+                                              entry.at("signature").get<string>()));
         }
     }
     else
     {
         // Flattened JWS JSON serialization (RFC 7515 §7.2.2)
         payload_b64 = j.at("payload").get<string>();
-        entries.push_back(parse_sig_entry(
-            j.at("protected").get<string>(),
-            j.at("signature").get<string>()));
+        entries.push_back(
+            parse_sig_entry(j.at("protected").get<string>(), j.at("signature").get<string>()));
     }
 
     auto payload_bytes = Base64URL::decode(payload_b64);
