@@ -370,10 +370,12 @@ static int cmdJwsInspect(Args const &args)
     }
     auto jws = *jws_opt;
 
-    // Decode the header directly from the compact token's first segment.
-    auto dot1 = token.find('.');
+    // Re-serialize to compact so the header segment is always well-formed,
+    // regardless of whether the original input was compact or JSON.
+    string compact = jws.toCompact();
+    auto dot1 = compact.find('.');
     string header_json = (dot1 != string::npos)
-                             ? Base64URL::decodeToString(token.substr(0, dot1))
+                             ? Base64URL::decodeToString(compact.substr(0, dot1))
                              : string{};
 
     auto raw_payload = jws.getPayload();
