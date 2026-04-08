@@ -2220,11 +2220,11 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::ps256:
         case SignatureAlgorithm::ps384:
         case SignatureAlgorithm::ps512:
-            return signRsa(algorithm, key, vector<unsigned char>(data.begin(), data.end()));
+            return signRsa(algorithm, key, data);
         case SignatureAlgorithm::es256:
         case SignatureAlgorithm::es384:
         case SignatureAlgorithm::es512:
-            return signEc(algorithm, key, vector<unsigned char>(data.begin(), data.end()));
+            return signEc(algorithm, key, data);
         default:
             throw runtime_error("Unsupported signature algorithm");
     }
@@ -2408,7 +2408,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
 
 vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
                                               Key *key,
-                                              vector<unsigned char> const &data) const
+                                              span<unsigned char const> const &data) const
 {
     auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
                                  [](EVP_PKEY *imported)
@@ -2466,7 +2466,7 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
 
 vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                                              Key *key,
-                                             vector<unsigned char> const &data) const
+                                             span<unsigned char const> const &data) const
 {
     auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
                                  [](EVP_PKEY *imported)
@@ -2536,7 +2536,7 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
 
 vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
                                               Key *key,
-                                              vector<unsigned char> const &data) const
+                                              span<unsigned char const> const &data) const
 {
     (void)algorithm;
 

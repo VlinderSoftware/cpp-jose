@@ -167,12 +167,15 @@ protected:
                     std::vector<unsigned char> const &tag) const override;
 
 private:
-    std::vector<unsigned char>
-    signRsa(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const;
-    std::vector<unsigned char>
-    signEc(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const;
-    std::vector<unsigned char>
-    signOkp(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const;
+    std::vector<unsigned char> signRsa(SignatureAlgorithm algorithm,
+                                       Key *key,
+                                       std::span<unsigned char const> const &data) const;
+    std::vector<unsigned char> signEc(SignatureAlgorithm algorithm,
+                                      Key *key,
+                                      std::span<unsigned char const> const &data) const;
+    std::vector<unsigned char> signOkp(SignatureAlgorithm algorithm,
+                                       Key *key,
+                                       std::span<unsigned char const> const &data) const;
 };
 
 }  // namespace Private
