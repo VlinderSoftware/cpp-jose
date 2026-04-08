@@ -198,9 +198,13 @@ JWS sign(JWK const &key,
  * @param key Key to use for signing
  * @param alg Signature algorithm
  * @param type Type (e.g., "JWT")
- * @param header_params Additional header parameters
+ * @param header_params Additional header parameters to include in the protected header.
+ *        Must not contain any reserved JOSE header name: \"alg\", \"kid\", \"typ\",
+ *        \"cty\", \"enc\", \"zip\", \"jku\", \"jwk\", \"x5u\", \"x5c\", \"x5t\",
+ *        \"x5t#S256\", or \"crit\".
  * @param payload Data to sign
  * @return JWS object representing the signed data
+ * @throws std::invalid_argument if any key in \p header_params is a reserved JOSE header name
  */
 JWS sign(JWK const &key,
          JWA::SignatureAlgorithm alg,
@@ -213,9 +217,13 @@ JWS sign(JWK const &key,
  * @param key Key to use for signing
  * @param alg Signature algorithm
  * @param type Type (e.g., "JWT")
- * @param header_params Additional header parameters
+ * @param header_params Additional header parameters to include in the protected header.
+ *        Must not contain any reserved JOSE header name: \"alg\", \"kid\", \"typ\",
+ *        \"cty\", \"enc\", \"zip\", \"jku\", \"jwk\", \"x5u\", \"x5c\", \"x5t\",
+ *        \"x5t#S256\", or \"crit\".
  * @param payload Data to sign
  * @return JWS object representing the signed data
+ * @throws std::invalid_argument if any key in \p header_params is a reserved JOSE header name
  */
 JWS sign(JWK const &key,
          JWA::SignatureAlgorithm alg,
@@ -272,9 +280,13 @@ JWS sign(JWK const &key,
  * @param key Key to use for signing
  * @param alg Signature algorithm
  * @param type Type (e.g., "JWT")
- * @param header_params Additional header parameters
+ * @param header_params Additional header parameters to include in the protected header.
+ *        Must not contain any reserved JOSE header name: \"alg\", \"kid\", \"typ\",
+ *        \"cty\", \"enc\", \"zip\", \"jku\", \"jwk\", \"x5u\", \"x5c\", \"x5t\",
+ *        \"x5t#S256\", or \"crit\".
  * @param payload Data to sign
  * @return JWS object representing the signed data
+ * @throws std::invalid_argument if any key in \p header_params is a reserved JOSE header name
  */
 JWS sign(JWK const &key,
          JWA::SignatureAlgorithm alg,
@@ -287,9 +299,13 @@ JWS sign(JWK const &key,
  * @param key Key to use for signing
  * @param alg Signature algorithm
  * @param type Type (e.g., "JWT")
- * @param header_params Additional header parameters
+ * @param header_params Additional header parameters to include in the protected header.
+ *        Must not contain any reserved JOSE header name: \"alg\", \"kid\", \"typ\",
+ *        \"cty\", \"enc\", \"zip\", \"jku\", \"jwk\", \"x5u\", \"x5c\", \"x5t\",
+ *        \"x5t#S256\", or \"crit\".
  * @param payload Data to sign
  * @return JWS object representing the signed data
+ * @throws std::invalid_argument if any key in \p header_params is a reserved JOSE header name
  */
 JWS sign(JWK const &key,
          JWA::SignatureAlgorithm alg,
