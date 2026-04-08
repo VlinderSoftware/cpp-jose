@@ -133,6 +133,44 @@ Do not use `j["kty"]` (no `at`) for required fields — it silently inserts a nu
 - RSA key generation hardening: respect `JOSE_RSA_GENERATION_MAX_ATTEMPTS` where retry loops are needed.
 - Do not call `std::rand()` or `rand()` anywhere; use the backend's CSPRNG exclusively.
 
+### Protocol Field Injection Prevention
+
+Whenever a caller-supplied map (e.g. `std::map< std::string, std::string > const &header_params`) is merged into a protocol-defined header or claims set, **validate every key against the set of reserved field names before writing any of them**. Throw `std::invalid_argument` immediately on the first reserved name found.
+
+Reserved names for JOSE protected headers: `"alg"`, `"kid"`, `"typ"`, `"cty"`, `"enc"`, `"zip"`, `"jku"`, `"jwk"`, `"x5u"`, `"x5c"`, `"x5t"`, `"x5t#S256"`, `"crit"`.
+
+For JWT claims, registered claim names are equally off-limits: `"iss"`, `"sub"`, `"aud"`, `"exp"`, `"nbf"`, `"iat"`, `"jti"`.
+
+```cpp
+// CORRECT — validate before merging
+static constexpr char const *reserved_header[] = {"alg", "kid", "typ", "cty", "enc"};
+for (auto const &[key, value] : header_params)
+{
+    for (auto const *name : reserved_header)
+    {
+        if (key == name)
+        {
+            throw invalid_argument(
+                string("header_params must not contain reserved JOSE header parameter '") +
+                name + "'");
+        }
+    }
+}
+// ... then merge
+for (auto const &[key, value] : header_params)
+{
+    header[key] = value;
+}
+
+// WRONG — blindly merges, allows caller to override "alg"
+for (auto const &[key, value] : header_params)
+{
+    header[key] = value;  // caller can pass {"alg", "HS256"} and override the real algorithm
+}
+```
+
+The validation must happen **before** any reserved fields have been written to the header — this prevents a second write from clobbering the first, regardless of map insertion order.
+
 ## Namespace Braces — Exception to Allman Style
 
 Namespace opening braces stay on the **same line**:

@@ -237,6 +237,28 @@ bool operator>=(T const &lhs, T const &rhs);
 
 Parameters that accept opaque binary input use `std::span< unsigned char const >` or `std::span< char const >`. Do not accept `std::string` as a binary payload parameter; keep convenience overloads separate and clearly named.
 
+### Caller-Supplied Parameter Maps Must Document Reserved Names
+
+Any API function that accepts a `std::map< std::string, std::string >` (or similar) of caller-supplied header or claim parameters **must document in its Doxygen comment which names are reserved and will be rejected**. Never leave the validation implicit.
+
+```cpp
+// CORRECT — documents the constraint
+/// @param header_params  Additional header parameters to include. Must not contain
+///                       reserved JOSE header names: \"alg\", \"kid\", \"typ\", \"cty\".
+///                       Throws std::invalid_argument if a reserved name is supplied.
+JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type,
+         std::map< std::string, std::string > const &header_params,
+         std::span< char const > payload);
+
+// WRONG — caller has no idea which names are forbidden
+/// @param header_params  Additional header parameters to include.
+JWS sign(JWK const &key, JWA::SignatureAlgorithm alg,
+         std::map< std::string, std::string > const &header_params,
+         std::span< char const > payload);
+```
+
+The implementation must validate and throw **before** writing any caller-supplied field (see implementation instructions).
+
 ### Attorney Pattern for Controlled Construction
 
 When a class's constructor must be private (e.g. `JWS` may only be created by `sign()`), use the **Attorney–Client** pattern:

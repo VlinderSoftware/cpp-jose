@@ -130,6 +130,7 @@ If the change touches JWS, JWE, JWK, or JWT serialisation:
 - [ ] No `rand()` / `std::rand()` — all randomness through the crypto backend.
 - [ ] No plaintext secrets in comments, test payloads, or example files.
 - [ ] Input validation is performed at the public API boundary (parsing functions), not deep in the call stack.
+- [ ] **Protocol field injection**: any function that merges a caller-supplied parameter map into a protocol-defined header or claims set validates every key against the reserved-name set **before** writing any entry. Throws `std::invalid_argument` on the first reserved name. See implementation instructions for the reserved-name lists.
 
 ---
 
