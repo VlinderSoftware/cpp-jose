@@ -646,16 +646,16 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
     return jwk;
 }
 
-pair<optional<JWK>, bool>
-JWK::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t const &)
+optional<JWK>
+JWK::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t const &) noexcept
 {
     try
     {
-        return make_pair(make_optional<JWK>(JWK::fromJSON(json, ignore_private_if_present)), true);
+        return optional<JWK>{JWK::fromJSON(json, ignore_private_if_present)};
     }
     catch (...)
     {
-        return make_pair(nullopt, false);
+        return nullopt;
     }
 }
 

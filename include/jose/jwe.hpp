@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <new>
+#include <optional>
 #include <string>
 
 #include "jwa.hpp"
@@ -89,12 +90,11 @@ public:
     static JWE fromJSON(std::string const &jwe);
 
     /**
-     * @brief Parse a JWE without decryption
+     * @brief Parse a JWE without decryption (non-throwing overload)
      * @param jwe JWE in compact serialization format
-     * @return JWE object
+     * @return std::optional<JWE> containing the parsed token, or empty on failure
      */
-    static std::pair<std::optional<JWE>, bool> fromJSON(std::string const &jwe,
-                                                        std::nothrow_t const &);
+    static std::optional<JWE> fromJSON(std::string const &jwe, std::nothrow_t const &) noexcept;
 
     /**
      * @brief Get the plaintext (after parsing or setting)

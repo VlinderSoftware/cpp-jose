@@ -51,12 +51,14 @@ public:
     static JWK fromJSON(std::string const &json, bool ignore_private_if_present = false);
 
     /**
-     * @brief Parse JWK from JSON string
+     * @brief Parse JWK from JSON string (non-throwing overload)
      * @param json JSON string
-     * @return JWK object
+     * @param ignore_private_if_present Ignore private key material if present
+     * @return std::optional<JWK> containing the parsed key, or empty on failure
      */
-    static std::pair<std::optional<JWK>, bool>
-    fromJSON(std::string const &json, bool ignore_private_if_present, std::nothrow_t const &);
+    static std::optional<JWK> fromJSON(std::string const &json,
+                                       bool ignore_private_if_present,
+                                       std::nothrow_t const &) noexcept;
 
     /**
      * @brief Generate a new RSA key

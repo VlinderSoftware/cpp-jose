@@ -974,13 +974,9 @@ SCENARIO("JWK::fromJSON nothrow returns success for valid JSON", "[jwk][fromjson
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWK::fromJSON(json, false, std::nothrow);
+            auto result = JWK::fromJSON(json, false, std::nothrow);
 
-            THEN("ok is true")
-            {
-                REQUIRE(ok);
-            }
-            AND_THEN("result holds a JWK")
+            THEN("result holds a JWK")
             {
                 REQUIRE(result.has_value());
                 REQUIRE(result->getKeyID() == "nothrow-rsa");
@@ -997,13 +993,9 @@ SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjs
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWK::fromJSON(bad_json, false, std::nothrow);
+            auto result = JWK::fromJSON(bad_json, false, std::nothrow);
 
-            THEN("ok is false")
-            {
-                REQUIRE_FALSE(ok);
-            }
-            AND_THEN("result is empty")
+            THEN("result is empty")
             {
                 REQUIRE_FALSE(result.has_value());
             }
@@ -1016,11 +1008,11 @@ SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjs
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWK::fromJSON(non_jwk_json, false, std::nothrow);
+            auto result = JWK::fromJSON(non_jwk_json, false, std::nothrow);
 
-            THEN("ok is false")
+            THEN("result is empty")
             {
-                REQUIRE_FALSE(ok);
+                REQUIRE_FALSE(result.has_value());
             }
         }
     }
