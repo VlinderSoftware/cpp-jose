@@ -120,6 +120,16 @@ public:
     std::string getKeyID() const;
 
     /**
+     * @brief Check if key use is set
+     */
+    bool hasUse() const;
+
+    /**
+     * @brief Get key use
+     */
+    Use getUse() const;
+
+    /**
      * @brief Set key use
      */
     void setUse(Use use);

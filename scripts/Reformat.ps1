@@ -77,13 +77,20 @@ if ($CheckOnly) {
     $needsFormatting = New-Object System.Collections.Generic.List[string]
 
     foreach ($file in $files) {
-        $formatted = & $clangFormatPath --style=file $file.FullName
+        # Use --output-replacements-xml to avoid PowerShell stdout encoding
+        # mangling multi-byte UTF-8 characters in files that contain non-ASCII
+        # (e.g. Unicode in string literals or comments).  The XML output is
+        # pure ASCII: clang-format emits <replacements/> (self-closing) when
+        # the file is already formatted, or a non-empty <replacements> element
+        # when changes are needed.
+        $xml = & $clangFormatPath --style=file --output-replacements-xml $file.FullName
         if ($LASTEXITCODE -ne 0) {
             throw "clang-format failed while checking: $($file.FullName)"
         }
 
-        $original = Get-Content -Path $file.FullName -Raw
-        if ($original -cne $formatted) {
+        # Join the captured lines and look for actual replacement entries.
+        $xmlText = $xml -join "`n"
+        if ($xmlText -match '<replacement ') {
             $relativePath = [System.IO.Path]::GetRelativePath($repoRoot, $file.FullName)
             $needsFormatting.Add($relativePath)
         }

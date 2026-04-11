@@ -13,7 +13,7 @@ class TestBackEnd : public BackEnd
 {
 public:
     vector<unsigned char> hash(HashAlgorithm /*algorithm*/,
-                               vector<unsigned char> const & /*data*/) const override
+                               span<unsigned char const> const & /*data*/) const override
     {
         return vector<unsigned char>(32, 0xAA);
     }
@@ -68,9 +68,10 @@ public:
     }
 
 protected:
-    virtual std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
-                                             Key *key,
-                                             std::vector<unsigned char> const &data) const override
+    virtual std::vector<unsigned char>
+    sign_(SignatureAlgorithm algorithm,
+          Key *key,
+          std::span<unsigned char const> const &data) const override
     {
         return {};
     }

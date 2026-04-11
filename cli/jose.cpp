@@ -293,24 +293,47 @@ static int cmdJwsSign(Args const &args)
 {
     string alg_s   = args.require("alg");
     string key_src = args.require("key");
+    string kid     = args.get("kid");
+    string typ     = args.get("typ");
     string payload = readInput(args.input());
 
     auto it = kSigAlgs.find(alg_s);
     if (it == kSigAlgs.end())
         throw runtime_error("Unknown signature algorithm: " + alg_s);
 
-    JWK key = JWK::fromJSON(trim(readInput(key_src)));
+    string key_json = trim(readInput(key_src));
 
-    JWS jws;
-    jws.setPayload(payload);
-    jws.setAlgorithm(it->second);
+    // If --kid is given, try to resolve from a JWK Set first.
+    JWK key = [&]() -> JWK
+    {
+        if (!kid.empty())
+        {
+            bool parsed_as_set = false;
+            try
+            {
+                JWKSet ks = JWKSet::fromJSON(key_json);
+                parsed_as_set = true;
+                auto entry = ks.getKey(kid);
+                if (!holds_alternative<JWK>(entry))
+                    throw runtime_error("Key '" + kid + "' is a JWE, not a signing key");
+                return get<JWK>(entry);
+            }
+            catch (...)
+            {
+                if (parsed_as_set)
+                    throw;  // getKey error (kid not found, wrong type); don't swallow
+            }
+        }
+        return JWK::fromJSON(key_json);
+    }();
 
-    if (string kid = args.get("kid"); !kid.empty())
-        jws.setKeyID(kid);
-    if (string typ = args.get("typ"); !typ.empty())
-        jws.setType(typ);
-
-    cout << jws.sign(key) << "\n";
+    // RFC 7515 §4.1.9: typ is optional with no defined default for general JWS.
+    span<char const> const payload_span(payload.data(), payload.size());
+    cout << (typ.empty()
+                 ? sign(key, it->second, payload_span)
+                 : sign(key, it->second, typ, payload_span))
+                .toCompact()
+         << "\n";
     return 0;
 }
 
@@ -320,8 +343,14 @@ static int cmdJwsVerify(Args const &args)
     string token   = trim(readInput(args.input()));
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
+    auto jws_opt = JWS::tryLoad(token);
+    if (!jws_opt.has_value())
+    {
+        cerr << "Failed to parse JWS token\n";
+        return 1;
+    }
 
-    if (!JWS::verify(token, key))
+    if (!verify(*jws_opt, key))
     {
         cerr << "Signature verification FAILED\n";
         return 1;
@@ -333,10 +362,26 @@ static int cmdJwsVerify(Args const &args)
 static int cmdJwsInspect(Args const &args)
 {
     string token = trim(readInput(args.input()));
-    JWS jws      = JWS::parse(token);
+    auto jws_opt = JWS::tryLoad(token);
+    if (!jws_opt.has_value())
+    {
+        cerr << "Failed to parse JWS token\n";
+        return 1;
+    }
+    auto jws = *jws_opt;
 
-    cout << "header : " << jws.getHeader() << "\n"
-         << "payload: " << jws.getPayload() << "\n";
+    // Re-serialize to compact so the header segment is always well-formed,
+    // regardless of whether the original input was compact or JSON.
+    string compact = jws.toCompact();
+    auto dot1 = compact.find('.');
+    string header_json = (dot1 != string::npos)
+                             ? Base64URL::decodeToString(compact.substr(0, dot1))
+                             : string{};
+
+    auto raw_payload = jws.getPayload();
+
+    cout << "header : " << header_json << "\n"
+         << "payload: " << string(raw_payload.begin(), raw_payload.end()) << "\n";
     return 0;
 }
 
@@ -351,10 +396,10 @@ static void helpJws()
         "  inspect  Decode and display header and payload (no verification)\n"
         "\n"
         "sign options:\n"
-        "  --key FILE   JWK key file (required)\n"
+        "  --key FILE   JWK key file or JWK Set file (required)\n"
         "  --alg ALG    Algorithm: HS256|RS256|ES256|PS256|...  (required)\n"
-        "  --kid ID     Key ID to embed in header\n"
-        "  --typ TYPE   typ header (e.g. JWT)\n"
+        "  --kid ID     Select signing key by ID from a JWK Set\n"
+        "  --typ TYPE   typ header value; omitted by default (RFC 7515 §4.1.9)\n"
         "\n"
         "verify options:\n"
         "  --key FILE   JWK key file (required)\n";

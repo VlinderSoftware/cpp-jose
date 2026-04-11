@@ -1247,7 +1247,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
 }
 
 vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
-                                           vector<unsigned char> const &data) const
+                                           span<unsigned char const> const &data) const
 {
     EVP_MD const *md = nullptr;
     switch (algorithm)
@@ -2187,7 +2187,7 @@ vector<unsigned char> aesCbcHmacDecrypt(EVP_CIPHER const *cipher,
 
 vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
                                             Key *key,
-                                            vector<unsigned char> const &data) const
+                                            span<unsigned char const> const &data) const
 {
     switch (algorithm)
     {
@@ -2408,7 +2408,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
 
 vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
                                               Key *key,
-                                              vector<unsigned char> const &data) const
+                                              span<unsigned char const> const &data) const
 {
     auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
                                  [](EVP_PKEY *imported)
@@ -2466,7 +2466,7 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
 
 vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                                              Key *key,
-                                             vector<unsigned char> const &data) const
+                                             span<unsigned char const> const &data) const
 {
     auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
                                  [](EVP_PKEY *imported)
@@ -2536,7 +2536,7 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
 
 vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
                                               Key *key,
-                                              vector<unsigned char> const &data) const
+                                              span<unsigned char const> const &data) const
 {
     (void)algorithm;
 

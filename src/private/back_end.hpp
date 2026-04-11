@@ -191,6 +191,10 @@ public:
                                     JWK const &key,
                                     std::vector<unsigned char> const &data) const;
 
+    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
+                                    JWK const &key,
+                                    std::span<unsigned char const> const &data) const;
+
     bool verify(SignatureAlgorithm algorithm,
                 JWK const &key,
                 std::vector<unsigned char> const &data,
@@ -227,8 +231,13 @@ public:
                                               std::vector<unsigned char> const &aad,
                                               std::vector<unsigned char> const &tag) const;
 
+    std::vector<unsigned char> hash(HashAlgorithm algorithm,
+                                    std::vector<unsigned char> const &data) const
+    {
+        return hash(algorithm, std::span<unsigned char const>{data});
+    }
     virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
-                                            std::vector<unsigned char> const &data) const = 0;
+                                            std::span<unsigned char const> const &data) const = 0;
 
     /// Returns a backend-specific error string (stub for non-OpenSSL backends)
     virtual std::string getErrorString() const
@@ -246,8 +255,9 @@ public:
     ///// Get hash algorithm for signature
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;
 protected:
-    virtual std::vector<unsigned char>
-    sign_(SignatureAlgorithm algorithm, Key *key, std::vector<unsigned char> const &data) const = 0;
+    virtual std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
+                                             Key *key,
+                                             std::span<unsigned char const> const &data) const = 0;
     virtual bool verify_(SignatureAlgorithm algorithm,
                          Key *key,
                          std::vector<unsigned char> const &data,

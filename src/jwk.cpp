@@ -674,6 +674,20 @@ string JWK::getKeyID() const
     return impl_->kid_;
 }
 
+bool JWK::hasUse() const
+{
+    return impl_->has_use_;
+}
+
+JWK::Use JWK::getUse() const
+{
+    if (!impl_->has_use_)
+    {
+        throw runtime_error("Key use is not set");
+    }
+    return impl_->use_;
+}
+
 void JWK::setUse(Use use)
 {
     impl_->use_ = use;

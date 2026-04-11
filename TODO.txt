@@ -3,9 +3,17 @@
     [x] JWK
     [x] JWKS
     [x] JWK Thumbprints
+    [x] Base64URL
     [ ] JWS
     [ ] JWE
     [ ] JWT
+
+[ ] on second thought, the nothrow versions can just return an optional<> rather than a pair<optional<>, bool>: if the optional<> is empty it failed
+    applied as of JWS
+    [ ] JWA
+    [ ] JWK
+    [ ] JWKS
+    [ ] JWK Thumbprints
     [ ] Base64URL
 
 [ ] Add functional tests for import & export:

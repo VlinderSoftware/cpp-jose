@@ -27,12 +27,6 @@ Private::BackEnd &getBackEnd()
 }
 }  // namespace
 
-vector<unsigned char>
-JWA::sign(SignatureAlgorithm algorithm, const JWK &key, std::vector<unsigned char> const &data)
-{
-    return getBackEnd().sign(algorithm, key, data);
-}
-
 bool JWA::verify(SignatureAlgorithm algorithm,
                  const JWK &key,
                  std::vector<unsigned char> const &data,

@@ -1983,8 +1983,9 @@ unique_ptr<Key> CNGBackEnd::generateOkp(string const &curve,
     throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
-vector<unsigned char>
-CNGBackEnd::sign_(SignatureAlgorithm algorithm, Key *key, vector<unsigned char> const &data) const
+vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
+                                        Key *key,
+                                        std::span<unsigned char const> const &data) const
 {
     if (key == nullptr)
     {
@@ -2885,7 +2886,7 @@ vector<unsigned char> CNGBackEnd::decryptContent_(ContentEncryptionAlgorithm alg
 }
 
 vector<unsigned char> CNGBackEnd::hash(HashAlgorithm algorithm,
-                                       vector<unsigned char> const &data) const
+                                       span<unsigned char const> const &data) const
 {
     wchar_t const *algorithm_name(nullptr);
     switch (algorithm)
