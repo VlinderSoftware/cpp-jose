@@ -1,6 +1,7 @@
 #ifndef JOSE_JWA_HPP
 #define JOSE_JWA_HPP
 
+#include <new>
 #include <optional>
 #include <string>
 #include <vector>
@@ -170,6 +171,18 @@ public:
     static SignatureAlgorithm signatureAlgorithmFromString(std::string const &alg);
     static KeyEncryptionAlgorithm keyEncryptionAlgorithmFromString(std::string const &alg);
     static ContentEncryptionAlgorithm contentEncryptionAlgorithmFromString(std::string const &alg);
+
+    /**
+     * @brief Convert string to algorithm enum without throwing
+     * @param alg Algorithm string
+     * @return Algorithm enum, or empty optional if the string is unrecognised
+     */
+    static std::optional<SignatureAlgorithm>
+    signatureAlgorithmFromString(std::string const &alg, std::nothrow_t const &) noexcept;
+    static std::optional<KeyEncryptionAlgorithm>
+    keyEncryptionAlgorithmFromString(std::string const &alg, std::nothrow_t const &) noexcept;
+    static std::optional<ContentEncryptionAlgorithm>
+    contentEncryptionAlgorithmFromString(std::string const &alg, std::nothrow_t const &) noexcept;
 };
 
 }  // namespace JOSE

@@ -120,6 +120,19 @@ JWKThumbprint JWKThumbprint::compute(JWK const &key, string const &algorithm)
     return JWKThumbprint(computeRaw(key, algorithm));
 }
 
+optional<JWKThumbprint> JWKThumbprint::compute(JWK const &key, string const &algorithm,
+                                               nothrow_t const &) noexcept
+{
+    try
+    {
+        return optional<JWKThumbprint>{compute(key, algorithm)};
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
+}
+
 string JWKThumbprint::get() const
 {
     return Base64URL::encode(value_);

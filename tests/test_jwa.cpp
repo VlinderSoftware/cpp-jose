@@ -649,3 +649,121 @@ TEST_CASE("EmptyPlaintextEncryption", "[jwa][emptyplaintextencryption]")
 
     REQUIRE(plaintext == decrypted);
 }
+
+SCENARIO("JWA::signatureAlgorithmFromString nothrow returns algorithm for a known string",
+         "[jwa][signaturealgorithmfromstring][nothrow]")
+{
+    GIVEN("a known signature algorithm string")
+    {
+        string alg = "HS256";
+
+        WHEN("converting with nothrow")
+        {
+            auto result = JWA::signatureAlgorithmFromString(alg, std::nothrow);
+
+            THEN("the result contains the expected algorithm")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(*result == JWA::SignatureAlgorithm::hs256);
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::signatureAlgorithmFromString nothrow returns empty optional for an unknown string",
+         "[jwa][signaturealgorithmfromstring][nothrow]")
+{
+    GIVEN("an unknown signature algorithm string")
+    {
+        string alg = "BOGUS-ALG";
+
+        WHEN("converting with nothrow")
+        {
+            auto result = JWA::signatureAlgorithmFromString(alg, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::keyEncryptionAlgorithmFromString nothrow returns algorithm for a known string",
+         "[jwa][keyencryptionalgorithmfromstring][nothrow]")
+{
+    GIVEN("a known key encryption algorithm string")
+    {
+        string alg = "RSA-OAEP";
+
+        WHEN("converting with nothrow")
+        {
+            auto result = JWA::keyEncryptionAlgorithmFromString(alg, std::nothrow);
+
+            THEN("the result contains the expected algorithm")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(*result == JWA::KeyEncryptionAlgorithm::rsa_oaep);
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::keyEncryptionAlgorithmFromString nothrow returns empty optional for an unknown string",
+         "[jwa][keyencryptionalgorithmfromstring][nothrow]")
+{
+    GIVEN("an unknown key encryption algorithm string")
+    {
+        string alg = "BOGUS-KEK";
+
+        WHEN("converting with nothrow")
+        {
+            auto result = JWA::keyEncryptionAlgorithmFromString(alg, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns algorithm for a known string",
+         "[jwa][contentencryptionalgorithmfromstring][nothrow]")
+{
+    GIVEN("a known content encryption algorithm string")
+    {
+        string alg = "A128GCM";
+
+        WHEN("converting with nothrow")
+        {
+            auto result = JWA::contentEncryptionAlgorithmFromString(alg, std::nothrow);
+
+            THEN("the result contains the expected algorithm")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(*result == JWA::ContentEncryptionAlgorithm::a128gcm);
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns empty optional for an unknown string",
+         "[jwa][contentencryptionalgorithmfromstring][nothrow]")
+{
+    GIVEN("an unknown content encryption algorithm string")
+    {
+        string alg = "BOGUS-CEK";
+
+        WHEN("converting with nothrow")
+        {
+            auto result = JWA::contentEncryptionAlgorithmFromString(alg, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+

@@ -1,6 +1,8 @@
 #ifndef JOSE_JWK_THUMBPRINT_HPP
 #define JOSE_JWK_THUMBPRINT_HPP
 
+#include <new>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <vector>
@@ -25,6 +27,15 @@ public:
      * @return Base64URL-encoded thumbprint
      */
     static JWKThumbprint compute(JWK const &key, std::string const &algorithm = "SHA-256");
+
+    /**
+     * @brief Compute JWK thumbprint using specified hash algorithm (non-throwing overload)
+     * @param key JWK to compute thumbprint for
+     * @param algorithm Hash algorithm (e.g., "SHA-256", "SHA-384", "SHA-512")
+     * @return std::optional<JWKThumbprint> containing the thumbprint, or empty on failure
+     */
+    static std::optional<JWKThumbprint>
+    compute(JWK const &key, std::string const &algorithm, std::nothrow_t const &) noexcept;
 
     std::string get() const;
     std::vector<unsigned char> getRaw() const

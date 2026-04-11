@@ -72,8 +72,8 @@ JWKSet JWKSet::fromJSON(string const &json_string, bool ignore_private_if_presen
     return set;
 }
 
-optional<JWKSet> JWKSet::fromJSON(string const &json, bool ignore_private_if_present,
-                                  nothrow_t const &) noexcept
+optional<JWKSet>
+JWKSet::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t const &) noexcept
 {
     try
     {

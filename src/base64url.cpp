@@ -99,5 +99,17 @@ string Base64URL::decodeToString(string const &encoded)
     return string(data.begin(), data.end());
 }
 
+optional<vector<unsigned char>> Base64URL::decode(string const &encoded, nothrow_t const &) noexcept
+{
+    try { return optional<vector<unsigned char>>{decode(encoded)}; }
+    catch (...) { return nullopt; }
+}
+
+optional<string> Base64URL::decodeToString(string const &encoded, nothrow_t const &) noexcept
+{
+    try { return optional<string>{decodeToString(encoded)}; }
+    catch (...) { return nullopt; }
+}
+
 }  // namespace JOSE
 }  // namespace Vlinder

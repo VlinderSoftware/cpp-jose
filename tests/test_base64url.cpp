@@ -358,3 +358,82 @@ TEST_CASE("Base64URL RFC7515 Appendix C example", "[base64url][rfc7515]")
     string decoded = Base64URL::decodeToString(encoded);
     REQUIRE(decoded == payload);
 }
+
+SCENARIO("Base64URL::decode nothrow returns decoded bytes for a valid encoded string",
+         "[base64url][decode][nothrow]")
+{
+    GIVEN("a valid base64url-encoded string")
+    {
+        string encoded = "aGVsbG8";  // "hello"
+
+        WHEN("decoding with nothrow")
+        {
+            auto result = Base64URL::decode(encoded, std::nothrow);
+
+            THEN("the result contains the expected bytes")
+            {
+                REQUIRE(result.has_value());
+                vector<unsigned char> expected = {'h', 'e', 'l', 'l', 'o'};
+                REQUIRE(*result == expected);
+            }
+        }
+    }
+}
+
+SCENARIO("Base64URL::decode nothrow returns empty optional for an invalid encoded string",
+         "[base64url][decode][nothrow]")
+{
+    GIVEN("an invalid base64url-encoded string")
+    {
+        string encoded = "!!!invalid!!!";
+
+        WHEN("decoding with nothrow")
+        {
+            auto result = Base64URL::decode(encoded, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("Base64URL::decodeToString nothrow returns decoded string for a valid encoded string",
+         "[base64url][decodetostring][nothrow]")
+{
+    GIVEN("a valid base64url-encoded string")
+    {
+        string encoded = "aGVsbG8";  // "hello"
+
+        WHEN("decoding to string with nothrow")
+        {
+            auto result = Base64URL::decodeToString(encoded, std::nothrow);
+
+            THEN("the result contains the expected string")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE(*result == "hello");
+            }
+        }
+    }
+}
+
+SCENARIO("Base64URL::decodeToString nothrow returns empty optional for an invalid encoded string",
+         "[base64url][decodetostring][nothrow]")
+{
+    GIVEN("an invalid base64url-encoded string")
+    {
+        string encoded = "!!!invalid!!!";
+
+        WHEN("decoding to string with nothrow")
+        {
+            auto result = Base64URL::decodeToString(encoded, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
