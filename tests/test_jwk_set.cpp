@@ -1019,6 +1019,71 @@ SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjs
 }
 
 // ---------------------------------------------------------------------------
+// JWKSet::fromJSON nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWKSet::fromJSON nothrow returns success for valid JWK Set JSON",
+         "[jwkset][fromjson][nothrow]")
+{
+    GIVEN("a valid JWK Set JSON string containing one RSA key")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+        key.setKeyID("nothrow-set-key");
+        JWKSet original;
+        original.addKey(key);
+        string json = original.toJSON();
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto result = JWKSet::fromJSON(json, false, std::nothrow);
+
+            THEN("result holds a JWKSet")
+            {
+                REQUIRE(result.has_value());
+            }
+            AND_THEN("the set contains the original key")
+            {
+                REQUIRE_NOTHROW(result->getKey("nothrow-set-key"));
+            }
+        }
+    }
+}
+
+SCENARIO("JWKSet::fromJSON nothrow returns empty optional for invalid JSON",
+         "[jwkset][fromjson][nothrow]")
+{
+    GIVEN("a malformed JSON string")
+    {
+        string bad_json = "this is not json at all";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto result = JWKSet::fromJSON(bad_json, false, std::nothrow);
+
+            THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("a JSON object that is not a JWK Set")
+    {
+        string non_set_json = R"({"kty":"RSA"})";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto result = JWKSet::fromJSON(non_set_json, false, std::nothrow);
+
+            THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // JWKSet::getKey(kid, alg) — optional algorithm filter
 // ---------------------------------------------------------------------------
 

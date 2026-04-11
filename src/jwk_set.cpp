@@ -72,6 +72,19 @@ JWKSet JWKSet::fromJSON(string const &json_string, bool ignore_private_if_presen
     return set;
 }
 
+optional<JWKSet> JWKSet::fromJSON(string const &json, bool ignore_private_if_present,
+                                  nothrow_t const &) noexcept
+{
+    try
+    {
+        return optional<JWKSet>{JWKSet::fromJSON(json, ignore_private_if_present)};
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
+}
+
 void JWKSet::addKey(std::variant<JWK, JWE> const &key)
 {
     impl_->keys_.push_back(key);

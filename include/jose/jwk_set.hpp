@@ -3,6 +3,8 @@
 
 #include <initializer_list>
 #include <memory>
+#include <new>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -31,6 +33,15 @@ public:
      * @brief Parse JWK Set from JSON
      */
     static JWKSet fromJSON(std::string const &json, bool ignore_private_if_present = false);
+
+    /**
+     * @brief Parse JWK Set from JSON (non-throwing overload)
+     * @param json JSON string containing a JWK Set
+     * @param ignore_private_if_present Ignore private key material if present
+     * @return std::optional<JWKSet> containing the parsed set, or empty on failure
+     */
+    static std::optional<JWKSet>
+    fromJSON(std::string const &json, bool ignore_private_if_present, std::nothrow_t const &) noexcept;
 
     /**
      * @brief Add a key to the set
