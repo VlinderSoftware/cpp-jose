@@ -49,8 +49,8 @@ public:
      * @param encoded Base64URL encoded string
      * @return Decoded data, or empty optional on failure
      */
-    static std::optional<std::vector<unsigned char>>
-    decode(std::string const &encoded, std::nothrow_t const &) noexcept;
+    static std::optional<std::vector<unsigned char>> decode(std::string const &encoded,
+                                                            std::nothrow_t const &) noexcept;
 
     /**
      * @brief Decode base64url string to string
@@ -64,8 +64,8 @@ public:
      * @param encoded Base64URL encoded string
      * @return Decoded string, or empty optional on failure
      */
-    static std::optional<std::string>
-    decodeToString(std::string const &encoded, std::nothrow_t const &) noexcept;
+    static std::optional<std::string> decodeToString(std::string const &encoded,
+                                                     std::nothrow_t const &) noexcept;
 };
 
 }  // namespace JOSE

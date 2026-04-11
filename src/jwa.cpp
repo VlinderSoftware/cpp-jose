@@ -214,25 +214,43 @@ JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(string
     throw runtime_error("Unknown content encryption algorithm: " + alg);
 }
 
-optional<JWA::SignatureAlgorithm>
-JWA::signatureAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
+optional<JWA::SignatureAlgorithm> JWA::signatureAlgorithmFromString(string const &alg,
+                                                                    nothrow_t const &) noexcept
 {
-    try { return optional<SignatureAlgorithm>{signatureAlgorithmFromString(alg)}; }
-    catch (...) { return nullopt; }
+    try
+    {
+        return optional<SignatureAlgorithm>{signatureAlgorithmFromString(alg)};
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
 }
 
 optional<JWA::KeyEncryptionAlgorithm>
 JWA::keyEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
 {
-    try { return optional<KeyEncryptionAlgorithm>{keyEncryptionAlgorithmFromString(alg)}; }
-    catch (...) { return nullopt; }
+    try
+    {
+        return optional<KeyEncryptionAlgorithm>{keyEncryptionAlgorithmFromString(alg)};
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
 }
 
 optional<JWA::ContentEncryptionAlgorithm>
 JWA::contentEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
 {
-    try { return optional<ContentEncryptionAlgorithm>{contentEncryptionAlgorithmFromString(alg)}; }
-    catch (...) { return nullopt; }
+    try
+    {
+        return optional<ContentEncryptionAlgorithm>{contentEncryptionAlgorithmFromString(alg)};
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
 }
 
 }  // namespace JOSE

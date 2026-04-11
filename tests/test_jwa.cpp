@@ -709,8 +709,9 @@ SCENARIO("JWA::keyEncryptionAlgorithmFromString nothrow returns algorithm for a 
     }
 }
 
-SCENARIO("JWA::keyEncryptionAlgorithmFromString nothrow returns empty optional for an unknown string",
-         "[jwa][keyencryptionalgorithmfromstring][nothrow]")
+SCENARIO(
+    "JWA::keyEncryptionAlgorithmFromString nothrow returns empty optional for an unknown string",
+    "[jwa][keyencryptionalgorithmfromstring][nothrow]")
 {
     GIVEN("an unknown key encryption algorithm string")
     {
@@ -748,7 +749,8 @@ SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns algorithm fo
     }
 }
 
-SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns empty optional for an unknown string",
+SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns empty optional for an unknown "
+         "string",
          "[jwa][contentencryptionalgorithmfromstring][nothrow]")
 {
     GIVEN("an unknown content encryption algorithm string")
@@ -766,4 +768,3 @@ SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns empty option
         }
     }
 }
-

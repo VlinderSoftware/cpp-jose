@@ -120,8 +120,8 @@ JWKThumbprint JWKThumbprint::compute(JWK const &key, string const &algorithm)
     return JWKThumbprint(computeRaw(key, algorithm));
 }
 
-optional<JWKThumbprint> JWKThumbprint::compute(JWK const &key, string const &algorithm,
-                                               nothrow_t const &) noexcept
+optional<JWKThumbprint>
+JWKThumbprint::compute(JWK const &key, string const &algorithm, nothrow_t const &) noexcept
 {
     try
     {
