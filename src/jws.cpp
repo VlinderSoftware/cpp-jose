@@ -316,6 +316,8 @@ bool isCompatibleWithKey(JWA::SignatureAlgorithm alg, JWK const &key)
         case JWA::SignatureAlgorithm::es384:
         case JWA::SignatureAlgorithm::es512:
             return key.getKeyType() == JWK::KeyType::ec;
+        case JWA::SignatureAlgorithm::eddsa:
+            return key.getKeyType() == JWK::KeyType::okp;
         case JWA::SignatureAlgorithm::none:
             return false;  // alg:none is never acceptable for verification (RFC 7515 §8.4)
     }
