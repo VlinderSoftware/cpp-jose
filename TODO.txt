@@ -4,7 +4,7 @@
     [x] JWKS
     [x] JWK Thumbprints
     [x] Base64URL
-    [ ] JWS
+    [x] JWS
     [ ] JWE
     [ ] JWT
 
