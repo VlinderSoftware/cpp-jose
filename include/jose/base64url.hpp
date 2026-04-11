@@ -1,6 +1,8 @@
 #ifndef JOSE_BASE64URL_HPP
 #define JOSE_BASE64URL_HPP
 
+#include <new>
+#include <optional>
 #include <span>
 #include <string>
 #include <vector>
@@ -43,11 +45,27 @@ public:
     static std::vector<unsigned char> decode(std::string const &encoded);
 
     /**
+     * @brief Decode base64url string without throwing
+     * @param encoded Base64URL encoded string
+     * @return Decoded data, or empty optional on failure
+     */
+    static std::optional<std::vector<unsigned char>> decode(std::string const &encoded,
+                                                            std::nothrow_t const &) noexcept;
+
+    /**
      * @brief Decode base64url string to string
      * @param encoded Base64URL encoded string
      * @return Decoded string
      */
     static std::string decodeToString(std::string const &encoded);
+
+    /**
+     * @brief Decode base64url string to string without throwing
+     * @param encoded Base64URL encoded string
+     * @return Decoded string, or empty optional on failure
+     */
+    static std::optional<std::string> decodeToString(std::string const &encoded,
+                                                     std::nothrow_t const &) noexcept;
 };
 
 }  // namespace JOSE

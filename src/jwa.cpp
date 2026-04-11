@@ -214,5 +214,44 @@ JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(string
     throw runtime_error("Unknown content encryption algorithm: " + alg);
 }
 
+optional<JWA::SignatureAlgorithm> JWA::signatureAlgorithmFromString(string const &alg,
+                                                                    nothrow_t const &) noexcept
+{
+    try
+    {
+        return make_optional<SignatureAlgorithm>(signatureAlgorithmFromString(alg));
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
+}
+
+optional<JWA::KeyEncryptionAlgorithm>
+JWA::keyEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
+{
+    try
+    {
+        return make_optional<KeyEncryptionAlgorithm>(keyEncryptionAlgorithmFromString(alg));
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
+}
+
+optional<JWA::ContentEncryptionAlgorithm>
+JWA::contentEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
+{
+    try
+    {
+        return make_optional<ContentEncryptionAlgorithm>(contentEncryptionAlgorithmFromString(alg));
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
+}
+
 }  // namespace JOSE
 }  // namespace Vlinder

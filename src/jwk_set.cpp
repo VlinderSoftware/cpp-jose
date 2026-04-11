@@ -51,25 +51,38 @@ JWKSet JWKSet::fromJSON(string const &json_string, bool ignore_private_if_presen
     {
         string key_json_string = key_json.dump();
         auto jwk = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
-        if (!jwk.second)
+        if (!jwk.has_value())
         {
             auto jwe = JWE::fromJSON(key_json_string, nothrow);
-            if (!jwe.second)
+            if (!jwe.has_value())
             {
                 throw runtime_error("Failed to parse key as JWK or JWE");
             }
             else
             {
-                set.addKey(*jwe.first);
+                set.addKey(*jwe);
             }
         }
         else
         {
-            set.addKey(*jwk.first);
+            set.addKey(*jwk);
         }
     }
 
     return set;
+}
+
+optional<JWKSet>
+JWKSet::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t const &) noexcept
+{
+    try
+    {
+        return make_optional<JWKSet>(JWKSet::fromJSON(json, ignore_private_if_present));
+    }
+    catch (...)
+    {
+        return nullopt;
+    }
 }
 
 void JWKSet::addKey(std::variant<JWK, JWE> const &key)

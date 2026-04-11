@@ -687,13 +687,9 @@ SCENARIO("JWE::fromJSON nothrow returns success for a valid compact JWE",
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWE::fromJSON(compact, std::nothrow);
+            auto result = JWE::fromJSON(compact, std::nothrow);
 
-            THEN("ok is true")
-            {
-                REQUIRE(ok);
-            }
-            AND_THEN("result holds a JWE with the expected kid in the header")
+            THEN("result holds a JWE with the expected kid in the header")
             {
                 REQUIRE(result.has_value());
                 REQUIRE(result->getHeader().find("nothrow-key") != string::npos);
@@ -710,13 +706,9 @@ SCENARIO("JWE::fromJSON nothrow returns failure for an invalid string", "[jwe][f
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWE::fromJSON(bad, std::nothrow);
+            auto result = JWE::fromJSON(bad, std::nothrow);
 
-            THEN("ok is false")
-            {
-                REQUIRE_FALSE(ok);
-            }
-            AND_THEN("result is empty")
+            THEN("result is empty")
             {
                 REQUIRE_FALSE(result.has_value());
             }
@@ -727,11 +719,11 @@ SCENARIO("JWE::fromJSON nothrow returns failure for an invalid string", "[jwe][f
     {
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWE::fromJSON("", std::nothrow);
+            auto result = JWE::fromJSON("", std::nothrow);
 
-            THEN("ok is false")
+            THEN("result is empty")
             {
-                REQUIRE_FALSE(ok);
+                REQUIRE_FALSE(result.has_value());
             }
         }
     }

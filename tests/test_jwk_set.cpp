@@ -974,13 +974,9 @@ SCENARIO("JWK::fromJSON nothrow returns success for valid JSON", "[jwk][fromjson
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWK::fromJSON(json, false, std::nothrow);
+            auto result = JWK::fromJSON(json, false, std::nothrow);
 
-            THEN("ok is true")
-            {
-                REQUIRE(ok);
-            }
-            AND_THEN("result holds a JWK")
+            THEN("result holds a JWK")
             {
                 REQUIRE(result.has_value());
                 REQUIRE(result->getKeyID() == "nothrow-rsa");
@@ -997,13 +993,9 @@ SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjs
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWK::fromJSON(bad_json, false, std::nothrow);
+            auto result = JWK::fromJSON(bad_json, false, std::nothrow);
 
-            THEN("ok is false")
-            {
-                REQUIRE_FALSE(ok);
-            }
-            AND_THEN("result is empty")
+            THEN("result is empty")
             {
                 REQUIRE_FALSE(result.has_value());
             }
@@ -1016,11 +1008,76 @@ SCENARIO("JWK::fromJSON nothrow returns failure for invalid JSON", "[jwk][fromjs
 
         WHEN("parsing with the nothrow overload")
         {
-            auto [result, ok] = JWK::fromJSON(non_jwk_json, false, std::nothrow);
+            auto result = JWK::fromJSON(non_jwk_json, false, std::nothrow);
 
-            THEN("ok is false")
+            THEN("result is empty")
             {
-                REQUIRE_FALSE(ok);
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// JWKSet::fromJSON nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWKSet::fromJSON nothrow returns success for valid JWK Set JSON",
+         "[jwkset][fromjson][nothrow]")
+{
+    GIVEN("a valid JWK Set JSON string containing one RSA key")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+        key.setKeyID("nothrow-set-key");
+        JWKSet original;
+        original.addKey(key);
+        string json = original.toJSON();
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto result = JWKSet::fromJSON(json, false, std::nothrow);
+
+            THEN("result holds a JWKSet")
+            {
+                REQUIRE(result.has_value());
+            }
+            AND_THEN("the set contains the original key")
+            {
+                REQUIRE_NOTHROW(result->getKey("nothrow-set-key"));
+            }
+        }
+    }
+}
+
+SCENARIO("JWKSet::fromJSON nothrow returns empty optional for invalid JSON",
+         "[jwkset][fromjson][nothrow]")
+{
+    GIVEN("a malformed JSON string")
+    {
+        string bad_json = "this is not json at all";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto result = JWKSet::fromJSON(bad_json, false, std::nothrow);
+
+            THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("a JSON object that is not a JWK Set")
+    {
+        string non_set_json = R"({"kty":"RSA"})";
+
+        WHEN("parsing with the nothrow overload")
+        {
+            auto result = JWKSet::fromJSON(non_set_json, false, std::nothrow);
+
+            THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
             }
         }
     }

@@ -318,6 +318,52 @@ TEST_CASE("AllHashAlgorithmsWork", "[jwa][allhashalgorithmswork]")
     }
 }
 
+// ---------------------------------------------------------------------------
+// JWKThumbprint::compute nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWKThumbprint::compute nothrow returns a thumbprint for a valid JWK",
+         "[jwkthumbprint][compute][nothrow]")
+{
+    GIVEN("a valid RSA JWK")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+
+        WHEN("computing with the nothrow overload and SHA-256")
+        {
+            auto result = JWKThumbprint::compute(key, "SHA-256", std::nothrow);
+
+            THEN("result holds a JWKThumbprint")
+            {
+                REQUIRE(result.has_value());
+            }
+            AND_THEN("the thumbprint is a 43-character base64url string")
+            {
+                REQUIRE(43 == result->get().length());
+            }
+        }
+    }
+}
+
+SCENARIO("JWKThumbprint::compute nothrow returns empty optional for an unsupported algorithm",
+         "[jwkthumbprint][compute][nothrow]")
+{
+    GIVEN("a valid RSA JWK and an unsupported algorithm string")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
+
+        WHEN("computing with the nothrow overload and a bogus algorithm")
+        {
+            auto result = JWKThumbprint::compute(key, "MD5-BOGUS", std::nothrow);
+
+            THEN("result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
 // Use thumbprint as key ID
 TEST_CASE("UseThumbprintAsKeyId", "[jwa][usethumbprintaskeyid]")
 {

@@ -463,15 +463,15 @@ JWE JWE::fromJSON(string const &jwe)
     return result;
 }
 
-pair<optional<JWE>, bool> JWE::fromJSON(string const &jwe, nothrow_t const &)
+optional<JWE> JWE::fromJSON(string const &jwe, nothrow_t const &) noexcept
 {
     try
     {
-        return make_pair(fromJSON(jwe), true);
+        return make_optional<JWE>(fromJSON(jwe));
     }
     catch (...)
     {
-        return make_pair(nullopt, false);
+        return nullopt;
     }
 }
 
