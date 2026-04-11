@@ -1044,3 +1044,79 @@ TEST_CASE("JWS_GetPayloadAsVectorTemplate", "[jws][getpayload][vector]")
 
     REQUIRE(via_template == via_non_template);
 }
+
+// ─── EdDSA (OKP / Ed25519) — OpenSSL backend only ───────────────────────────
+
+#ifdef JOSE_USE_OPENSSL
+SCENARIO("an Ed25519 key can sign and verify a compact JWS", "[jws][eddsa][okp][rfc8037]")
+{
+    GIVEN("a generated Ed25519 OKP key")
+    {
+        JWK const key = JWK::generateOKP(JWK::Use::signature);
+
+        WHEN("a payload is signed with EdDSA")
+        {
+            JWS const jws = sign(key, JWA::SignatureAlgorithm::eddsa, string("hello EdDSA"));
+
+            THEN("the compact token is non-empty and has three dot-delimited parts")
+            {
+                string const token = jws.toCompact();
+                REQUIRE_FALSE(token.empty());
+                size_t const first_dot  = token.find('.');
+                size_t const second_dot = token.find('.', first_dot + 1);
+                REQUIRE(string::npos != first_dot);
+                REQUIRE(string::npos != second_dot);
+            }
+
+            AND_WHEN("verification is attempted with the same key")
+            {
+                bool const valid = verify(jws, key);
+
+                THEN("verification succeeds")
+                {
+                    REQUIRE(valid);
+                }
+            }
+
+            AND_WHEN("verification is attempted with a different Ed25519 key")
+            {
+                JWK const other_key = JWK::generateOKP(JWK::Use::signature);
+                bool const valid    = verify(jws, other_key);
+
+                THEN("verification fails")
+                {
+                    REQUIRE_FALSE(valid);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::toString and fromString round-trip EdDSA", "[jwa][eddsa]")
+{
+    GIVEN("the eddsa SignatureAlgorithm value")
+    {
+        JWA::SignatureAlgorithm const alg = JWA::SignatureAlgorithm::eddsa;
+
+        WHEN("converted to string")
+        {
+            string const s = JWA::toString(alg);
+
+            THEN("the string is 'EdDSA'")
+            {
+                REQUIRE("EdDSA" == s);
+            }
+
+            AND_WHEN("converted back from string")
+            {
+                JWA::SignatureAlgorithm const back = JWA::signatureAlgorithmFromString(s);
+
+                THEN("the original value is recovered")
+                {
+                    REQUIRE(alg == back);
+                }
+            }
+        }
+    }
+}
+#endif  // JOSE_USE_OPENSSL

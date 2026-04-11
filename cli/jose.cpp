@@ -141,6 +141,7 @@ static map<string, JWA::SignatureAlgorithm> const kSigAlgs = {
     {"PS256", JWA::SignatureAlgorithm::ps256},
     {"PS384", JWA::SignatureAlgorithm::ps384},
     {"PS512", JWA::SignatureAlgorithm::ps512},
+    {"EdDSA", JWA::SignatureAlgorithm::eddsa},
     {"none",  JWA::SignatureAlgorithm::none},
 };
 

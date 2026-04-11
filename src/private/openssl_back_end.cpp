@@ -2225,6 +2225,8 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::es384:
         case SignatureAlgorithm::es512:
             return signEc(algorithm, key, data);
+        case SignatureAlgorithm::eddsa:
+            return signOkp(algorithm, key, data);
         default:
             throw runtime_error("Unsupported signature algorithm");
     }
@@ -2398,6 +2400,38 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
         int result = EVP_DigestVerify(md_ctx.get(),
                                       der_signature.data(),
                                       der_signature.size(),
+                                      data.data(),
+                                      data.size());
+        return result == 1;
+    }
+
+    if (algorithm == SignatureAlgorithm::eddsa)
+    {
+        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+                                     [](EVP_PKEY *imported)
+                                     {
+                                         EVP_PKEY_free(imported);
+                                     });
+
+        auto md_ctx = makeOpenSSLGuard(EVP_MD_CTX_new(),
+                                       [](EVP_MD_CTX *context)
+                                       {
+                                           EVP_MD_CTX_free(context);
+                                       });
+        if (md_ctx == nullptr)
+        {
+            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        }
+
+        if (EVP_DigestVerifyInit(md_ctx.get(), nullptr, nullptr, nullptr, pkey.get()) != 1)
+        {
+            throw runtime_error("Failed to initialize EdDSA verification: " +
+                                getOpenSSLErrorString());
+        }
+
+        int result = EVP_DigestVerify(md_ctx.get(),
+                                      signature.data(),
+                                      signature.size(),
                                       data.data(),
                                       data.size());
         return result == 1;

@@ -58,6 +58,8 @@ SignatureHashConfig getSignatureHashConfig(SignatureAlgorithm algorithm)
             return {HashAlgorithm::sha512, BCRYPT_SHA512_ALGORITHM, 64};
         case SignatureAlgorithm::none:
             break;
+        case SignatureAlgorithm::eddsa:
+            break;
     }
 
     throw runtime_error("Unsupported signature algorithm");
@@ -1992,6 +1994,11 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
         throw runtime_error("Key does not contain valid material");
     }
 
+    if (algorithm == SignatureAlgorithm::eddsa)
+    {
+        throw runtime_error("EdDSA is not supported by the CNG backend");
+    }
+
     auto const hash_config(getSignatureHashConfig(algorithm));
 
     if (algorithm == SignatureAlgorithm::hs256 || algorithm == SignatureAlgorithm::hs384 ||
@@ -2253,6 +2260,11 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
     if (key == nullptr)
     {
         throw runtime_error("Key does not contain valid material");
+    }
+
+    if (algorithm == SignatureAlgorithm::eddsa)
+    {
+        throw runtime_error("EdDSA is not supported by the CNG backend");
     }
 
     auto const hash_config(getSignatureHashConfig(algorithm));

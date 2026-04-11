@@ -92,6 +92,7 @@ string JWA::toString(SignatureAlgorithm alg)
                                                             {SignatureAlgorithm::ps256, "PS256"},
                                                             {SignatureAlgorithm::ps384, "PS384"},
                                                             {SignatureAlgorithm::ps512, "PS512"},
+                                                            {SignatureAlgorithm::eddsa, "EdDSA"},
                                                             {SignatureAlgorithm::none, "none"}};
 
     auto it = alg_map.find(alg);
@@ -160,6 +161,7 @@ JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(string const &alg)
                                                             {"PS256", SignatureAlgorithm::ps256},
                                                             {"PS384", SignatureAlgorithm::ps384},
                                                             {"PS512", SignatureAlgorithm::ps512},
+                                                            {"EdDSA", SignatureAlgorithm::eddsa},
                                                             {"none", SignatureAlgorithm::none}};
 
     auto it = alg_map.find(alg);

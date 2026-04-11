@@ -36,6 +36,7 @@ public:
         ps256,  // RSASSA-PSS using SHA-256
         ps384,  // RSASSA-PSS using SHA-384
         ps512,  // RSASSA-PSS using SHA-512
+        eddsa,  // Edwards-curve Digital Signature Algorithm (RFC 8037)
         none    // No signature
     };
 
