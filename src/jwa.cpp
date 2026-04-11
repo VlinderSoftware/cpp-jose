@@ -219,7 +219,7 @@ optional<JWA::SignatureAlgorithm> JWA::signatureAlgorithmFromString(string const
 {
     try
     {
-        return optional<SignatureAlgorithm>{signatureAlgorithmFromString(alg)};
+        return make_optional<SignatureAlgorithm>(signatureAlgorithmFromString(alg));
     }
     catch (...)
     {
@@ -232,7 +232,7 @@ JWA::keyEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noex
 {
     try
     {
-        return optional<KeyEncryptionAlgorithm>{keyEncryptionAlgorithmFromString(alg)};
+        return make_optional<KeyEncryptionAlgorithm>(keyEncryptionAlgorithmFromString(alg));
     }
     catch (...)
     {
@@ -245,7 +245,7 @@ JWA::contentEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) 
 {
     try
     {
-        return optional<ContentEncryptionAlgorithm>{contentEncryptionAlgorithmFromString(alg)};
+        return make_optional<ContentEncryptionAlgorithm>(contentEncryptionAlgorithmFromString(alg));
     }
     catch (...)
     {

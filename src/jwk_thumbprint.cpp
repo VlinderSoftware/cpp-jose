@@ -125,7 +125,7 @@ JWKThumbprint::compute(JWK const &key, string const &algorithm, nothrow_t const 
 {
     try
     {
-        return optional<JWKThumbprint>{compute(key, algorithm)};
+        return make_optional<JWKThumbprint>(compute(key, algorithm));
     }
     catch (...)
     {

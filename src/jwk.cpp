@@ -651,7 +651,7 @@ JWK::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t cons
 {
     try
     {
-        return optional<JWK>{JWK::fromJSON(json, ignore_private_if_present)};
+        return make_optional<JWK>(JWK::fromJSON(json, ignore_private_if_present));
     }
     catch (...)
     {

@@ -103,7 +103,7 @@ optional<vector<unsigned char>> Base64URL::decode(string const &encoded, nothrow
 {
     try
     {
-        return optional<vector<unsigned char>>{decode(encoded)};
+        return make_optional<vector<unsigned char>>(decode(encoded));
     }
     catch (...)
     {
@@ -115,7 +115,7 @@ optional<string> Base64URL::decodeToString(string const &encoded, nothrow_t cons
 {
     try
     {
-        return optional<string>{decodeToString(encoded)};
+        return make_optional<string>(decodeToString(encoded));
     }
     catch (...)
     {

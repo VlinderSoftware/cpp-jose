@@ -467,7 +467,7 @@ optional<JWE> JWE::fromJSON(string const &jwe, nothrow_t const &) noexcept
 {
     try
     {
-        return optional<JWE>{fromJSON(jwe)};
+        return make_optional<JWE>(fromJSON(jwe));
     }
     catch (...)
     {
