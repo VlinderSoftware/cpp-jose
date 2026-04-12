@@ -53,6 +53,11 @@ else()
     set(CMAKE_REQUIRED_LIBRARIES bcrypt)
 endif()
 
+# Force serialized PDB writes on MSVC to prevent C1041 errors during parallel builds
+if(MSVC)
+    add_compile_options(/FS)
+endif()
+
 # Include directories
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include/jose)
 

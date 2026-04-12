@@ -1044,3 +1044,132 @@ TEST_CASE("JWS_GetPayloadAsVectorTemplate", "[jws][getpayload][vector]")
 
     REQUIRE(via_template == via_non_template);
 }
+
+// ─── EdDSA (OKP / Ed25519) ───────────────────────────────────────────────────
+
+SCENARIO("JWA::toString and fromString round-trip EdDSA", "[jwa][eddsa]")
+{
+    GIVEN("the eddsa SignatureAlgorithm value")
+    {
+        JWA::SignatureAlgorithm const alg = JWA::SignatureAlgorithm::eddsa;
+
+        WHEN("converted to string")
+        {
+            string const s = JWA::toString(alg);
+
+            THEN("the string is 'EdDSA'")
+            {
+                REQUIRE("EdDSA" == s);
+            }
+
+            AND_WHEN("converted back from string")
+            {
+                JWA::SignatureAlgorithm const back = JWA::signatureAlgorithmFromString(s);
+
+                THEN("the original value is recovered")
+                {
+                    REQUIRE(alg == back);
+                }
+            }
+        }
+    }
+}
+
+#ifdef JOSE_USE_OPENSSL
+// RFC 8037 Appendix A.4/A.5 test vector.
+// Key from Appendix A.1; compact JWS from Appendix A.4.
+SCENARIO("RFC 8037 Appendix A.5 Ed25519 test vector verifies",
+         "[jws][eddsa][okp][rfc8037][appendix-a5]")
+{
+    GIVEN("the RFC 8037 Appendix A.1 Ed25519 key and Appendix A.4 compact JWS")
+    {
+        string const key_json = R"({"kty":"OKP","crv":"Ed25519","use":"sig",)"
+                                R"("d":"nWGxne_9WmC6hEr0kuwsxERJxWl7MmkZcDusAxyuf2A",)"
+                                R"("x":"11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo"})";
+        string const compact_jws = "eyJhbGciOiJFZERTQSJ9"
+                                   ".RXhhbXBsZSBvZiBFZDI1NTE5IHNpZ25pbmc"
+                                   ".hgyY0il_MGCjP0JzlnLWG1PPOt7-09PGcvMg3AIbQR6dWbhijcNR4ki4iy"
+                                   "lGjg5BhVsPt9g7sVvpAr_MuM0KAg";
+
+        WHEN("the compact JWS is verified with the RFC key")
+        {
+            JWK const key = JWK::fromJSON(key_json);
+            JWS const jws = JWS::fromCompact(compact_jws);
+
+            THEN("verification succeeds")
+            {
+                REQUIRE(verify(jws, key));
+            }
+        }
+
+        WHEN("the payload is extracted from the compact JWS")
+        {
+            JWS const jws = JWS::fromCompact(compact_jws);
+            auto const payload_bytes = jws.getPayload();
+            string const payload(payload_bytes.begin(), payload_bytes.end());
+
+            THEN("it equals the RFC 8037 Appendix A.4 payload text")
+            {
+                REQUIRE("Example of Ed25519 signing" == payload);
+            }
+        }
+    }
+}
+
+SCENARIO("an Ed25519 key can sign and verify a compact JWS", "[jws][eddsa][okp][rfc8037]")
+{
+    GIVEN("a generated Ed25519 OKP key")
+    {
+        JWK const key = JWK::generateOKP(JWK::Use::signature);
+
+        WHEN("a payload is signed with EdDSA")
+        {
+            JWS const jws = sign(key, JWA::SignatureAlgorithm::eddsa, string("hello EdDSA"));
+
+            THEN("the compact token is non-empty and has three dot-delimited parts")
+            {
+                string const token = jws.toCompact();
+                REQUIRE_FALSE(token.empty());
+                size_t const first_dot = token.find('.');
+                size_t const second_dot = token.find('.', first_dot + 1);
+                REQUIRE(string::npos != first_dot);
+                REQUIRE(string::npos != second_dot);
+            }
+
+            AND_WHEN("verification is attempted with the same key")
+            {
+                bool const valid = verify(jws, key);
+
+                THEN("verification succeeds")
+                {
+                    REQUIRE(valid);
+                }
+            }
+
+            AND_WHEN("verification is attempted with a different Ed25519 key")
+            {
+                JWK const other_key = JWK::generateOKP(JWK::Use::signature);
+                bool const valid = verify(jws, other_key);
+
+                THEN("verification fails")
+                {
+                    REQUIRE_FALSE(valid);
+                }
+            }
+        }
+    }
+}
+#endif  // JOSE_USE_OPENSSL
+
+#ifdef JOSE_USE_CNG
+SCENARIO("OKP key generation throws on the CNG backend", "[jws][eddsa][cng]")
+{
+    WHEN("generating an OKP key is attempted")
+    {
+        THEN("a runtime_error is thrown because CNG does not support OKP/EdDSA")
+        {
+            REQUIRE_THROWS_AS(JWK::generateOKP(JWK::Use::signature), std::runtime_error);
+        }
+    }
+}
+#endif  // JOSE_USE_CNG
