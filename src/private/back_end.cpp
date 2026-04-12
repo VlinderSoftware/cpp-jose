@@ -171,6 +171,12 @@ vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
                 throw runtime_error("Incompatible key type or curve for algorithm");
             }
             break;
+        case SignatureAlgorithm::eddsa:
+            if (key.getKeyType() != JWK::KeyType::okp)
+            {
+                throw runtime_error("Incompatible key type for algorithm");
+            }
+            break;
         case SignatureAlgorithm::none:
             throw runtime_error("Cannot sign with 'none' algorithm");
     }
@@ -231,6 +237,12 @@ bool BackEnd::verify(SignatureAlgorithm algorithm,
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES512")
             {
                 throw runtime_error("Incompatible key type or curve for algorithm");
+            }
+            break;
+        case SignatureAlgorithm::eddsa:
+            if (key.getKeyType() != JWK::KeyType::okp)
+            {
+                throw runtime_error("Incompatible key type for algorithm");
             }
             break;
         case SignatureAlgorithm::none:
