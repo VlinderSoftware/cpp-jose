@@ -1997,21 +1997,29 @@ Result<unique_ptr<Key>> CNGBackEnd::generateOkp(string const &curve,
     return makeError<unique_ptr<Key>>("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
-vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
-                                        Key *key,
-                                        std::span<unsigned char const> const &data) const
+Result<vector<unsigned char>> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
+                                                Key *key,
+                                                std::span<unsigned char const> const &data) const
 {
     if (key == nullptr)
     {
-        throw runtime_error("Key does not contain valid material");
+        return makeError<vector<unsigned char>>("Key does not contain valid material");
     }
 
     if (algorithm == SignatureAlgorithm::eddsa)
     {
-        throw runtime_error("EdDSA is not supported by the CNG backend");
+        return makeError<vector<unsigned char>>("EdDSA is not supported by the CNG backend");
     }
 
-    auto const hash_config(getSignatureHashConfig(algorithm));
+    SignatureHashConfig hash_config{};
+    try
+    {
+        hash_config = getSignatureHashConfig(algorithm);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
 
     if (algorithm == SignatureAlgorithm::hs256 || algorithm == SignatureAlgorithm::hs384 ||
         algorithm == SignatureAlgorithm::hs512)
@@ -2019,17 +2027,18 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
         auto oct_key(dynamic_cast<OctKey *>(key));
         if (oct_key == nullptr)
         {
-            throw runtime_error("HMAC signing requires an octet key");
+            return makeError<vector<unsigned char>>("HMAC signing requires an octet key");
         }
 
         auto const secret(oct_key->getK());
         if (secret.empty())
         {
-            throw runtime_error("HMAC signing key material is empty");
+            return makeError<vector<unsigned char>>("HMAC signing key material is empty");
         }
         if (secret.size() < static_cast<size_t>(hash_config.hash_size))
         {
-            throw runtime_error("HMAC signing key material is too short for algorithm");
+            return makeError<vector<unsigned char>>(
+                "HMAC signing key material is too short for algorithm");
         }
 
         BCRYPT_ALG_HANDLE h_alg(nullptr);
@@ -2039,7 +2048,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                                       BCRYPT_ALG_HANDLE_HMAC_FLAG);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptOpenAlgorithmProvider failed: " +
+                                                    getErrorString());
         }
         AlgHandle alg_guard(h_alg);
 
@@ -2053,8 +2063,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                    0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " +
-                                getErrorString());
+            return makeError<vector<unsigned char>>(
+                "BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " + getErrorString());
         }
 
         vector<unsigned char> hash_object(hash_object_length);
@@ -2068,7 +2078,7 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                   0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptCreateHash failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptCreateHash failed: " + getErrorString());
         }
         HashHandle hash_guard(h_hash);
 
@@ -2080,7 +2090,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                     0);
             if (!BCRYPT_SUCCESS(status))
             {
-                throw runtime_error("BCryptHashData failed: " + getErrorString());
+                return makeError<vector<unsigned char>>("BCryptHashData failed: " +
+                                                        getErrorString());
             }
         }
 
@@ -2089,20 +2100,28 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
             BCryptFinishHash(h_hash, signature.data(), static_cast<ULONG>(signature.size()), 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptFinishHash failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptFinishHash failed: " + getErrorString());
         }
 
-        return signature;
+        return makeOk<vector<unsigned char>>(signature);
     }
 
-    vector<unsigned char> digest(this->hash(hash_config.hash_algorithm, data));
+    vector<unsigned char> digest;
+    try
+    {
+        digest = this->hash(hash_config.hash_algorithm, data);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
 
     if (isRsaPkcs1Algorithm(algorithm) || isRsaPssAlgorithm(algorithm))
     {
         auto rsa_key(dynamic_cast<RSAKey *>(key));
         if (rsa_key == nullptr)
         {
-            throw runtime_error("RSA signing requires an RSA key");
+            return makeError<vector<unsigned char>>("RSA signing requires an RSA key");
         }
 
         vector<unsigned char> private_blob;
@@ -2113,14 +2132,22 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
         }
         if (private_blob.empty())
         {
-            private_blob = buildRsaFullPrivateBlob(*rsa_key);
+            try
+            {
+                private_blob = buildRsaFullPrivateBlob(*rsa_key);
+            }
+            catch (exception const &ex)
+            {
+                return makeError<vector<unsigned char>>(ex.what());
+            }
         }
 
         BCRYPT_ALG_HANDLE h_alg(nullptr);
         NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptOpenAlgorithmProvider failed: " +
+                                                    getErrorString());
         }
         AlgHandle alg_guard(h_alg);
 
@@ -2134,7 +2161,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                      0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptImportKeyPair failed: " +
+                                                    getErrorString());
         }
         KeyHandle key_guard(h_key);
 
@@ -2169,7 +2197,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                 flags);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptSignHash(size query) failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptSignHash(size query) failed: " +
+                                                    getErrorString());
         }
 
         vector<unsigned char> signature(signature_size);
@@ -2183,11 +2212,11 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                 flags);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptSignHash failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptSignHash failed: " + getErrorString());
         }
 
         signature.resize(consumed);
-        return signature;
+        return makeOk<vector<unsigned char>>(signature);
     }
 
     if (isEcAlgorithm(algorithm))
@@ -2195,22 +2224,38 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
         auto ec_key(dynamic_cast<ECKey *>(key));
         if (ec_key == nullptr)
         {
-            throw runtime_error("ECDSA signing requires an EC key");
+            return makeError<vector<unsigned char>>("ECDSA signing requires an EC key");
         }
 
         wchar_t const *ec_alg_name(nullptr);
         ULONG ec_private_magic(0);
         ULONG ec_public_magic(0);
-        resolveEcAlgorithm(algorithm, ec_alg_name, ec_private_magic, ec_public_magic);
+        try
+        {
+            resolveEcAlgorithm(algorithm, ec_alg_name, ec_private_magic, ec_public_magic);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<vector<unsigned char>>(ex.what());
+        }
         (void)ec_public_magic;
 
-        vector<unsigned char> private_blob = buildEcPrivateBlob(*ec_key, ec_private_magic);
+        vector<unsigned char> private_blob;
+        try
+        {
+            private_blob = buildEcPrivateBlob(*ec_key, ec_private_magic);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<vector<unsigned char>>(ex.what());
+        }
 
         BCRYPT_ALG_HANDLE h_alg(nullptr);
         NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, ec_alg_name, nullptr, 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptOpenAlgorithmProvider failed: " +
+                                                    getErrorString());
         }
         AlgHandle alg_guard(h_alg);
 
@@ -2224,7 +2269,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                      0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptImportKeyPair failed: " +
+                                                    getErrorString());
         }
         KeyHandle key_guard(h_key);
 
@@ -2240,7 +2286,8 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptSignHash(size query) failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptSignHash(size query) failed: " +
+                                                    getErrorString());
         }
 
         vector<unsigned char> signature(signature_size);
@@ -2254,40 +2301,53 @@ vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,
                                 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptSignHash failed: " + getErrorString());
+            return makeError<vector<unsigned char>>("BCryptSignHash failed: " + getErrorString());
         }
 
         signature.resize(consumed);
-        return signature;
+        return makeOk<vector<unsigned char>>(signature);
     }
 
-    throw runtime_error("Unsupported signature algorithm");
+    return makeError<vector<unsigned char>>("Unsupported signature algorithm");
 }
 
-bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
-                         Key *key,
-                         std::vector<unsigned char> const &data,
-                         std::vector<unsigned char> const &signature) const
+Result<bool> CNGBackEnd::verify_(SignatureAlgorithm algorithm,
+                                 Key *key,
+                                 std::vector<unsigned char> const &data,
+                                 std::vector<unsigned char> const &signature) const
 {
     if (key == nullptr)
     {
-        throw runtime_error("Key does not contain valid material");
+        return makeError<bool>("Key does not contain valid material");
     }
 
     if (algorithm == SignatureAlgorithm::eddsa)
     {
-        throw runtime_error("EdDSA is not supported by the CNG backend");
+        return makeError<bool>("EdDSA is not supported by the CNG backend");
     }
 
-    auto const hash_config(getSignatureHashConfig(algorithm));
+    SignatureHashConfig hash_config{};
+    try
+    {
+        hash_config = getSignatureHashConfig(algorithm);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<bool>(ex.what());
+    }
 
     if (algorithm == SignatureAlgorithm::hs256 || algorithm == SignatureAlgorithm::hs384 ||
         algorithm == SignatureAlgorithm::hs512)
     {
-        vector<unsigned char> expected_signature(sign_(algorithm, key, data));
+        auto [expected_opt, expected_err] = sign_(algorithm, key, data);
+        if (!expected_opt)
+        {
+            return makeError<bool>(expected_err);
+        }
+        vector<unsigned char> const &expected_signature = *expected_opt;
         if (expected_signature.size() != signature.size())
         {
-            return false;
+            return makeOk<bool>(false);
         }
 
         unsigned char diff = 0;
@@ -2295,26 +2355,42 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
         {
             diff |= static_cast<unsigned char>(expected_signature[i] ^ signature[i]);
         }
-        return diff == 0;
+        return makeOk<bool>(diff == 0);
     }
 
-    vector<unsigned char> digest(this->hash(hash_config.hash_algorithm, data));
+    vector<unsigned char> digest;
+    try
+    {
+        digest = this->hash(hash_config.hash_algorithm, data);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<bool>(ex.what());
+    }
 
     if (isRsaPkcs1Algorithm(algorithm) || isRsaPssAlgorithm(algorithm))
     {
         auto rsa_key(dynamic_cast<RSAKey *>(key));
         if (rsa_key == nullptr)
         {
-            throw runtime_error("RSA verification requires an RSA key");
+            return makeError<bool>("RSA verification requires an RSA key");
         }
 
-        vector<unsigned char> public_blob(buildRsaPublicBlob(*rsa_key));
+        vector<unsigned char> public_blob;
+        try
+        {
+            public_blob = buildRsaPublicBlob(*rsa_key);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
 
         BCRYPT_ALG_HANDLE h_alg(nullptr);
         NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+            return makeError<bool>("BCryptOpenAlgorithmProvider failed: " + getErrorString());
         }
         AlgHandle alg_guard(h_alg);
 
@@ -2328,7 +2404,7 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
                                      0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+            return makeError<bool>("BCryptImportKeyPair failed: " + getErrorString());
         }
         KeyHandle key_guard(h_key);
 
@@ -2357,7 +2433,7 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
                                        const_cast<PUCHAR>(signature.data()),
                                        static_cast<ULONG>(signature.size()),
                                        flags);
-        return BCRYPT_SUCCESS(status);
+        return makeOk<bool>(BCRYPT_SUCCESS(status));
     }
 
     if (isEcAlgorithm(algorithm))
@@ -2365,22 +2441,37 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
         auto ec_key(dynamic_cast<ECKey *>(key));
         if (ec_key == nullptr)
         {
-            throw runtime_error("ECDSA verification requires an EC key");
+            return makeError<bool>("ECDSA verification requires an EC key");
         }
 
         wchar_t const *ec_alg_name(nullptr);
         ULONG ec_private_magic(0);
         ULONG ec_public_magic(0);
-        resolveEcAlgorithm(algorithm, ec_alg_name, ec_private_magic, ec_public_magic);
+        try
+        {
+            resolveEcAlgorithm(algorithm, ec_alg_name, ec_private_magic, ec_public_magic);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
         (void)ec_private_magic;
 
-        vector<unsigned char> public_blob(buildEcPublicBlob(*ec_key, ec_public_magic));
+        vector<unsigned char> public_blob;
+        try
+        {
+            public_blob = buildEcPublicBlob(*ec_key, ec_public_magic);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
 
         BCRYPT_ALG_HANDLE h_alg(nullptr);
         NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, ec_alg_name, nullptr, 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+            return makeError<bool>("BCryptOpenAlgorithmProvider failed: " + getErrorString());
         }
         AlgHandle alg_guard(h_alg);
 
@@ -2394,7 +2485,7 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
                                      0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+            return makeError<bool>("BCryptImportKeyPair failed: " + getErrorString());
         }
         KeyHandle key_guard(h_key);
 
@@ -2405,10 +2496,10 @@ bool CNGBackEnd::verify_(SignatureAlgorithm algorithm,
                                        const_cast<PUCHAR>(signature.data()),
                                        static_cast<ULONG>(signature.size()),
                                        0);
-        return BCRYPT_SUCCESS(status);
+        return makeOk<bool>(BCRYPT_SUCCESS(status));
     }
 
-    throw runtime_error("Unsupported signature algorithm");
+    return makeError<bool>("Unsupported signature algorithm");
 }
 
 vector<unsigned char> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,

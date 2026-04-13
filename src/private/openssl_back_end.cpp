@@ -1293,7 +1293,7 @@ vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
             md = EVP_sha512();
             break;
         default:
-            throw runtime_error("Unsupported hash algorithm");
+            return {};
     }
 
     auto ctx = makeOpenSSLGuard(EVP_MD_CTX_new(),
@@ -2232,20 +2232,28 @@ vector<unsigned char> aesCbcHmacDecrypt(EVP_CIPHER const *cipher,
 
 }  // namespace
 
-vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
-                                            Key *key,
-                                            span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
+                                                    Key *key,
+                                                    span<unsigned char const> const &data) const
 {
     switch (algorithm)
     {
         case SignatureAlgorithm::none:
-            return {};
+            return makeOk<vector<unsigned char>>({});
         case SignatureAlgorithm::hs256:
         case SignatureAlgorithm::hs384:
         case SignatureAlgorithm::hs512:
         {
             auto md = getDigestAlgorithm(algorithm);
-            auto secret = getOctKeyBytes(key);
+            vector<unsigned char> secret;
+            try
+            {
+                secret = getOctKeyBytes(key);
+            }
+            catch (exception const &ex)
+            {
+                return makeError<vector<unsigned char>>(ex.what());
+            }
             vector<unsigned char> signature(static_cast<size_t>(EVP_MD_size(md)));
             unsigned int signature_size = 0;
             if (HMAC(md,
@@ -2256,10 +2264,11 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
                      signature.data(),
                      &signature_size) == nullptr)
             {
-                throw runtime_error("HMAC signing failed: " + getOpenSSLErrorString());
+                return makeError<vector<unsigned char>>("HMAC signing failed: " +
+                                                        getOpenSSLErrorString());
             }
             signature.resize(signature_size);
-            return signature;
+            return makeOk<vector<unsigned char>>(signature);
         }
         case SignatureAlgorithm::rs256:
         case SignatureAlgorithm::rs384:
@@ -2275,36 +2284,51 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::eddsa:
             return signOkp(algorithm, key, data);
         default:
-            throw runtime_error("Unsupported signature algorithm");
+            return makeError<vector<unsigned char>>("Unsupported signature algorithm");
     }
 }
 
-bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
-                             Key *key,
-                             std::vector<unsigned char> const &data,
-                             std::vector<unsigned char> const &signature) const
+Result<bool> OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
+                                     Key *key,
+                                     std::vector<unsigned char> const &data,
+                                     std::vector<unsigned char> const &signature) const
 {
     if (algorithm == SignatureAlgorithm::none)
     {
-        return signature.empty();
+        return makeOk<bool>(signature.empty());
     }
 
     if (algorithm == SignatureAlgorithm::hs256 || algorithm == SignatureAlgorithm::hs384 ||
         algorithm == SignatureAlgorithm::hs512)
     {
-        auto expected = sign_(algorithm, key, data);
+        auto [expected_opt, expected_err] = sign_(algorithm, key, data);
+        if (!expected_opt)
+        {
+            return makeError<bool>(expected_err);
+        }
+        auto const &expected = *expected_opt;
         if (expected.size() != signature.size())
         {
-            return false;
+            return makeOk<bool>(false);
         }
-        return CRYPTO_memcmp(expected.data(), signature.data(), signature.size()) == 0;
+        return makeOk<bool>(CRYPTO_memcmp(expected.data(), signature.data(), signature.size()) ==
+                            0);
     }
 
     if (algorithm == SignatureAlgorithm::rs256 || algorithm == SignatureAlgorithm::rs384 ||
         algorithm == SignatureAlgorithm::rs512 || algorithm == SignatureAlgorithm::ps256 ||
         algorithm == SignatureAlgorithm::ps384 || algorithm == SignatureAlgorithm::ps512)
     {
-        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+        EVP_PKEY *pkey_raw = nullptr;
+        try
+        {
+            pkey_raw = importPkeyFromKey(key, false);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
+        auto pkey = makeOpenSSLGuard(pkey_raw,
                                      [](EVP_PKEY *imported)
                                      {
                                          EVP_PKEY_free(imported);
@@ -2317,7 +2341,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                        });
         if (md_ctx == nullptr)
         {
-            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to create digest context: " + getOpenSSLErrorString());
         }
 
         EVP_PKEY_CTX *key_ctx = nullptr;
@@ -2327,8 +2351,8 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                  nullptr,
                                  pkey.get()) != 1)
         {
-            throw runtime_error("Failed to initialize RSA verification: " +
-                                getOpenSSLErrorString());
+            return makeError<bool>("Failed to initialize RSA verification: " +
+                                   getOpenSSLErrorString());
         }
 
         if (algorithm == SignatureAlgorithm::ps256 || algorithm == SignatureAlgorithm::ps384 ||
@@ -2338,8 +2362,8 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
             if (EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
                 EVP_PKEY_CTX_set_rsa_pss_saltlen(key_ctx, salt_length) <= 0)
             {
-                throw runtime_error("Failed to configure RSA-PSS verification: " +
-                                    getOpenSSLErrorString());
+                return makeError<bool>("Failed to configure RSA-PSS verification: " +
+                                       getOpenSSLErrorString());
             }
         }
 
@@ -2348,7 +2372,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                       signature.size(),
                                       data.data(),
                                       data.size());
-        return result == 1;
+        return makeOk<bool>(result == 1);
     }
 
     if (algorithm == SignatureAlgorithm::es256 || algorithm == SignatureAlgorithm::es384 ||
@@ -2357,7 +2381,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
         size_t const coordinate_size = getEcCoordinateSize(algorithm);
         if (signature.size() != (2 * coordinate_size))
         {
-            return false;
+            return makeOk<bool>(false);
         }
 
         BIGNUM *r = BN_bin2bn(signature.data(), static_cast<int>(coordinate_size), nullptr);
@@ -2374,7 +2398,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
             {
                 BN_free(s);
             }
-            return false;
+            return makeOk<bool>(false);
         }
 
         auto r_guard = makeOpenSSLGuard(r,
@@ -2395,19 +2419,19 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                                 });
         if (ecdsa_signature == nullptr)
         {
-            throw runtime_error("Failed to allocate ECDSA signature object");
+            return makeError<bool>("Failed to allocate ECDSA signature object");
         }
 
         if (ECDSA_SIG_set0(ecdsa_signature.get(), r_guard.release(), s_guard.release()) != 1)
         {
-            throw runtime_error("Failed to assemble ECDSA signature");
+            return makeError<bool>("Failed to assemble ECDSA signature");
         }
 
         unsigned char *der_buffer = nullptr;
         int der_size = i2d_ECDSA_SIG(ecdsa_signature.get(), &der_buffer);
         if (der_size <= 0)
         {
-            throw runtime_error("Failed to encode ECDSA signature: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to encode ECDSA signature: " + getOpenSSLErrorString());
         }
 
         auto der_guard = makeOpenSSLGuard(der_buffer,
@@ -2418,7 +2442,16 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
         vector<unsigned char> der_signature(der_guard.get(),
                                             der_guard.get() + static_cast<ptrdiff_t>(der_size));
 
-        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+        EVP_PKEY *pkey_raw = nullptr;
+        try
+        {
+            pkey_raw = importPkeyFromKey(key, false);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
+        auto pkey = makeOpenSSLGuard(pkey_raw,
                                      [](EVP_PKEY *imported)
                                      {
                                          EVP_PKEY_free(imported);
@@ -2431,7 +2464,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                        });
         if (md_ctx == nullptr)
         {
-            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to create digest context: " + getOpenSSLErrorString());
         }
 
         if (EVP_DigestVerifyInit(md_ctx.get(),
@@ -2440,8 +2473,8 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                  nullptr,
                                  pkey.get()) != 1)
         {
-            throw runtime_error("Failed to initialize ECDSA verification: " +
-                                getOpenSSLErrorString());
+            return makeError<bool>("Failed to initialize ECDSA verification: " +
+                                   getOpenSSLErrorString());
         }
 
         int result = EVP_DigestVerify(md_ctx.get(),
@@ -2449,12 +2482,21 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                       der_signature.size(),
                                       data.data(),
                                       data.size());
-        return result == 1;
+        return makeOk<bool>(result == 1);
     }
 
     if (algorithm == SignatureAlgorithm::eddsa)
     {
-        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+        EVP_PKEY *pkey_raw = nullptr;
+        try
+        {
+            pkey_raw = importPkeyFromKey(key, false);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
+        auto pkey = makeOpenSSLGuard(pkey_raw,
                                      [](EVP_PKEY *imported)
                                      {
                                          EVP_PKEY_free(imported);
@@ -2467,13 +2509,13 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                        });
         if (md_ctx == nullptr)
         {
-            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to create digest context: " + getOpenSSLErrorString());
         }
 
         if (EVP_DigestVerifyInit(md_ctx.get(), nullptr, nullptr, nullptr, pkey.get()) != 1)
         {
-            throw runtime_error("Failed to initialize EdDSA verification: " +
-                                getOpenSSLErrorString());
+            return makeError<bool>("Failed to initialize EdDSA verification: " +
+                                   getOpenSSLErrorString());
         }
 
         int result = EVP_DigestVerify(md_ctx.get(),
@@ -2481,17 +2523,26 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                       signature.size(),
                                       data.data(),
                                       data.size());
-        return result == 1;
+        return makeOk<bool>(result == 1);
     }
 
-    throw runtime_error("Unsupported signature algorithm");
+    return makeError<bool>("Unsupported signature algorithm");
 }
 
-vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
-                                              Key *key,
-                                              span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
+                                                      Key *key,
+                                                      span<unsigned char const> const &data) const
 {
-    auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+    EVP_PKEY *pkey_raw = nullptr;
+    try
+    {
+        pkey_raw = importPkeyFromKey(key, true);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
+    auto pkey = makeOpenSSLGuard(pkey_raw,
                                  [](EVP_PKEY *imported)
                                  {
                                      EVP_PKEY_free(imported);
@@ -2504,7 +2555,8 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
                                    });
     if (md_ctx == nullptr)
     {
-        throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to create digest context: " +
+                                                getOpenSSLErrorString());
     }
 
     EVP_PKEY_CTX *key_ctx = nullptr;
@@ -2514,7 +2566,8 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
                            nullptr,
                            pkey.get()) != 1)
     {
-        throw runtime_error("Failed to initialize RSA signing: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to initialize RSA signing: " +
+                                                getOpenSSLErrorString());
     }
 
     if (algorithm == SignatureAlgorithm::ps256 || algorithm == SignatureAlgorithm::ps384 ||
@@ -2524,32 +2577,43 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
         if (EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
             EVP_PKEY_CTX_set_rsa_pss_saltlen(key_ctx, salt_length) <= 0)
         {
-            throw runtime_error("Failed to configure RSA-PSS signing: " + getOpenSSLErrorString());
+            return makeError<vector<unsigned char>>("Failed to configure RSA-PSS signing: " +
+                                                    getOpenSSLErrorString());
         }
     }
 
     size_t signature_size = 0;
     if (EVP_DigestSign(md_ctx.get(), nullptr, &signature_size, data.data(), data.size()) != 1)
     {
-        throw runtime_error("Failed to query RSA signature size: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to query RSA signature size: " +
+                                                getOpenSSLErrorString());
     }
 
     vector<unsigned char> signature(signature_size);
     if (EVP_DigestSign(md_ctx.get(), signature.data(), &signature_size, data.data(), data.size()) !=
         1)
     {
-        throw runtime_error("RSA signing failed: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("RSA signing failed: " + getOpenSSLErrorString());
     }
 
     signature.resize(signature_size);
-    return signature;
+    return makeOk<vector<unsigned char>>(signature);
 }
 
-vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
-                                             Key *key,
-                                             span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
+                                                     Key *key,
+                                                     span<unsigned char const> const &data) const
 {
-    auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+    EVP_PKEY *pkey_raw = nullptr;
+    try
+    {
+        pkey_raw = importPkeyFromKey(key, true);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
+    auto pkey = makeOpenSSLGuard(pkey_raw,
                                  [](EVP_PKEY *imported)
                                  {
                                      EVP_PKEY_free(imported);
@@ -2562,7 +2626,8 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                                    });
     if (md_ctx == nullptr)
     {
-        throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to create digest context: " +
+                                                getOpenSSLErrorString());
     }
 
     if (EVP_DigestSignInit(md_ctx.get(),
@@ -2571,20 +2636,22 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                            nullptr,
                            pkey.get()) != 1)
     {
-        throw runtime_error("Failed to initialize ECDSA signing: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to initialize ECDSA signing: " +
+                                                getOpenSSLErrorString());
     }
 
     size_t der_size = 0;
     if (EVP_DigestSign(md_ctx.get(), nullptr, &der_size, data.data(), data.size()) != 1)
     {
-        throw runtime_error("Failed to query ECDSA signature size: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to query ECDSA signature size: " +
+                                                getOpenSSLErrorString());
     }
 
     vector<unsigned char> der_signature(der_size);
     if (EVP_DigestSign(md_ctx.get(), der_signature.data(), &der_size, data.data(), data.size()) !=
         1)
     {
-        throw runtime_error("ECDSA signing failed: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("ECDSA signing failed: " + getOpenSSLErrorString());
     }
     der_signature.resize(der_size);
 
@@ -2597,7 +2664,8 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                          });
     if (ecdsa_signature == nullptr)
     {
-        throw runtime_error("Failed to parse ECDSA signature: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to parse ECDSA signature: " +
+                                                getOpenSSLErrorString());
     }
 
     BIGNUM const *r = nullptr;
@@ -2609,10 +2677,10 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
     if (BN_bn2binpad(r, signature.data(), static_cast<int>(coordinate_size)) <= 0 ||
         BN_bn2binpad(s, signature.data() + coordinate_size, static_cast<int>(coordinate_size)) <= 0)
     {
-        throw runtime_error("Failed to format ECDSA signature components");
+        return makeError<vector<unsigned char>>("Failed to format ECDSA signature components");
     }
 
-    return signature;
+    return makeOk<vector<unsigned char>>(signature);
 }
 
 vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
@@ -2621,7 +2689,16 @@ vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
 {
     (void)algorithm;
 
-    auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+    EVP_PKEY *pkey_raw = nullptr;
+    try
+    {
+        pkey_raw = importPkeyFromKey(key, true);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
+    auto pkey = makeOpenSSLGuard(pkey_raw,
                                  [](EVP_PKEY *imported)
                                  {
                                      EVP_PKEY_free(imported);
@@ -2634,29 +2711,32 @@ vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
                                    });
     if (md_ctx == nullptr)
     {
-        throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to create digest context: " +
+                                                getOpenSSLErrorString());
     }
 
     if (EVP_DigestSignInit(md_ctx.get(), nullptr, nullptr, nullptr, pkey.get()) != 1)
     {
-        throw runtime_error("Failed to initialize OKP signing: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to initialize OKP signing: " +
+                                                getOpenSSLErrorString());
     }
 
     size_t signature_size = 0;
     if (EVP_DigestSign(md_ctx.get(), nullptr, &signature_size, data.data(), data.size()) != 1)
     {
-        throw runtime_error("Failed to query OKP signature size: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to query OKP signature size: " +
+                                                getOpenSSLErrorString());
     }
 
     vector<unsigned char> signature(signature_size);
     if (EVP_DigestSign(md_ctx.get(), signature.data(), &signature_size, data.data(), data.size()) !=
         1)
     {
-        throw runtime_error("OKP signing failed: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("OKP signing failed: " + getOpenSSLErrorString());
     }
 
     signature.resize(signature_size);
-    return signature;
+    return makeOk<vector<unsigned char>>(signature);
 }
 
 vector<unsigned char> OpenSSLBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,

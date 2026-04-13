@@ -69,19 +69,26 @@ public:
     }
 
 protected:
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
     sign_(SignatureAlgorithm algorithm,
           Key *key,
           std::span<unsigned char const> const &data) const override
     {
-        return {};
+        (void)algorithm;
+        (void)key;
+        (void)data;
+        return makeOk<std::vector<unsigned char>>({});
     }
-    bool verify_(SignatureAlgorithm algorithm,
-                 Key *key,
-                 std::vector<unsigned char> const &data,
-                 std::vector<unsigned char> const &signature) const override
+    Result<bool> verify_(SignatureAlgorithm algorithm,
+                         Key *key,
+                         std::vector<unsigned char> const &data,
+                         std::vector<unsigned char> const &signature) const override
     {
-        return false;
+        (void)algorithm;
+        (void)key;
+        (void)data;
+        (void)signature;
+        return makeOk<bool>(false);
     }
     std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
                                            Key *key,

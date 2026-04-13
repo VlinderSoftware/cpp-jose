@@ -180,8 +180,11 @@ vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::none:
             throw runtime_error("Cannot sign with 'none' algorithm");
     }
-    // Delegate to back-end
-    return this->sign_(algorithm, underlying_key, data);
+    // Delegate to back-end (transitional: unwrap Result until public API is nothrow)
+    auto [sig_opt, sig_err] = this->sign_(algorithm, underlying_key, data);
+    if (!sig_opt)
+        throw runtime_error(sig_err);
+    return std::move(*sig_opt);
 }
 
 bool BackEnd::verify(SignatureAlgorithm algorithm,
@@ -249,7 +252,11 @@ bool BackEnd::verify(SignatureAlgorithm algorithm,
             throw runtime_error("Cannot verify with 'none' algorithm");
     }
 
-    return this->verify_(algorithm, underlying_key, data, signature);
+    // transitional: unwrap Result until public API is nothrow
+    auto [result_opt, result_err] = this->verify_(algorithm, underlying_key, data, signature);
+    if (!result_opt)
+        throw runtime_error(result_err);
+    return *result_opt;
 }
 
 vector<unsigned char> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
