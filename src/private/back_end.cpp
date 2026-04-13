@@ -103,8 +103,12 @@ BackEnd::concatKDF(vector<unsigned char> const &shared_secret /* Z in the spec *
         round_data.insert(round_data.end(), round_be.bytes, round_be.bytes + sizeof(uint32_t));
         round_data.insert(round_data.end(), shared_secret.begin(), shared_secret.end());
         round_data.insert(round_data.end(), other_info.begin(), other_info.end());
-        vector<unsigned char> hash = this->hash(HashAlgorithm::sha256, round_data);
-        derived_key.insert(derived_key.end(), hash.begin(), hash.end());
+        auto [hash_opt, hash_err] = this->hash(HashAlgorithm::sha256, round_data);
+        if (!hash_opt)
+        {
+            throw runtime_error(hash_err);  // transitional: hash is Result, concatKDF is not yet
+        }
+        derived_key.insert(derived_key.end(), hash_opt->begin(), hash_opt->end());
     }
     derived_key.resize(key_data_len);
     return derived_key;
@@ -275,13 +279,18 @@ vector<unsigned char> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
     auto underlying_ephemeral_key =
         ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
                       : nullptr;
-    return this->encryptKey_(algorithm,
-                             underlying_key,
-                             cek,
-                             iv,
-                             tag,
-                             underlying_ephemeral_key,
-                             content_alg);
+    auto [enc_key_opt, enc_key_err] = this->encryptKey_(algorithm,
+                                                         underlying_key,
+                                                         cek,
+                                                         iv,
+                                                         tag,
+                                                         underlying_ephemeral_key,
+                                                         content_alg);
+    if (!enc_key_opt)
+    {
+        throw runtime_error(enc_key_err);
+    }
+    return std::move(*enc_key_opt);
 }
 
 vector<unsigned char> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
@@ -300,13 +309,18 @@ vector<unsigned char> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
     auto underlying_ephemeral_key =
         ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
                       : nullptr;
-    return this->decryptKey_(algorithm,
-                             underlying_key,
-                             encrypted_cek,
-                             iv,
-                             tag,
-                             underlying_ephemeral_key,
-                             content_alg);
+    auto [dec_key_opt, dec_key_err] = this->decryptKey_(algorithm,
+                                                         underlying_key,
+                                                         encrypted_cek,
+                                                         iv,
+                                                         tag,
+                                                         underlying_ephemeral_key,
+                                                         content_alg);
+    if (!dec_key_opt)
+    {
+        throw runtime_error(dec_key_err);
+    }
+    return std::move(*dec_key_opt);
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
@@ -316,7 +330,13 @@ BackEnd::encryptContent(ContentEncryptionAlgorithm algorithm,
                         vector<unsigned char> const &plaintext,
                         vector<unsigned char> const &aad) const
 {
-    return this->encryptContent_(algorithm, cek, iv, plaintext, aad);
+    auto [enc_content_opt, enc_content_err] =
+        this->encryptContent_(algorithm, cek, iv, plaintext, aad);
+    if (!enc_content_opt)
+    {
+        throw runtime_error(enc_content_err);
+    }
+    return std::move(*enc_content_opt);
 }
 
 vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorithm,
@@ -326,7 +346,13 @@ vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorit
                                               vector<unsigned char> const &aad,
                                               vector<unsigned char> const &tag) const
 {
-    return this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
+    auto [dec_content_opt, dec_content_err] =
+        this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
+    if (!dec_content_opt)
+    {
+        throw runtime_error(dec_content_err);
+    }
+    return std::move(*dec_content_opt);
 }
 
 string BackEnd::base64Encode(span<unsigned char const> const &data) const

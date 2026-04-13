@@ -144,7 +144,12 @@ vector<unsigned char> JWKThumbprint::computeRaw(JWK const &key, string const &al
     auto const hash_algorithm = getHashAlgorithm(algorithm);
     vector<unsigned char> const input(canonical_json.begin(), canonical_json.end());
     auto const &back_end = getBackEnd();
-    return back_end.hash(hash_algorithm, input);
+    auto [hash_opt, hash_err] = back_end.hash(hash_algorithm, input);
+    if (!hash_opt)
+    {
+        throw runtime_error(hash_err);  // transitional
+    }
+    return std::move(*hash_opt);
 }
 
 ostream &operator<<(ostream &os, JWKThumbprint const &thumbprint)

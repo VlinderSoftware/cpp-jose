@@ -12,10 +12,10 @@ using namespace Vlinder::JOSE::Private;
 class TestBackEnd : public BackEnd
 {
 public:
-    vector<unsigned char> hash(HashAlgorithm /*algorithm*/,
-                               span<unsigned char const> const & /*data*/) const override
+    Result< vector< unsigned char > > hash(HashAlgorithm /*algorithm*/,
+                                           span< unsigned char const > const & /*data*/) const override
     {
-        return vector<unsigned char>(32, 0xAA);
+        return makeOk< vector< unsigned char > >(vector< unsigned char >(32, 0xAA));
     }
 
     Result<unique_ptr<Key>> generateRSA(unsigned int bits) const override
@@ -90,13 +90,14 @@ protected:
         (void)signature;
         return makeOk<bool>(false);
     }
-    std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
-                                           Key *key,
-                                           std::vector<unsigned char> const &cek,
-                                           std::optional<std::vector<unsigned char>> const &iv,
-                                           std::optional<std::vector<unsigned char>> const &tag,
-                                           Key *ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg) const override
+    Result< std::vector< unsigned char > >
+    encryptKey_(KeyEncryptionAlgorithm algorithm,
+                Key *key,
+                std::vector< unsigned char > const &cek,
+                std::optional< std::vector< unsigned char > > const &iv,
+                std::optional< std::vector< unsigned char > > const &tag,
+                Key *ephemeral_key,
+                ContentEncryptionAlgorithm content_alg) const override
     {
         (void)algorithm;
         (void)key;
@@ -105,15 +106,16 @@ protected:
         (void)tag;
         (void)ephemeral_key;
         (void)content_alg;
-        return {};
+        return makeOk< std::vector< unsigned char > >({});
     }
-    std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
-                                           Key *key,
-                                           std::vector<unsigned char> const &encrypted_cek,
-                                           std::optional<std::vector<unsigned char>> const &iv,
-                                           std::optional<std::vector<unsigned char>> const &tag,
-                                           Key *ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg) const override
+    Result< std::vector< unsigned char > >
+    decryptKey_(KeyEncryptionAlgorithm algorithm,
+                Key *key,
+                std::vector< unsigned char > const &encrypted_cek,
+                std::optional< std::vector< unsigned char > > const &iv,
+                std::optional< std::vector< unsigned char > > const &tag,
+                Key *ephemeral_key,
+                ContentEncryptionAlgorithm content_alg) const override
     {
         (void)algorithm;
         (void)key;
@@ -122,29 +124,30 @@ protected:
         (void)tag;
         (void)ephemeral_key;
         (void)content_alg;
-        return {};
+        return makeOk< std::vector< unsigned char > >({});
     }
-    virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    virtual Result< std::pair< std::vector< unsigned char >, std::vector< unsigned char > > >
     encryptContent_(ContentEncryptionAlgorithm algorithm,
-                    std::vector<unsigned char> const &cek,
-                    std::vector<unsigned char> const &iv,
-                    std::vector<unsigned char> const &plaintext,
-                    std::vector<unsigned char> const &aad) const override
+                    std::vector< unsigned char > const &cek,
+                    std::vector< unsigned char > const &iv,
+                    std::vector< unsigned char > const &plaintext,
+                    std::vector< unsigned char > const &aad) const override
     {
         (void)algorithm;
         (void)cek;
         (void)iv;
         (void)plaintext;
         (void)aad;
-        return {{}, {}};
+        return makeOk< std::pair< std::vector< unsigned char >, std::vector< unsigned char > > >(
+            {{}, {}});
     }
-    virtual std::vector<unsigned char>
+    virtual Result< std::vector< unsigned char > >
     decryptContent_(ContentEncryptionAlgorithm algorithm,
-                    std::vector<unsigned char> const &cek,
-                    std::vector<unsigned char> const &iv,
-                    std::vector<unsigned char> const &ciphertext,
-                    std::vector<unsigned char> const &aad,
-                    std::vector<unsigned char> const &tag) const override
+                    std::vector< unsigned char > const &cek,
+                    std::vector< unsigned char > const &iv,
+                    std::vector< unsigned char > const &ciphertext,
+                    std::vector< unsigned char > const &aad,
+                    std::vector< unsigned char > const &tag) const override
     {
         (void)algorithm;
         (void)cek;
@@ -152,7 +155,7 @@ protected:
         (void)ciphertext;
         (void)aad;
         (void)tag;
-        return {};
+        return makeOk< std::vector< unsigned char > >({});
     }
 };
 
