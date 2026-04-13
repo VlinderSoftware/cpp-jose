@@ -105,8 +105,8 @@ private:
 class CNGBackEnd : public BackEnd
 {
 public:
-    virtual std::unique_ptr<Key> generateRSA(unsigned int bits) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateRSA(unsigned int bits) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateRSA(std::vector<unsigned char> const &n_bytes,
                 std::vector<unsigned char> const &e_bytes,
                 std::vector<unsigned char> const &d_bytes,
@@ -115,17 +115,17 @@ public:
                 std::vector<unsigned char> const &dp_bytes,
                 std::vector<unsigned char> const &dq_bytes,
                 std::vector<unsigned char> const &qi_bytes) const override;
-    virtual std::unique_ptr<Key> generateEC(std::string const &curve) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateEC(std::string const &curve) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateEC(std::string const &curve,
                std::vector<unsigned char> const &x_bytes,
                std::vector<unsigned char> const &y_bytes,
                std::vector<unsigned char> const &d_bytes) const override;
-    virtual std::unique_ptr<Key> generateOct(unsigned int bits) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateOct(unsigned int bits) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateOct(unsigned int bits, std::vector<unsigned char> const &k_bytes) const override;
-    virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateOkp(std::string const &curve,
                 std::vector<unsigned char> const &x_bytes,
                 std::vector<unsigned char> const &d_bytes) const override;

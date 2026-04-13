@@ -18,49 +18,50 @@ public:
         return vector<unsigned char>(32, 0xAA);
     }
 
-    unique_ptr<Key> generateRSA(unsigned int bits) const override
+    Result<unique_ptr<Key>> generateRSA(unsigned int bits) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateRSA(vector<unsigned char> const &n_bytes,
-                                vector<unsigned char> const &e_bytes,
-                                vector<unsigned char> const &d_bytes,
-                                vector<unsigned char> const &p_bytes,
-                                vector<unsigned char> const &q_bytes,
-                                vector<unsigned char> const &dp_bytes,
-                                vector<unsigned char> const &dq_bytes,
-                                vector<unsigned char> const &qi_bytes) const override
+    Result<unique_ptr<Key>> generateRSA(vector<unsigned char> const &n_bytes,
+                                        vector<unsigned char> const &e_bytes,
+                                        vector<unsigned char> const &d_bytes,
+                                        vector<unsigned char> const &p_bytes,
+                                        vector<unsigned char> const &q_bytes,
+                                        vector<unsigned char> const &dp_bytes,
+                                        vector<unsigned char> const &dq_bytes,
+                                        vector<unsigned char> const &qi_bytes) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateEC(string const &) const override
+    Result<unique_ptr<Key>> generateEC(string const &) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateEC(string const &,
-                               vector<unsigned char> const &,
-                               vector<unsigned char> const &,
-                               vector<unsigned char> const &) const override
+    Result<unique_ptr<Key>> generateEC(string const &,
+                                       vector<unsigned char> const &,
+                                       vector<unsigned char> const &,
+                                       vector<unsigned char> const &) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOct(unsigned int bits) const override
+    Result<unique_ptr<Key>> generateOct(unsigned int bits) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOct(unsigned int bits, vector<unsigned char> const &) const override
+    Result<unique_ptr<Key>> generateOct(unsigned int bits,
+                                        vector<unsigned char> const &) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override
+    Result<unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOkp(string const &curve,
-                                vector<unsigned char> const &x_bytes,
-                                vector<unsigned char> const &d_bytes) const override
+    Result<unique_ptr<Key>> generateOkp(string const &curve,
+                                        vector<unsigned char> const &x_bytes,
+                                        vector<unsigned char> const &d_bytes) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
     string getErrorString() const override
     {

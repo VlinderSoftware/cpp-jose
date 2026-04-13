@@ -101,29 +101,32 @@ private:
 class OpenSSLBackEnd : public BackEnd
 {
 public:
-    std::unique_ptr<Key> generateRSA(unsigned int bits) const override;
-    std::unique_ptr<Key> generateRSA(std::vector<unsigned char> const &n_bytes,
-                                     std::vector<unsigned char> const &e_bytes,
-                                     std::vector<unsigned char> const &d_bytes,
-                                     std::vector<unsigned char> const &p_bytes,
-                                     std::vector<unsigned char> const &q_bytes,
-                                     std::vector<unsigned char> const &dp_bytes,
-                                     std::vector<unsigned char> const &dq_bytes,
-                                     std::vector<unsigned char> const &qi_bytes) const override;
+    Result<std::unique_ptr<Key>> generateRSA(unsigned int bits) const override;
+    Result<std::unique_ptr<Key>>
+    generateRSA(std::vector<unsigned char> const &n_bytes,
+                std::vector<unsigned char> const &e_bytes,
+                std::vector<unsigned char> const &d_bytes,
+                std::vector<unsigned char> const &p_bytes,
+                std::vector<unsigned char> const &q_bytes,
+                std::vector<unsigned char> const &dp_bytes,
+                std::vector<unsigned char> const &dq_bytes,
+                std::vector<unsigned char> const &qi_bytes) const override;
 
-    std::unique_ptr<Key> generateEC(std::string const &curve) const override;
-    std::unique_ptr<Key> generateEC(std::string const &curve,
-                                    std::vector<unsigned char> const &x_bytes,
-                                    std::vector<unsigned char> const &y_bytes,
-                                    std::vector<unsigned char> const &d_bytes) const override;
+    Result<std::unique_ptr<Key>> generateEC(std::string const &curve) const override;
+    Result<std::unique_ptr<Key>>
+    generateEC(std::string const &curve,
+               std::vector<unsigned char> const &x_bytes,
+               std::vector<unsigned char> const &y_bytes,
+               std::vector<unsigned char> const &d_bytes) const override;
 
-    std::unique_ptr<Key> generateOct(unsigned int bits) const override;
-    std::unique_ptr<Key> generateOct(unsigned int bits,
-                                     std::vector<unsigned char> const &k_bytes) const override;
-    std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override;
-    std::unique_ptr<Key> generateOkp(std::string const &curve,
-                                     std::vector<unsigned char> const &x_bytes,
-                                     std::vector<unsigned char> const &d_bytes) const override;
+    Result<std::unique_ptr<Key>> generateOct(unsigned int bits) const override;
+    Result<std::unique_ptr<Key>>
+    generateOct(unsigned int bits, std::vector<unsigned char> const &k_bytes) const override;
+    Result<std::unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const override;
+    Result<std::unique_ptr<Key>>
+    generateOkp(std::string const &curve,
+                std::vector<unsigned char> const &x_bytes,
+                std::vector<unsigned char> const &d_bytes) const override;
 
     std::vector<unsigned char> hash(HashAlgorithm algorithm,
                                     std::span<unsigned char const> const &data) const override;

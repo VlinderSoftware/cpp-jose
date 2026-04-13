@@ -1323,7 +1323,7 @@ vector<unsigned char> CNGRSAKey::getQi() const
     return iqmp_;
 }
 
-unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
+Result<unique_ptr<Key>> CNGBackEnd::generateRSA(unsigned int bits) const
 {
     unsigned int const max_attempts = static_cast<unsigned int>(JOSE_RSA_GENERATION_MAX_ATTEMPTS);
     string last_reason;
@@ -1334,7 +1334,8 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
         NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+            return makeError<unique_ptr<Key>>("BCryptOpenAlgorithmProvider failed: " +
+                                              getErrorString());
         }
         AlgHandle alg_guard(hAlg);
 
@@ -1342,14 +1343,14 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
         status = BCryptGenerateKeyPair(alg_guard.get(), &hKey, bits, 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptGenerateKeyPair failed: " + getErrorString());
+            return makeError<unique_ptr<Key>>("BCryptGenerateKeyPair failed: " + getErrorString());
         }
         KeyHandle key_guard(hKey);
 
         status = BCryptFinalizeKeyPair(key_guard.get(), 0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptFinalizeKeyPair failed: " + getErrorString());
+            return makeError<unique_ptr<Key>>("BCryptFinalizeKeyPair failed: " + getErrorString());
         }
 
         // Export public key
@@ -1363,7 +1364,8 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
                                  0);
         if (!BCRYPT_SUCCESS(status) && status != STATUS_BUFFER_TOO_SMALL)
         {
-            throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
+            return makeError<unique_ptr<Key>>("BCryptExportKey (public) failed: " +
+                                              getErrorString());
         }
 
         vector<unsigned char> pub_blob(pub_size);
@@ -1377,7 +1379,8 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
                                  0);
         if (!BCRYPT_SUCCESS(status))
         {
-            throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
+            return makeError<unique_ptr<Key>>("BCryptExportKey (public) failed: " +
+                                              getErrorString());
         }
 
         // Parse public blob for n and e
@@ -1392,7 +1395,8 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
                 sizeof(BCRYPT_RSAKEY_BLOB) + header.cbPublicExp + header.cbModulus;
             if (pub_blob.size() < expected_pub_size)
             {
-                throw runtime_error("BCryptExportKey returned a truncated public blob");
+                return makeError<unique_ptr<Key>>(
+                    "BCryptExportKey returned a truncated public blob");
             }
 
             unsigned char const *ptr = pub_blob.data() + sizeof(BCRYPT_RSAKEY_BLOB);
@@ -1527,39 +1531,40 @@ unique_ptr<Key> CNGBackEnd::generateRSA(unsigned int bits) const
         {
             // Transfer ownership of the CNG handles to the key wrapper.
             // The CNGRSAKey destructor will clean them up via the guard members.
-            return make_unique<CNGRSAKey>(std::move(n),
-                                          std::move(e),
-                                          std::move(d),
-                                          std::move(p),
-                                          std::move(q),
-                                          std::move(dp),
-                                          std::move(dq),
-                                          std::move(iqmp),
-                                          pub_blob,
-                                          priv_blob,
-                                          key_guard.release(),
-                                          alg_guard.release());
+            return makeOk<unique_ptr<Key>>(make_unique<CNGRSAKey>(std::move(n),
+                                                                  std::move(e),
+                                                                  std::move(d),
+                                                                  std::move(p),
+                                                                  std::move(q),
+                                                                  std::move(dp),
+                                                                  std::move(dq),
+                                                                  std::move(iqmp),
+                                                                  pub_blob,
+                                                                  priv_blob,
+                                                                  key_guard.release(),
+                                                                  alg_guard.release()));
         }
 
         last_reason = "incomplete private RSA export from CNG provider";
     }
 
-    throw runtime_error("Failed to generate a complete RSA private key after " +
-                        to_string(max_attempts) + " attempts: " + last_reason);
+    return makeError<unique_ptr<Key>>("Failed to generate a complete RSA private key after " +
+                                      to_string(max_attempts) + " attempts: " + last_reason);
 }
 
-unique_ptr<Key> CNGBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
-                                        vector<unsigned char> const &e_bytes,
-                                        vector<unsigned char> const &d_bytes,
-                                        vector<unsigned char> const &p_bytes,
-                                        vector<unsigned char> const &q_bytes,
-                                        vector<unsigned char> const &dp_bytes,
-                                        vector<unsigned char> const &dq_bytes,
-                                        vector<unsigned char> const &qi_bytes) const
+Result<unique_ptr<Key>> CNGBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
+                                                vector<unsigned char> const &e_bytes,
+                                                vector<unsigned char> const &d_bytes,
+                                                vector<unsigned char> const &p_bytes,
+                                                vector<unsigned char> const &q_bytes,
+                                                vector<unsigned char> const &dp_bytes,
+                                                vector<unsigned char> const &dq_bytes,
+                                                vector<unsigned char> const &qi_bytes) const
 {
     if (n_bytes.empty() || e_bytes.empty())
     {
-        throw runtime_error("RSA import requires at least modulus (n) and public exponent (e)");
+        return makeError<unique_ptr<Key>>(
+            "RSA import requires at least modulus (n) and public exponent (e)");
     }
 
     // CNG only supports public-only or full-CRT private import; a bare-d key (without
@@ -1568,8 +1573,9 @@ unique_ptr<Key> CNGBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
                          !dp_bytes.empty() && !dq_bytes.empty() && !qi_bytes.empty();
     if (!d_bytes.empty() && !has_crt)
     {
-        throw runtime_error("CNG RSA import requires either a public key (n, e) or a full "
-                            "private key with CRT parameters (n, e, d, p, q, dp, dq, qi)");
+        return makeError<unique_ptr<Key>>(
+            "CNG RSA import requires either a public key (n, e) or a full "
+            "private key with CRT parameters (n, e, d, p, q, dp, dq, qi)");
     }
 
     // Build the BCRYPT_RSAKEY_BLOB header followed by the key material.
@@ -1610,7 +1616,8 @@ unique_ptr<Key> CNGBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptOpenAlgorithmProvider failed: " +
+                                          getErrorString());
     }
     AlgHandle alg_guard(hAlg);
 
@@ -1625,25 +1632,25 @@ unique_ptr<Key> CNGBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
                                  0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptImportKeyPair failed: " + getErrorString());
     }
     KeyHandle key_guard(hKey);
 
-    return make_unique<CNGRSAKey>(n_bytes,
-                                  e_bytes,
-                                  d_bytes,
-                                  p_bytes,
-                                  q_bytes,
-                                  dp_bytes,
-                                  dq_bytes,
-                                  qi_bytes,
-                                  vector<unsigned char>{},
-                                  vector<unsigned char>{},
-                                  key_guard.release(),
-                                  alg_guard.release());
+    return makeOk<unique_ptr<Key>>(make_unique<CNGRSAKey>(n_bytes,
+                                                          e_bytes,
+                                                          d_bytes,
+                                                          p_bytes,
+                                                          q_bytes,
+                                                          dp_bytes,
+                                                          dq_bytes,
+                                                          qi_bytes,
+                                                          vector<unsigned char>{},
+                                                          vector<unsigned char>{},
+                                                          key_guard.release(),
+                                                          alg_guard.release()));
 }
 
-unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
+Result<unique_ptr<Key>> CNGBackEnd::generateEC(string const &curve) const
 {
     LPCWSTR alg = nullptr;
     string curve_name;
@@ -1664,14 +1671,15 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
     }
     else
     {
-        throw runtime_error("Unsupported curve: " + curve);
+        return makeError<unique_ptr<Key>>("Unsupported curve: " + curve);
     }
 
     BCRYPT_ALG_HANDLE hAlg = nullptr;
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, alg, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptOpenAlgorithmProvider failed: " +
+                                          getErrorString());
     }
     AlgHandle alg_guard(hAlg);
 
@@ -1679,14 +1687,14 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
     status = BCryptGenerateKeyPair(alg_guard.get(), &hKey, 0, 0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptGenerateKeyPair failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptGenerateKeyPair failed: " + getErrorString());
     }
     KeyHandle key_guard(hKey);
 
     status = BCryptFinalizeKeyPair(key_guard.get(), 0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptFinalizeKeyPair failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptFinalizeKeyPair failed: " + getErrorString());
     }
 
     // Export public key
@@ -1695,7 +1703,7 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
         BCryptExportKey(key_guard.get(), nullptr, BCRYPT_ECCPUBLIC_BLOB, nullptr, 0, &pub_size, 0);
     if (!BCRYPT_SUCCESS(status) && status != STATUS_BUFFER_TOO_SMALL)
     {
-        throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptExportKey (public) failed: " + getErrorString());
     }
 
     vector<unsigned char> pub_blob(pub_size);
@@ -1708,7 +1716,7 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
                              0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptExportKey (public) failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptExportKey (public) failed: " + getErrorString());
     }
 
     // Parse x and y from the public blob.
@@ -1727,7 +1735,8 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
         size_t const expected_ecc_pub_size = sizeof(BCRYPT_ECCKEY_BLOB) + 2 * ecc_header.cbKey;
         if (pub_blob.size() < expected_ecc_pub_size)
         {
-            throw runtime_error("BCryptExportKey returned a truncated ECC public blob");
+            return makeError<unique_ptr<Key>>(
+                "BCryptExportKey returned a truncated ECC public blob");
         }
 
         unsigned char const *ptr = pub_blob.data() + sizeof(BCRYPT_ECCKEY_BLOB);
@@ -1798,24 +1807,24 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve) const
     }
 
     // Transfer ownership of the CNG handles to the key wrapper.
-    return make_unique<CNGECKey>(curve_name,
-                                 x,
-                                 y,
-                                 d,
-                                 std::move(pub_blob),
-                                 std::move(priv_blob),
-                                 key_guard.release(),
-                                 alg_guard.release());
+    return makeOk<unique_ptr<Key>>(make_unique<CNGECKey>(curve_name,
+                                                         x,
+                                                         y,
+                                                         d,
+                                                         std::move(pub_blob),
+                                                         std::move(priv_blob),
+                                                         key_guard.release(),
+                                                         alg_guard.release()));
 }
 
-unique_ptr<Key> CNGBackEnd::generateEC(string const &curve,
-                                       vector<unsigned char> const &x_bytes,
-                                       vector<unsigned char> const &y_bytes,
-                                       vector<unsigned char> const &d_bytes) const
+Result<unique_ptr<Key>> CNGBackEnd::generateEC(string const &curve,
+                                               vector<unsigned char> const &x_bytes,
+                                               vector<unsigned char> const &y_bytes,
+                                               vector<unsigned char> const &d_bytes) const
 {
     if (x_bytes.empty() || y_bytes.empty())
     {
-        throw runtime_error("EC import requires both x and y coordinates");
+        return makeError<unique_ptr<Key>>("EC import requires both x and y coordinates");
     }
 
     // Resolve the curve to its CNG algorithm identifier and the two magic values
@@ -1855,7 +1864,7 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve,
     }
     else
     {
-        throw runtime_error("Unsupported EC curve: " + curve);
+        return makeError<unique_ptr<Key>>("Unsupported EC curve: " + curve);
     }
 
     bool const has_private = !d_bytes.empty();
@@ -1878,7 +1887,8 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve,
     NTSTATUS status = BCryptOpenAlgorithmProvider(&hAlg, alg_id, nullptr, 0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptOpenAlgorithmProvider failed: " +
+                                          getErrorString());
     }
     AlgHandle alg_guard(hAlg);
 
@@ -1893,7 +1903,7 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve,
                                  0);
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptImportKeyPair failed: " + getErrorString());
     }
     KeyHandle key_guard(hKey);
 
@@ -1926,21 +1936,21 @@ unique_ptr<Key> CNGBackEnd::generateEC(string const &curve,
         copy(d_bytes.begin(), d_bytes.end(), priv_ptr + 2 * cb_key);
     }
 
-    return make_unique<CNGECKey>(curve_name,
-                                 x_bytes,
-                                 y_bytes,
-                                 d_bytes,
-                                 std::move(pub_blob),
-                                 std::move(priv_blob),
-                                 key_guard.release(),
-                                 alg_guard.release());
+    return makeOk<unique_ptr<Key>>(make_unique<CNGECKey>(curve_name,
+                                                         x_bytes,
+                                                         y_bytes,
+                                                         d_bytes,
+                                                         std::move(pub_blob),
+                                                         std::move(priv_blob),
+                                                         key_guard.release(),
+                                                         alg_guard.release()));
 }
 
-unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits) const
+Result<unique_ptr<Key>> CNGBackEnd::generateOct(unsigned int bits) const
 {
     if (bits == 0 || bits % 8 != 0)
     {
-        throw runtime_error("Key size must be a non-zero multiple of 8 bits");
+        return makeError<unique_ptr<Key>>("Key size must be a non-zero multiple of 8 bits");
     }
 
     vector<unsigned char> key_bytes(bits / 8);
@@ -1952,37 +1962,39 @@ unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits) const
 
     if (!BCRYPT_SUCCESS(status))
     {
-        throw runtime_error("BCryptGenRandom failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("BCryptGenRandom failed: " + getErrorString());
     }
 
-    return make_unique<OctKey>(std::move(key_bytes));
+    return makeOk<unique_ptr<Key>>(make_unique<OctKey>(std::move(key_bytes)));
 }
 
-unique_ptr<Key> CNGBackEnd::generateOct(unsigned int bits,
-                                        vector<unsigned char> const &k_bytes) const
+Result<unique_ptr<Key>> CNGBackEnd::generateOct(unsigned int bits,
+                                                vector<unsigned char> const &k_bytes) const
 {
     auto const key_size(k_bytes.size());
     if (key_size != bits / 8)
     {
-        throw runtime_error("Key size error");
+        return makeError<unique_ptr<Key>>("Key size error");
     }
 
-    return make_unique<OctKey>(std::move(k_bytes));
+    return makeOk<unique_ptr<Key>>(make_unique<OctKey>(std::move(k_bytes)));
 }
 
-unique_ptr<Key> CNGBackEnd::generateOkp(Use use, unsigned int bits) const
+Result<unique_ptr<Key>> CNGBackEnd::generateOkp(Use use, unsigned int bits) const
 {
-    throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
+    (void)use;
+    (void)bits;
+    return makeError<unique_ptr<Key>>("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
-unique_ptr<Key> CNGBackEnd::generateOkp(string const &curve,
-                                        vector<unsigned char> const &x_bytes,
-                                        vector<unsigned char> const &d_bytes) const
+Result<unique_ptr<Key>> CNGBackEnd::generateOkp(string const &curve,
+                                                vector<unsigned char> const &x_bytes,
+                                                vector<unsigned char> const &d_bytes) const
 {
     (void)curve;
     (void)x_bytes;
     (void)d_bytes;
-    throw runtime_error("Not supported on Windows/CNG. Use an OpenSSL version.");
+    return makeError<unique_ptr<Key>>("Not supported on Windows/CNG. Use an OpenSSL version.");
 }
 
 vector<unsigned char> CNGBackEnd::sign_(SignatureAlgorithm algorithm,

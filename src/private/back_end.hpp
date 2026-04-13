@@ -9,6 +9,7 @@
 
 #include "jwa.hpp"
 #include "jwk.hpp"
+#include "result.hpp"
 
 namespace Vlinder {
 namespace JOSE {
@@ -165,27 +166,30 @@ public:
                                          std::vector<unsigned char> const &apu = {},
                                          std::vector<unsigned char> const &apv = {}) const;
 
-    virtual std::unique_ptr<Key> generateRSA(unsigned int bits) const = 0;
-    virtual std::unique_ptr<Key> generateRSA(std::vector<unsigned char> const &n_bytes,
-                                             std::vector<unsigned char> const &e_bytes,
-                                             std::vector<unsigned char> const &d_bytes,
-                                             std::vector<unsigned char> const &p_bytes,
-                                             std::vector<unsigned char> const &q_bytes,
-                                             std::vector<unsigned char> const &dp_bytes,
-                                             std::vector<unsigned char> const &dq_bytes,
-                                             std::vector<unsigned char> const &qi_bytes) const = 0;
-    virtual std::unique_ptr<Key> generateEC(std::string const &curve) const = 0;
-    virtual std::unique_ptr<Key> generateEC(std::string const &curve,
-                                            std::vector<unsigned char> const &x_bytes,
-                                            std::vector<unsigned char> const &y_bytes,
-                                            std::vector<unsigned char> const &d_bytes) const = 0;
-    virtual std::unique_ptr<Key> generateOct(unsigned int bits) const = 0;
-    virtual std::unique_ptr<Key> generateOct(unsigned int bits,
-                                             std::vector<unsigned char> const &k_bytes) const = 0;
-    virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const = 0;
-    virtual std::unique_ptr<Key> generateOkp(std::string const &curve,
-                                             std::vector<unsigned char> const &x_bytes,
-                                             std::vector<unsigned char> const &d_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateRSA(unsigned int bits) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateRSA(std::vector<unsigned char> const &n_bytes,
+                std::vector<unsigned char> const &e_bytes,
+                std::vector<unsigned char> const &d_bytes,
+                std::vector<unsigned char> const &p_bytes,
+                std::vector<unsigned char> const &q_bytes,
+                std::vector<unsigned char> const &dp_bytes,
+                std::vector<unsigned char> const &dq_bytes,
+                std::vector<unsigned char> const &qi_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateEC(std::string const &curve) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateEC(std::string const &curve,
+               std::vector<unsigned char> const &x_bytes,
+               std::vector<unsigned char> const &y_bytes,
+               std::vector<unsigned char> const &d_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateOct(unsigned int bits) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateOct(unsigned int bits, std::vector<unsigned char> const &k_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateOkp(std::string const &curve,
+                std::vector<unsigned char> const &x_bytes,
+                std::vector<unsigned char> const &d_bytes) const = 0;
 
     std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
                                     JWK const &key,

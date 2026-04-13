@@ -240,7 +240,13 @@ JWK JWK::generateRSA(Use use, unsigned int bits, string const &alg)
 
     Private::BackEndFactory &factory(Private::BackEndFactory::get());
     auto back_end(factory.createBackEnd());
-    impl.key_ = std::move(back_end->generateRSA(bits));
+    {
+        // transitional: unwrap Result until JWK::generateRSA is made nothrow
+        auto [key_opt, key_err] = back_end->generateRSA(bits);
+        if (!key_opt)
+            throw runtime_error(key_err);
+        impl.key_ = std::move(*key_opt);
+    }
 
     JWK jwk(std::move(impl));
     ensureKeyID(jwk);
@@ -258,9 +264,15 @@ JWK JWK::generateEC(Use use, string const &curve, string const &alg)
 
     Impl impl(KeyType::ec, use, final_alg);
 
-    Private::BackEndFactory &factory(Private::BackEndFactory::get());
-    auto back_end(factory.createBackEnd());
-    impl.key_ = std::move(back_end->generateEC(curve));
+    Private::BackEndFactory &factory2(Private::BackEndFactory::get());
+    auto back_end2(factory2.createBackEnd());
+    {
+        // transitional: unwrap Result until JWK::generateEC is made nothrow
+        auto [key_opt, key_err] = back_end2->generateEC(curve);
+        if (!key_opt)
+            throw runtime_error(key_err);
+        impl.key_ = std::move(*key_opt);
+    }
 
     JWK jwk(std::move(impl));
     ensureKeyID(jwk);
@@ -278,9 +290,15 @@ JWK JWK::generateOct(Use use, int bits, string const &alg)
 
     Impl impl(KeyType::oct, use, final_alg);
 
-    Private::BackEndFactory &factory(Private::BackEndFactory::get());
-    auto back_end(factory.createBackEnd());
-    impl.key_ = std::move(back_end->generateOct(bits));
+    Private::BackEndFactory &factory3(Private::BackEndFactory::get());
+    auto back_end3(factory3.createBackEnd());
+    {
+        // transitional: unwrap Result until JWK::generateOct is made nothrow
+        auto [key_opt, key_err] = back_end3->generateOct(bits);
+        if (!key_opt)
+            throw runtime_error(key_err);
+        impl.key_ = std::move(*key_opt);
+    }
 
     JWK jwk(std::move(impl));
     ensureKeyID(jwk);
@@ -304,9 +322,15 @@ JWK JWK::generateOKP(Use use, unsigned int bits, string const &alg)
 
     Impl impl(KeyType::okp, use, final_alg);
 
-    Private::BackEndFactory &factory(Private::BackEndFactory::get());
-    auto back_end(factory.createBackEnd());
-    impl.key_ = std::move(back_end->generateOkp(use, bits));
+    Private::BackEndFactory &factory4(Private::BackEndFactory::get());
+    auto back_end4(factory4.createBackEnd());
+    {
+        // transitional: unwrap Result until JWK::generateOKP is made nothrow
+        auto [key_opt, key_err] = back_end4->generateOkp(use, bits);
+        if (!key_opt)
+            throw runtime_error(key_err);
+        impl.key_ = std::move(*key_opt);
+    }
 
     JWK jwk(std::move(impl));
     ensureKeyID(jwk);
@@ -581,14 +605,20 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
                 }
             }
 
-            impl.key_ = std::move(back_end->generateRSA(n_bytes,
-                                                        e_bytes,
-                                                        d_bytes,
-                                                        p_bytes,
-                                                        q_bytes,
-                                                        dp_bytes,
-                                                        dq_bytes,
-                                                        qi_bytes));
+            {
+                // transitional: unwrap Result until fromJSON is made nothrow
+                auto [key_opt, key_err] = back_end->generateRSA(n_bytes,
+                                                                e_bytes,
+                                                                d_bytes,
+                                                                p_bytes,
+                                                                q_bytes,
+                                                                dp_bytes,
+                                                                dq_bytes,
+                                                                qi_bytes);
+                if (!key_opt)
+                    throw runtime_error(key_err);
+                impl.key_ = std::move(*key_opt);
+            }
             break;
         }
         case KeyType::ec:
@@ -604,8 +634,14 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
                                ? Base64URL::decode(jwk_json["d"].get<string>())
                                : vector<unsigned char>{};
 
-            impl.key_ = std::move(
-                back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes));
+            {
+                // transitional: unwrap Result until fromJSON is made nothrow
+                auto [key_opt, key_err] =
+                    back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes);
+                if (!key_opt)
+                    throw runtime_error(key_err);
+                impl.key_ = std::move(*key_opt);
+            }
             break;
         }
         case KeyType::okp:
@@ -622,8 +658,14 @@ JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
             auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
                                ? Base64URL::decode(jwk_json["d"].get<string>())
                                : vector<unsigned char>{};
-            impl.key_ =
-                std::move(back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes));
+            {
+                // transitional: unwrap Result until fromJSON is made nothrow
+                auto [key_opt, key_err] =
+                    back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes);
+                if (!key_opt)
+                    throw runtime_error(key_err);
+                impl.key_ = std::move(*key_opt);
+            }
             break;
         }
 #endif
