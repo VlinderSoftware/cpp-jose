@@ -280,12 +280,12 @@ vector<unsigned char> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
         ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
                       : nullptr;
     auto [enc_key_opt, enc_key_err] = this->encryptKey_(algorithm,
-                                                         underlying_key,
-                                                         cek,
-                                                         iv,
-                                                         tag,
-                                                         underlying_ephemeral_key,
-                                                         content_alg);
+                                                        underlying_key,
+                                                        cek,
+                                                        iv,
+                                                        tag,
+                                                        underlying_ephemeral_key,
+                                                        content_alg);
     if (!enc_key_opt)
     {
         throw runtime_error(enc_key_err);
@@ -310,12 +310,12 @@ vector<unsigned char> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
         ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
                       : nullptr;
     auto [dec_key_opt, dec_key_err] = this->decryptKey_(algorithm,
-                                                         underlying_key,
-                                                         encrypted_cek,
-                                                         iv,
-                                                         tag,
-                                                         underlying_ephemeral_key,
-                                                         content_alg);
+                                                        underlying_key,
+                                                        encrypted_cek,
+                                                        iv,
+                                                        tag,
+                                                        underlying_ephemeral_key,
+                                                        content_alg);
     if (!dec_key_opt)
     {
         throw runtime_error(dec_key_err);
