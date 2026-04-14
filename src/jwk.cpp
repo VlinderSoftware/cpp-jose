@@ -225,16 +225,14 @@ unsigned int keySizeFromAlg(string const &alg)
 
 // Helper macro: decode a base64url JSON field into a vector, returning early on failure.
 #define DECODE_FIELD(var_name_, json_obj_, field_name_)                                            \
-    auto var_name_##_opt_ =                                                                        \
-        Base64URL::decode(json_obj_[field_name_].get<string>(), nothrow);                          \
+    auto var_name_##_opt_ = Base64URL::decode(json_obj_[field_name_].get<string>(), nothrow);      \
     if (!var_name_##_opt_)                                                                         \
         return Private::makeError<JWK>("Invalid base64url in '" field_name_ "'");                  \
     auto var_name_ = std::move(*var_name_##_opt_)
 
 // Nothrow core implementation of JWK::fromJSON.
 // Returns Result<JWK>: a populated optional on success, or an empty optional + error string.
-Private::Result<JWK>
-JWK::fromJSON_(string const &json_str, bool ignore_private_if_present)
+Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_if_present)
 {
     json jwk_json = json::parse(json_str, nullptr, false);
     if (jwk_json.is_discarded())
@@ -258,7 +256,8 @@ JWK::fromJSON_(string const &json_str, bool ignore_private_if_present)
         key_type = KeyType::okp;
 
     bool has_use = jwk_json.contains("use");
-    Use use = (has_use && jwk_json["use"].get<string>() == "enc") ? Use::encryption : Use::signature;
+    Use use =
+        (has_use && jwk_json["use"].get<string>() == "enc") ? Use::encryption : Use::signature;
     string alg = jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "";
 
     if (!has_use && alg.empty())

@@ -109,8 +109,7 @@ Private::HashAlgorithm getHashAlgorithm(string const &algorithm)
 }
 
 // Nothrow core: compute the raw hash bytes for a JWK thumbprint.
-Private::Result<vector<unsigned char>>
-computeRaw_(JWK const &key, string const &algorithm)
+Private::Result<vector<unsigned char>> computeRaw_(JWK const &key, string const &algorithm)
 {
     auto [canonical_opt, canonical_err] = getCanonicalJWKJson_(key);
     if (!canonical_opt)
