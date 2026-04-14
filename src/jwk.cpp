@@ -221,14 +221,27 @@ unsigned int keySizeFromAlg(string const &alg)
     throw runtime_error("Cannot determine key size for algorithm: '" + alg + "'");
 }
 
-}  // anonymous namespace
+/// @brief Decode a base64url-encoded string field from a JSON object.
+/// @param json_obj  JSON object containing the field to decode.
+/// @param field_name  Name of the field to extract and decode.
+/// @return Result with decoded bytes on success, or an error string on failure.
+Private::Result<vector<unsigned char>> decodeBase64UrlField(json const &json_obj,
+                                                            string const &field_name)
+{
+    if (!json_obj.contains(field_name))
+        return Private::makeError<vector<unsigned char>>("Missing '" + field_name + "' field");
+    auto const &field_val = json_obj.at(field_name);
+    if (!field_val.is_string())
+        return Private::makeError<vector<unsigned char>>("Field '" + field_name +
+                                                         "' must be a string");
+    auto decoded_opt = Base64URL::decode(field_val.get<string>(), nothrow);
+    if (!decoded_opt)
+        return Private::makeError<vector<unsigned char>>("Invalid base64url in '" + field_name +
+                                                         "'");
+    return Private::makeOk<vector<unsigned char>>(std::move(*decoded_opt));
+}
 
-// Helper macro: decode a base64url JSON field into a vector, returning early on failure.
-#define DECODE_FIELD(var_name_, json_obj_, field_name_)                                            \
-    auto var_name_##_opt_ = Base64URL::decode(json_obj_[field_name_].get<string>(), nothrow);      \
-    if (!var_name_##_opt_)                                                                         \
-        return Private::makeError<JWK>("Invalid base64url in '" field_name_ "'");                  \
-    auto var_name_ = std::move(*var_name_##_opt_)
+}  // anonymous namespace
 
 // Nothrow core implementation of JWK::fromJSON.
 // Returns Result<JWK>: a populated optional on success, or an empty optional + error string.
@@ -237,11 +250,15 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
     json jwk_json = json::parse(json_str, nullptr, false);
     if (jwk_json.is_discarded())
         return Private::makeError<JWK>("JSON parse error: invalid JSON input");
+    if (!jwk_json.is_object())
+        return Private::makeError<JWK>("JWK input is not a JSON object");
 
     if (!jwk_json.contains("kty"))
         return Private::makeError<JWK>("Missing kty field");
+    if (!jwk_json.at("kty").is_string())
+        return Private::makeError<JWK>("Field 'kty' must be a string");
 
-    string const kty = jwk_json["kty"].get<string>();
+    string const kty = jwk_json.at("kty").get<string>();
     if (kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
         return Private::makeError<JWK>("Unsupported key type: " + kty);
 
@@ -256,9 +273,21 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
         key_type = KeyType::okp;
 
     bool has_use = jwk_json.contains("use");
-    Use use =
-        (has_use && jwk_json["use"].get<string>() == "enc") ? Use::encryption : Use::signature;
-    string alg = jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "";
+    Use use = Use::signature;
+    if (has_use)
+    {
+        if (!jwk_json.at("use").is_string())
+            return Private::makeError<JWK>("Field 'use' must be a string");
+        use = (jwk_json.at("use").get<string>() == "enc") ? Use::encryption : Use::signature;
+    }
+
+    string alg;
+    if (jwk_json.contains("alg"))
+    {
+        if (!jwk_json.at("alg").is_string())
+            return Private::makeError<JWK>("Field 'alg' must be a string");
+        alg = jwk_json.at("alg").get<string>();
+    }
 
     if (!has_use && alg.empty())
         return Private::makeError<JWK>("JWK must contain at least one of 'use' or 'alg'");
@@ -268,7 +297,9 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
     {
         if (!jwk_json.contains("crv"))
             return Private::makeError<JWK>("Missing required 'crv' parameter for EC key");
-        ec_curve = jwk_json["crv"].get<string>();
+        if (!jwk_json.at("crv").is_string())
+            return Private::makeError<JWK>("Field 'crv' must be a string");
+        ec_curve = jwk_json.at("crv").get<string>();
     }
 
     if (has_use && !alg.empty())
@@ -297,7 +328,11 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
     auto back_end = factory.createBackEnd();
     Impl impl(key_type, use, alg);
     if (jwk_json.contains("kid"))
-        impl.kid_ = jwk_json["kid"].get<string>();
+    {
+        if (!jwk_json.at("kid").is_string())
+            return Private::makeError<JWK>("Field 'kid' must be a string");
+        impl.kid_ = jwk_json.at("kid").get<string>();
+    }
 
     switch (key_type)
     {
@@ -306,8 +341,15 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
             if (!jwk_json.contains("n") || !jwk_json.contains("e"))
                 return Private::makeError<JWK>("Missing required RSA parameters");
 
-            DECODE_FIELD(n_bytes, jwk_json, "n");
-            DECODE_FIELD(e_bytes, jwk_json, "e");
+            auto [n_opt, n_err] = decodeBase64UrlField(jwk_json, "n");
+            if (!n_opt)
+                return Private::makeError<JWK>(std::move(n_err));
+            auto n_bytes = std::move(*n_opt);
+
+            auto [e_opt, e_err] = decodeBase64UrlField(jwk_json, "e");
+            if (!e_opt)
+                return Private::makeError<JWK>(std::move(e_err));
+            auto e_bytes = std::move(*e_opt);
 
             auto d_bytes = vector<unsigned char>{};
             auto p_bytes = vector<unsigned char>{};
@@ -320,33 +362,45 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
             {
                 if (jwk_json.contains("d"))
                 {
-                    DECODE_FIELD(d_tmp, jwk_json, "d");
-                    d_bytes = std::move(d_tmp);
+                    auto [d_opt, d_err] = decodeBase64UrlField(jwk_json, "d");
+                    if (!d_opt)
+                        return Private::makeError<JWK>(std::move(d_err));
+                    d_bytes = std::move(*d_opt);
                 }
                 if (jwk_json.contains("p"))
                 {
-                    DECODE_FIELD(p_tmp, jwk_json, "p");
-                    p_bytes = std::move(p_tmp);
+                    auto [p_opt, p_err] = decodeBase64UrlField(jwk_json, "p");
+                    if (!p_opt)
+                        return Private::makeError<JWK>(std::move(p_err));
+                    p_bytes = std::move(*p_opt);
                 }
                 if (jwk_json.contains("q"))
                 {
-                    DECODE_FIELD(q_tmp, jwk_json, "q");
-                    q_bytes = std::move(q_tmp);
+                    auto [q_opt, q_err] = decodeBase64UrlField(jwk_json, "q");
+                    if (!q_opt)
+                        return Private::makeError<JWK>(std::move(q_err));
+                    q_bytes = std::move(*q_opt);
                 }
                 if (jwk_json.contains("dp"))
                 {
-                    DECODE_FIELD(dp_tmp, jwk_json, "dp");
-                    dp_bytes = std::move(dp_tmp);
+                    auto [dp_opt, dp_err] = decodeBase64UrlField(jwk_json, "dp");
+                    if (!dp_opt)
+                        return Private::makeError<JWK>(std::move(dp_err));
+                    dp_bytes = std::move(*dp_opt);
                 }
                 if (jwk_json.contains("dq"))
                 {
-                    DECODE_FIELD(dq_tmp, jwk_json, "dq");
-                    dq_bytes = std::move(dq_tmp);
+                    auto [dq_opt, dq_err] = decodeBase64UrlField(jwk_json, "dq");
+                    if (!dq_opt)
+                        return Private::makeError<JWK>(std::move(dq_err));
+                    dq_bytes = std::move(*dq_opt);
                 }
                 if (jwk_json.contains("qi"))
                 {
-                    DECODE_FIELD(qi_tmp, jwk_json, "qi");
-                    qi_bytes = std::move(qi_tmp);
+                    auto [qi_opt, qi_err] = decodeBase64UrlField(jwk_json, "qi");
+                    if (!qi_opt)
+                        return Private::makeError<JWK>(std::move(qi_err));
+                    qi_bytes = std::move(*qi_opt);
                 }
             }
 
@@ -386,18 +440,26 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
             if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
                 return Private::makeError<JWK>("Missing required EC parameters");
 
-            DECODE_FIELD(x_bytes, jwk_json, "x");
-            DECODE_FIELD(y_bytes, jwk_json, "y");
+            auto [x_opt, x_err] = decodeBase64UrlField(jwk_json, "x");
+            if (!x_opt)
+                return Private::makeError<JWK>(std::move(x_err));
+            auto x_bytes = std::move(*x_opt);
+
+            auto [y_opt, y_err] = decodeBase64UrlField(jwk_json, "y");
+            if (!y_opt)
+                return Private::makeError<JWK>(std::move(y_err));
+            auto y_bytes = std::move(*y_opt);
 
             auto d_bytes = vector<unsigned char>{};
             if (!ignore_private_if_present && jwk_json.contains("d"))
             {
-                DECODE_FIELD(d_tmp, jwk_json, "d");
-                d_bytes = std::move(d_tmp);
+                auto [d_opt, d_err] = decodeBase64UrlField(jwk_json, "d");
+                if (!d_opt)
+                    return Private::makeError<JWK>(std::move(d_err));
+                d_bytes = std::move(*d_opt);
             }
 
-            auto [key_opt, key_err] =
-                back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes);
+            auto [key_opt, key_err] = back_end->generateEC(ec_curve, x_bytes, y_bytes, d_bytes);
             if (!key_opt)
                 return Private::makeError<JWK>(key_err);
             impl.key_ = std::move(*key_opt);
@@ -411,18 +473,25 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
         {
             if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
                 return Private::makeError<JWK>("Missing required OKP parameters");
+            if (!jwk_json.at("crv").is_string())
+                return Private::makeError<JWK>("Field 'crv' must be a string");
 
-            DECODE_FIELD(x_bytes, jwk_json, "x");
+            auto [x_opt, x_err] = decodeBase64UrlField(jwk_json, "x");
+            if (!x_opt)
+                return Private::makeError<JWK>(std::move(x_err));
+            auto x_bytes = std::move(*x_opt);
 
             auto d_bytes = vector<unsigned char>{};
             if (!ignore_private_if_present && jwk_json.contains("d"))
             {
-                DECODE_FIELD(d_tmp, jwk_json, "d");
-                d_bytes = std::move(d_tmp);
+                auto [d_opt, d_err] = decodeBase64UrlField(jwk_json, "d");
+                if (!d_opt)
+                    return Private::makeError<JWK>(std::move(d_err));
+                d_bytes = std::move(*d_opt);
             }
 
             auto [key_opt, key_err] =
-                back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes);
+                back_end->generateOkp(jwk_json.at("crv").get<string>(), x_bytes, d_bytes);
             if (!key_opt)
                 return Private::makeError<JWK>(key_err);
             impl.key_ = std::move(*key_opt);
@@ -437,8 +506,10 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
                 if (!jwk_json.contains("k"))
                     return Private::makeError<JWK>(
                         "Missing required 'k' parameter for symmetric key");
-                DECODE_FIELD(k_tmp, jwk_json, "k");
-                k_bytes = std::move(k_tmp);
+                auto [k_opt, k_err] = decodeBase64UrlField(jwk_json, "k");
+                if (!k_opt)
+                    return Private::makeError<JWK>(std::move(k_err));
+                k_bytes = std::move(*k_opt);
             }
             impl.key_ = make_unique<Private::OctKey>(k_bytes);
             break;
@@ -454,8 +525,6 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
     }
     return Private::makeOk<JWK>(std::move(jwk));
 }
-
-#undef DECODE_FIELD
 
 JWK::JWK(Impl &&impl)
 {

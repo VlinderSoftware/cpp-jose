@@ -436,13 +436,17 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &jwe_str)
     json header = json::parse(*header_str_opt, nullptr, false);
     if (header.is_discarded())
         return makeError<JWE>("JWE fromJSON: header is not valid JSON");
+    if (!header.is_object())
+        return makeError<JWE>("JWE fromJSON: header is not a JSON object");
 
     JWE result;
     result.impl_->header_json_ = *header_str_opt;
 
     if (header.contains("alg"))
     {
-        string alg_str = header["alg"].get<string>();
+        if (!header.at("alg").is_string())
+            return makeError<JWE>("JWE fromJSON: 'alg' field must be a string");
+        string alg_str = header.at("alg").get<string>();
         auto alg_opt = JWA::keyEncryptionAlgorithmFromString(alg_str, nothrow);
         if (!alg_opt)
             return makeError<JWE>("JWE fromJSON: unknown key encryption algorithm: " + alg_str);
@@ -451,7 +455,9 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &jwe_str)
 
     if (header.contains("enc"))
     {
-        string enc_str = header["enc"].get<string>();
+        if (!header.at("enc").is_string())
+            return makeError<JWE>("JWE fromJSON: 'enc' field must be a string");
+        string enc_str = header.at("enc").get<string>();
         auto enc_opt = JWA::contentEncryptionAlgorithmFromString(enc_str, nothrow);
         if (!enc_opt)
             return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " + enc_str);
@@ -459,10 +465,18 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &jwe_str)
     }
 
     if (header.contains("kid"))
-        result.impl_->kid_ = header["kid"].get<string>();
+    {
+        if (!header.at("kid").is_string())
+            return makeError<JWE>("JWE fromJSON: 'kid' field must be a string");
+        result.impl_->kid_ = header.at("kid").get<string>();
+    }
 
     if (header.contains("typ"))
-        result.impl_->typ_ = header["typ"].get<string>();
+    {
+        if (!header.at("typ").is_string())
+            return makeError<JWE>("JWE fromJSON: 'typ' field must be a string");
+        result.impl_->typ_ = header.at("typ").get<string>();
+    }
 
     return makeOk<JWE>(std::move(result));
 }
