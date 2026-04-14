@@ -21,6 +21,9 @@ pair<optional<JWKSet>, string> fromJSON_(string const &json_string, bool ignore_
     if (jwk_set_json.is_discarded())
         return makeError<JWKSet>("JWKSet fromJSON: invalid JSON");
 
+    if (!jwk_set_json.is_object())
+        return makeError<JWKSet>("JWKSet fromJSON: expected a JSON object");
+
     if (!jwk_set_json.contains("keys"))
         return makeError<JWKSet>("JWKSet fromJSON: missing 'keys' array");
 
