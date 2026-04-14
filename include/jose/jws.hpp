@@ -119,6 +119,9 @@ private:
 
     std::unique_ptr<Impl> impl_;
 
+    static std::pair<std::optional<JWS>, std::string> fromCompact_(std::string const &compact);
+    static std::pair<std::optional<JWS>, std::string> fromJSON_(std::string const &json_str);
+
     friend class SignAttorney;  ///< Attorney has full JWS access; it limits what it exposes
                                 ///< downstream.
     friend bool verify(JWS const &jws, JWK const &key);

@@ -160,11 +160,11 @@ class BackEnd
 public:
     virtual ~BackEnd() = default;
 
-    std::vector<unsigned char> concatKDF(std::vector<unsigned char> const &shared_secret,
-                                         size_t key_data_len,
-                                         std::string const &algorithm,
-                                         std::vector<unsigned char> const &apu = {},
-                                         std::vector<unsigned char> const &apv = {}) const;
+    Result<std::vector<unsigned char>> concatKDF(std::vector<unsigned char> const &shared_secret,
+                                                 size_t key_data_len,
+                                                 std::string const &algorithm,
+                                                 std::vector<unsigned char> const &apu = {},
+                                                 std::vector<unsigned char> const &apv = {}) const;
 
     virtual Result<std::unique_ptr<Key>> generateRSA(unsigned int bits) const = 0;
     virtual Result<std::unique_ptr<Key>>
@@ -191,28 +191,29 @@ public:
                 std::vector<unsigned char> const &x_bytes,
                 std::vector<unsigned char> const &d_bytes) const = 0;
 
-    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
-                                    JWK const &key,
-                                    std::vector<unsigned char> const &data) const;
+    Result<std::vector<unsigned char>> sign(SignatureAlgorithm algorithm,
+                                            JWK const &key,
+                                            std::vector<unsigned char> const &data) const;
 
-    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
-                                    JWK const &key,
-                                    std::span<unsigned char const> const &data) const;
+    Result<std::vector<unsigned char>> sign(SignatureAlgorithm algorithm,
+                                            JWK const &key,
+                                            std::span<unsigned char const> const &data) const;
 
-    bool verify(SignatureAlgorithm algorithm,
-                JWK const &key,
-                std::vector<unsigned char> const &data,
-                std::vector<unsigned char> const &signature) const;
+    Result<bool> verify(SignatureAlgorithm algorithm,
+                        JWK const &key,
+                        std::vector<unsigned char> const &data,
+                        std::vector<unsigned char> const &signature) const;
 
-    std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm,
-                                          const JWK &key,
-                                          std::vector<unsigned char> const &cek,
-                                          std::optional<std::vector<unsigned char>> const &iv,
-                                          std::optional<std::vector<unsigned char>> const &tag,
-                                          std::optional<JWK> const &ephemeral_key,
-                                          ContentEncryptionAlgorithm content_alg) const;
+    Result<std::vector<unsigned char>>
+    encryptKey(KeyEncryptionAlgorithm algorithm,
+               const JWK &key,
+               std::vector<unsigned char> const &cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               std::optional<JWK> const &ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const;
 
-    std::vector<unsigned char>
+    Result<std::vector<unsigned char>>
     decryptKey(KeyEncryptionAlgorithm algorithm,
                JWK const &key,
                std::vector<unsigned char> const &encrypted_cek,
@@ -221,19 +222,19 @@ public:
                std::optional<JWK> const &ephemeral_key = {},
                ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm) const;
 
-    std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    Result<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     encryptContent(ContentEncryptionAlgorithm algorithm,
                    std::vector<unsigned char> const &cek,
                    std::vector<unsigned char> const &iv,
                    std::vector<unsigned char> const &plaintext,
                    std::vector<unsigned char> const &aad) const;
 
-    std::vector<unsigned char> decryptContent(ContentEncryptionAlgorithm algorithm,
-                                              std::vector<unsigned char> const &cek,
-                                              std::vector<unsigned char> const &iv,
-                                              std::vector<unsigned char> const &ciphertext,
-                                              std::vector<unsigned char> const &aad,
-                                              std::vector<unsigned char> const &tag) const;
+    Result<std::vector<unsigned char>> decryptContent(ContentEncryptionAlgorithm algorithm,
+                                                      std::vector<unsigned char> const &cek,
+                                                      std::vector<unsigned char> const &iv,
+                                                      std::vector<unsigned char> const &ciphertext,
+                                                      std::vector<unsigned char> const &aad,
+                                                      std::vector<unsigned char> const &tag) const;
 
     Result<std::vector<unsigned char>> hash(HashAlgorithm algorithm,
                                             std::vector<unsigned char> const &data) const

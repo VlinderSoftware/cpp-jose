@@ -3,6 +3,8 @@
 
 #include <chrono>
 #include <memory>
+#include <new>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -135,11 +137,27 @@ public:
     static JWT verify(std::string const &jwt, const JWK &key);
 
     /**
+     * @brief Verify and parse a JWT without throwing
+     * @param jwt JWT string
+     * @param key Verification key
+     * @return JWT object, or empty on failure
+     */
+    static std::optional<JWT>
+    verify(std::string const &jwt, JWK const &key, std::nothrow_t const &) noexcept;
+
+    /**
      * @brief Parse a JWT without verification
      * @param jwt JWT string
      * @return JWT object
      */
     static JWT parse(std::string const &jwt);
+
+    /**
+     * @brief Parse a JWT without verification and without throwing
+     * @param jwt JWT string
+     * @return JWT object, or empty on failure
+     */
+    static std::optional<JWT> parse(std::string const &jwt, std::nothrow_t const &) noexcept;
 
     /**
      * @brief Validate JWT claims
@@ -155,6 +173,10 @@ public:
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
+
+    static std::pair<std::optional<JWT>, std::string> parse_(std::string const &jwt);
+    static std::pair<std::optional<JWT>, std::string> verify_(std::string const &jwt,
+                                                              JWK const &key);
 };
 
 }  // namespace JOSE

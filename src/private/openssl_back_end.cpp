@@ -2825,8 +2825,11 @@ OpenSSLBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,
                     throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
                 shared_secret.resize(secret_len);
 
-                return makeOk<vector<unsigned char>>(
-                    concatKDF(shared_secret, cek.size(), JWA::toString(content_alg)));
+                auto [kdf_opt, kdf_err] =
+                    concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
+                if (!kdf_opt)
+                    return makeError<vector<unsigned char>>(kdf_err);
+                return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
             }
             case KeyEncryptionAlgorithm::a128gcmkw:
             case KeyEncryptionAlgorithm::a192gcmkw:
@@ -2974,8 +2977,11 @@ OpenSSLBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
                     default:
                         throw runtime_error("Unsupported content algorithm for ECDH-ES");
                 }
-                return makeOk<vector<unsigned char>>(
-                    concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg)));
+                auto [kdf_opt, kdf_err] =
+                    concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
+                if (!kdf_opt)
+                    return makeError<vector<unsigned char>>(kdf_err);
+                return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
             }
             case KeyEncryptionAlgorithm::a128gcmkw:
             case KeyEncryptionAlgorithm::a192gcmkw:

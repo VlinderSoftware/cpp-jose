@@ -167,10 +167,11 @@ TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output"
     SECTION("key length less than hash length")
     {
         size_t key_len = 16;
-        auto derived = backend.concatKDF(shared_secret, key_len, alg);
-        REQUIRE(derived.size() == key_len);
-        REQUIRE(all_of(derived.begin(),
-                       derived.end(),
+        auto [derived_opt, derived_err] = backend.concatKDF(shared_secret, key_len, alg);
+        REQUIRE(derived_opt.has_value());
+        REQUIRE(derived_opt->size() == key_len);
+        REQUIRE(all_of(derived_opt->begin(),
+                       derived_opt->end(),
                        [](unsigned char c)
                        {
                            return c == (unsigned char)0xAA;
@@ -180,10 +181,11 @@ TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output"
     SECTION("key length greater than hash length")
     {
         size_t key_len = 50;
-        auto derived = backend.concatKDF(shared_secret, key_len, alg);
-        REQUIRE(derived.size() == key_len);
-        REQUIRE(all_of(derived.begin(),
-                       derived.end(),
+        auto [derived_opt, derived_err] = backend.concatKDF(shared_secret, key_len, alg);
+        REQUIRE(derived_opt.has_value());
+        REQUIRE(derived_opt->size() == key_len);
+        REQUIRE(all_of(derived_opt->begin(),
+                       derived_opt->end(),
                        [](unsigned char c)
                        {
                            return c == (unsigned char)0xAA;

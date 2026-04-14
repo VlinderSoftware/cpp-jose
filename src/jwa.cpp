@@ -34,7 +34,10 @@ bool JWA::verify(SignatureAlgorithm algorithm,
                  std::vector<unsigned char> const &data,
                  std::vector<unsigned char> const &signature)
 {
-    return getBackEnd().verify(algorithm, key, data, signature);
+    auto [result_opt, result_err] = getBackEnd().verify(algorithm, key, data, signature);
+    if (!result_opt)
+        throw runtime_error(result_err);
+    return *result_opt;
 }
 
 vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
@@ -45,7 +48,11 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return getBackEnd().encryptKey(algorithm, key, cek, iv, tag, ephemeral_key, content_alg);
+    auto [enc_opt, enc_err] =
+        getBackEnd().encryptKey(algorithm, key, cek, iv, tag, ephemeral_key, content_alg);
+    if (!enc_opt)
+        throw runtime_error(enc_err);
+    return std::move(*enc_opt);
 }
 
 vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
@@ -56,8 +63,11 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return getBackEnd()
-        .decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
+    auto [dec_opt, dec_err] =
+        getBackEnd().decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
+    if (!dec_opt)
+        throw runtime_error(dec_err);
+    return std::move(*dec_opt);
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
@@ -67,7 +77,10 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
                     vector<unsigned char> const &plaintext,
                     vector<unsigned char> const &aad)
 {
-    return getBackEnd().encryptContent(algorithm, cek, iv, plaintext, aad);
+    auto [enc_opt, enc_err] = getBackEnd().encryptContent(algorithm, cek, iv, plaintext, aad);
+    if (!enc_opt)
+        throw runtime_error(enc_err);
+    return std::move(*enc_opt);
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
@@ -77,7 +90,10 @@ vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
                                           vector<unsigned char> const &aad,
                                           vector<unsigned char> const &tag)
 {
-    return getBackEnd().decryptContent(algorithm, cek, iv, ciphertext, aad, tag);
+    auto [dec_opt, dec_err] = getBackEnd().decryptContent(algorithm, cek, iv, ciphertext, aad, tag);
+    if (!dec_opt)
+        throw runtime_error(dec_err);
+    return std::move(*dec_opt);
 }
 
 string JWA::toString(SignatureAlgorithm alg)

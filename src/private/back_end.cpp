@@ -20,7 +20,7 @@ namespace Vlinder {
 namespace JOSE {
 namespace Private {
 
-vector<unsigned char>
+Result<vector<unsigned char>>
 BackEnd::concatKDF(vector<unsigned char> const &shared_secret /* Z in the spec */,
                    size_t key_data_len,
                    string const &algorithm,
@@ -105,36 +105,28 @@ BackEnd::concatKDF(vector<unsigned char> const &shared_secret /* Z in the spec *
         round_data.insert(round_data.end(), other_info.begin(), other_info.end());
         auto [hash_opt, hash_err] = this->hash(HashAlgorithm::sha256, round_data);
         if (!hash_opt)
-        {
-            throw runtime_error(hash_err);  // transitional: hash is Result, concatKDF is not yet
-        }
+            return makeError<vector<unsigned char>>(hash_err);
         derived_key.insert(derived_key.end(), hash_opt->begin(), hash_opt->end());
     }
     derived_key.resize(key_data_len);
-    return derived_key;
+    return makeOk<vector<unsigned char>>(std::move(derived_key));
 }
 
-vector<unsigned char>
+Result<vector<unsigned char>>
 BackEnd::sign(SignatureAlgorithm algorithm, JWK const &key, vector<unsigned char> const &data) const
 {
     return sign(algorithm, key, span<unsigned char const>(data.data(), data.size()));
 }
 
-vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
-                                    JWK const &key,
-                                    span<unsigned char const> const &data) const
+Result<vector<unsigned char>> BackEnd::sign(SignatureAlgorithm algorithm,
+                                            JWK const &key,
+                                            span<unsigned char const> const &data) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)
-    {
-        throw runtime_error("Key does not contain valid material");
-    }
-    // validate the key has private part and throw if not
+        return makeError<vector<unsigned char>>("Key does not contain valid material");
     if (!key.hasPrivateKey())
-    {
-        throw runtime_error("Key does not contain private material");
-    }
-    // validate the algorithm against the key type and throw if not compatible
+        return makeError<vector<unsigned char>>("Key does not contain private material");
     switch (algorithm)
     {
         case SignatureAlgorithm::hs256:
@@ -142,9 +134,7 @@ vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::hs512:
             if (key.getKeyType() != JWK::KeyType::oct ||
                 dynamic_cast<OctKey const *>(underlying_key) == nullptr)
-            {
-                throw runtime_error("Incompatible key type for algorithm");
-            }
+                return makeError<vector<unsigned char>>("Incompatible key type for algorithm");
             break;
         case SignatureAlgorithm::rs256:
         case SignatureAlgorithm::rs384:
@@ -153,55 +143,41 @@ vector<unsigned char> BackEnd::sign(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::ps384:
         case SignatureAlgorithm::ps512:
             if (key.getKeyType() != JWK::KeyType::rsa)
-            {
-                throw runtime_error("Incompatible key type for algorithm");
-            }
+                return makeError<vector<unsigned char>>("Incompatible key type for algorithm");
             break;
         case SignatureAlgorithm::es256:
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES256")
-            {
-                throw runtime_error("Incompatible key type or curve for algorithm");
-            }
+                return makeError<vector<unsigned char>>(
+                    "Incompatible key type or curve for algorithm");
             break;
         case SignatureAlgorithm::es384:
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES384")
-            {
-                throw runtime_error("Incompatible key type or curve for algorithm");
-            }
+                return makeError<vector<unsigned char>>(
+                    "Incompatible key type or curve for algorithm");
             break;
         case SignatureAlgorithm::es512:
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES512")
-            {
-                throw runtime_error("Incompatible key type or curve for algorithm");
-            }
+                return makeError<vector<unsigned char>>(
+                    "Incompatible key type or curve for algorithm");
             break;
         case SignatureAlgorithm::eddsa:
             if (key.getKeyType() != JWK::KeyType::okp)
-            {
-                throw runtime_error("Incompatible key type for algorithm");
-            }
+                return makeError<vector<unsigned char>>("Incompatible key type for algorithm");
             break;
         case SignatureAlgorithm::none:
-            throw runtime_error("Cannot sign with 'none' algorithm");
+            return makeError<vector<unsigned char>>("Cannot sign with 'none' algorithm");
     }
-    // Delegate to back-end (transitional: unwrap Result until public API is nothrow)
-    auto [sig_opt, sig_err] = this->sign_(algorithm, underlying_key, data);
-    if (!sig_opt)
-        throw runtime_error(sig_err);
-    return std::move(*sig_opt);
+    return this->sign_(algorithm, underlying_key, data);
 }
 
-bool BackEnd::verify(SignatureAlgorithm algorithm,
-                     JWK const &key,
-                     std::vector<unsigned char> const &data,
-                     std::vector<unsigned char> const &signature) const
+Result<bool> BackEnd::verify(SignatureAlgorithm algorithm,
+                             JWK const &key,
+                             vector<unsigned char> const &data,
+                             vector<unsigned char> const &signature) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)
-    {
-        throw runtime_error("Key does not contain valid material");
-    }
-
+        return makeError<bool>("Key does not contain valid material");
     switch (algorithm)
     {
         case SignatureAlgorithm::hs256:
@@ -209,13 +185,9 @@ bool BackEnd::verify(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::hs512:
             if (key.getKeyType() != JWK::KeyType::oct ||
                 dynamic_cast<OctKey const *>(underlying_key) == nullptr)
-            {
-                throw runtime_error("Incompatible key type for algorithm");
-            }
+                return makeError<bool>("Incompatible key type for algorithm");
             if (!key.hasPrivateKey())
-            {
-                throw runtime_error("HMAC verification requires symmetric key material");
-            }
+                return makeError<bool>("HMAC verification requires symmetric key material");
             break;
         case SignatureAlgorithm::rs256:
         case SignatureAlgorithm::rs384:
@@ -224,135 +196,94 @@ bool BackEnd::verify(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::ps384:
         case SignatureAlgorithm::ps512:
             if (key.getKeyType() != JWK::KeyType::rsa)
-            {
-                throw runtime_error("Incompatible key type for algorithm");
-            }
+                return makeError<bool>("Incompatible key type for algorithm");
             break;
         case SignatureAlgorithm::es256:
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES256")
-            {
-                throw runtime_error("Incompatible key type or curve for algorithm");
-            }
+                return makeError<bool>("Incompatible key type or curve for algorithm");
             break;
         case SignatureAlgorithm::es384:
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES384")
-            {
-                throw runtime_error("Incompatible key type or curve for algorithm");
-            }
+                return makeError<bool>("Incompatible key type or curve for algorithm");
             break;
         case SignatureAlgorithm::es512:
             if (key.getKeyType() != JWK::KeyType::ec || key.getAlgorithm() != "ES512")
-            {
-                throw runtime_error("Incompatible key type or curve for algorithm");
-            }
+                return makeError<bool>("Incompatible key type or curve for algorithm");
             break;
         case SignatureAlgorithm::eddsa:
             if (key.getKeyType() != JWK::KeyType::okp)
-            {
-                throw runtime_error("Incompatible key type for algorithm");
-            }
+                return makeError<bool>("Incompatible key type for algorithm");
             break;
         case SignatureAlgorithm::none:
-            throw runtime_error("Cannot verify with 'none' algorithm");
+            return makeError<bool>("Cannot verify with 'none' algorithm");
     }
-
-    // transitional: unwrap Result until public API is nothrow
-    auto [result_opt, result_err] = this->verify_(algorithm, underlying_key, data, signature);
-    if (!result_opt)
-        throw runtime_error(result_err);
-    return *result_opt;
+    return this->verify_(algorithm, underlying_key, data, signature);
 }
 
-vector<unsigned char> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
-                                          const JWK &key,
-                                          vector<unsigned char> const &cek,
-                                          optional<vector<unsigned char>> const &iv,
-                                          optional<vector<unsigned char>> const &tag,
-                                          optional<JWK> const &ephemeral_key,
-                                          ContentEncryptionAlgorithm content_alg) const
+Result<vector<unsigned char>> BackEnd::encryptKey(KeyEncryptionAlgorithm algorithm,
+                                                  JWK const &key,
+                                                  vector<unsigned char> const &cek,
+                                                  optional<vector<unsigned char>> const &iv,
+                                                  optional<vector<unsigned char>> const &tag,
+                                                  optional<JWK> const &ephemeral_key,
+                                                  ContentEncryptionAlgorithm content_alg) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)
-    {
-        throw runtime_error("Key does not contain valid material");
-    }
+        return makeError<vector<unsigned char>>("Key does not contain valid material");
     auto underlying_ephemeral_key =
         ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
                       : nullptr;
-    auto [enc_key_opt, enc_key_err] = this->encryptKey_(algorithm,
-                                                        underlying_key,
-                                                        cek,
-                                                        iv,
-                                                        tag,
-                                                        underlying_ephemeral_key,
-                                                        content_alg);
-    if (!enc_key_opt)
-    {
-        throw runtime_error(enc_key_err);
-    }
-    return std::move(*enc_key_opt);
+    return this->encryptKey_(algorithm,
+                             underlying_key,
+                             cek,
+                             iv,
+                             tag,
+                             underlying_ephemeral_key,
+                             content_alg);
 }
 
-vector<unsigned char> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
-                                          JWK const &key,
-                                          vector<unsigned char> const &encrypted_cek,
-                                          optional<vector<unsigned char>> const &iv,
-                                          optional<vector<unsigned char>> const &tag,
-                                          optional<JWK> const &ephemeral_key,
-                                          ContentEncryptionAlgorithm content_alg) const
+Result<vector<unsigned char>> BackEnd::decryptKey(KeyEncryptionAlgorithm algorithm,
+                                                  JWK const &key,
+                                                  vector<unsigned char> const &encrypted_cek,
+                                                  optional<vector<unsigned char>> const &iv,
+                                                  optional<vector<unsigned char>> const &tag,
+                                                  optional<JWK> const &ephemeral_key,
+                                                  ContentEncryptionAlgorithm content_alg) const
 {
     auto underlying_key = key.impl_ ? key.impl_->key_.get() : nullptr;
     if (underlying_key == nullptr)
-    {
-        throw runtime_error("Key does not contain valid material");
-    }
+        return makeError<vector<unsigned char>>("Key does not contain valid material");
     auto underlying_ephemeral_key =
         ephemeral_key ? (*ephemeral_key).impl_ ? (*ephemeral_key).impl_->key_.get() : nullptr
                       : nullptr;
-    auto [dec_key_opt, dec_key_err] = this->decryptKey_(algorithm,
-                                                        underlying_key,
-                                                        encrypted_cek,
-                                                        iv,
-                                                        tag,
-                                                        underlying_ephemeral_key,
-                                                        content_alg);
-    if (!dec_key_opt)
-    {
-        throw runtime_error(dec_key_err);
-    }
-    return std::move(*dec_key_opt);
+    return this->decryptKey_(algorithm,
+                             underlying_key,
+                             encrypted_cek,
+                             iv,
+                             tag,
+                             underlying_ephemeral_key,
+                             content_alg);
 }
 
-pair<vector<unsigned char>, vector<unsigned char>>
+Result<pair<vector<unsigned char>, vector<unsigned char>>>
 BackEnd::encryptContent(ContentEncryptionAlgorithm algorithm,
                         vector<unsigned char> const &cek,
                         vector<unsigned char> const &iv,
                         vector<unsigned char> const &plaintext,
                         vector<unsigned char> const &aad) const
 {
-    auto [enc_content_opt, enc_content_err] =
-        this->encryptContent_(algorithm, cek, iv, plaintext, aad);
-    if (!enc_content_opt)
-    {
-        throw runtime_error(enc_content_err);
-    }
-    return std::move(*enc_content_opt);
+    return this->encryptContent_(algorithm, cek, iv, plaintext, aad);
 }
 
-vector<unsigned char> BackEnd::decryptContent(ContentEncryptionAlgorithm algorithm,
-                                              vector<unsigned char> const &cek,
-                                              vector<unsigned char> const &iv,
-                                              vector<unsigned char> const &ciphertext,
-                                              vector<unsigned char> const &aad,
-                                              vector<unsigned char> const &tag) const
+Result<vector<unsigned char>> BackEnd::decryptContent(ContentEncryptionAlgorithm algorithm,
+                                                      vector<unsigned char> const &cek,
+                                                      vector<unsigned char> const &iv,
+                                                      vector<unsigned char> const &ciphertext,
+                                                      vector<unsigned char> const &aad,
+                                                      vector<unsigned char> const &tag) const
 {
-    auto [dec_content_opt, dec_content_err] =
-        this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
-    if (!dec_content_opt)
-    {
-        throw runtime_error(dec_content_err);
-    }
-    return std::move(*dec_content_opt);
+    return this->decryptContent_(algorithm, cek, iv, ciphertext, aad, tag);
 }
 
 string BackEnd::base64Encode(span<unsigned char const> const &data) const

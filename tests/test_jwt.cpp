@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <chrono>
+#include <new>
 #include <string>
 #include <thread>
 
@@ -598,4 +599,109 @@ TEST_CASE("JWT_ECPublicKeyVerification", "[jwt][ecpublickeyverification]")
 
     JWT verified = JWT::verify(token, publicKey);
     REQUIRE("ec-subject" == verified.getSubject());
+}
+
+// ─── nothrow overloads ────────────────────────────────────────────────────────
+
+SCENARIO("JWT::parse returns empty optional for garbage input", "[jwt][parse][nothrow]")
+{
+    GIVEN("a garbage string")
+    {
+        WHEN("JWT::parse is called with std::nothrow")
+        {
+            auto const result = JWT::parse("garbage.input", std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("JWT::parse returns JWT for a valid compact token", "[jwt][parse][nothrow]")
+{
+    GIVEN("a valid signed JWT")
+    {
+        JWK const key = JWK::generateOct(JWK::Use::signature, 256);
+
+        JWT jwt;
+        jwt.setSubject("parse-nothrow-subject");
+        string const token = jwt.sign(key, "HS256");
+
+        WHEN("JWT::parse is called with std::nothrow")
+        {
+            auto const result = JWT::parse(token, std::nothrow);
+
+            THEN("the result contains the JWT claims")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE("parse-nothrow-subject" == result->getSubject());
+            }
+        }
+    }
+}
+
+SCENARIO("JWT::verify returns empty optional when token is garbage", "[jwt][verify][nothrow]")
+{
+    GIVEN("a garbage string and a key")
+    {
+        JWK const key = JWK::generateOct(JWK::Use::signature, 256);
+
+        WHEN("JWT::verify is called with std::nothrow")
+        {
+            auto const result = JWT::verify("not.a.jwt", key, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("JWT::verify returns empty optional when verification fails", "[jwt][verify][nothrow]")
+{
+    GIVEN("a JWT signed with one key and a different key for verification")
+    {
+        JWK const sign_key = JWK::generateOct(JWK::Use::signature, 256);
+        JWK const other_key = JWK::generateOct(JWK::Use::signature, 256);
+
+        JWT jwt;
+        jwt.setSubject("wrong-key-subject");
+        string const token = jwt.sign(sign_key, "HS256");
+
+        WHEN("JWT::verify is called with the wrong key and std::nothrow")
+        {
+            auto const result = JWT::verify(token, other_key, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("JWT::verify returns JWT when verification succeeds", "[jwt][verify][nothrow]")
+{
+    GIVEN("a valid JWT and its signing key")
+    {
+        JWK const key = JWK::generateOct(JWK::Use::signature, 256);
+
+        JWT jwt;
+        jwt.setSubject("verify-nothrow-subject");
+        string const token = jwt.sign(key, "HS256");
+
+        WHEN("JWT::verify is called with the correct key and std::nothrow")
+        {
+            auto const result = JWT::verify(token, key, std::nothrow);
+
+            THEN("the result contains the JWT with the expected claims")
+            {
+                REQUIRE(result.has_value());
+                REQUIRE("verify-nothrow-subject" == result->getSubject());
+            }
+        }
+    }
 }

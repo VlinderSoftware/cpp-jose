@@ -2657,8 +2657,11 @@ Result<vector<unsigned char>> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm alg
                 throw runtime_error("ECDH-ES requires an ephemeral EC key");
             }
             auto shared_secret = computeECDHSharedSecret(ec_eph, key);
-            return makeOk<vector<unsigned char>>(
-                concatKDF(shared_secret, cek.size(), JWA::toString(content_alg)));
+            auto [kdf_opt, kdf_err] =
+                concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
+            if (!kdf_opt)
+                return makeError<vector<unsigned char>>(kdf_err);
+            return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
         }
 
         if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||
@@ -2879,8 +2882,11 @@ Result<vector<unsigned char>> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm alg
                 default:
                     throw runtime_error("Unsupported content algorithm for ECDH-ES");
             }
-            return makeOk<vector<unsigned char>>(
-                concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg)));
+            auto [kdf_opt, kdf_err] =
+                concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
+            if (!kdf_opt)
+                return makeError<vector<unsigned char>>(kdf_err);
+            return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
         }
 
         if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||

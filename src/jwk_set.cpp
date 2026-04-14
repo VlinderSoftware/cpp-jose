@@ -4,12 +4,50 @@
 
 #include "jwe.hpp"
 #include "private/json_utils.hpp"
+#include "private/result.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
+using Vlinder::JOSE::Private::makeError;
+using Vlinder::JOSE::Private::makeOk;
 
 namespace Vlinder {
 namespace JOSE {
+
+namespace {
+pair<optional<JWKSet>, string> fromJSON_(string const &json_string, bool ignore_private_if_present)
+{
+    json jwk_set_json = json::parse(json_string, nullptr, false);
+    if (jwk_set_json.is_discarded())
+        return makeError<JWKSet>("JWKSet fromJSON: invalid JSON");
+
+    if (!jwk_set_json.contains("keys"))
+        return makeError<JWKSet>("JWKSet fromJSON: missing 'keys' array");
+
+    if (!jwk_set_json["keys"].is_array())
+        return makeError<JWKSet>("JWKSet fromJSON: 'keys' field must be an array");
+
+    JWKSet set;
+    for (auto const &key_json : jwk_set_json["keys"])
+    {
+        string key_json_string = key_json.dump();
+        auto jwk = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
+        if (jwk.has_value())
+        {
+            set.addKey(*jwk);
+        }
+        else
+        {
+            auto jwe = JWE::fromJSON(key_json_string, nothrow);
+            if (!jwe.has_value())
+                return makeError<JWKSet>("JWKSet fromJSON: failed to parse key as JWK or JWE: " +
+                                         key_json_string);
+            set.addKey(*jwe);
+        }
+    }
+    return makeOk<JWKSet>(std::move(set));
+}
+}  // namespace
 
 // JWKSet implementation
 struct JWKSet::Impl
@@ -33,56 +71,16 @@ JWKSet::~JWKSet() = default;
 
 JWKSet JWKSet::fromJSON(string const &json_string, bool ignore_private_if_present)
 {
-    JWKSet set;
-    json jwk_set_json = json::parse(json_string);
-
-    if (!jwk_set_json.contains("keys"))
-    {
-        throw runtime_error("Missing keys array");
-    }
-
-    if (!jwk_set_json["keys"].is_array())
-    {
-        throw runtime_error("keys field must be an array");
-    }
-
-    // Parse each key in the array
-    for (auto const &key_json : jwk_set_json["keys"])
-    {
-        string key_json_string = key_json.dump();
-        auto jwk = JWK::fromJSON(key_json_string, ignore_private_if_present, nothrow);
-        if (!jwk.has_value())
-        {
-            auto jwe = JWE::fromJSON(key_json_string, nothrow);
-            if (!jwe.has_value())
-            {
-                throw runtime_error("Failed to parse key as JWK or JWE");
-            }
-            else
-            {
-                set.addKey(*jwe);
-            }
-        }
-        else
-        {
-            set.addKey(*jwk);
-        }
-    }
-
-    return set;
+    auto [set_opt, set_err] = fromJSON_(json_string, ignore_private_if_present);
+    if (!set_opt)
+        throw runtime_error(set_err);  // throwing wrapper
+    return std::move(*set_opt);
 }
 
 optional<JWKSet>
 JWKSet::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<JWKSet>(JWKSet::fromJSON(json, ignore_private_if_present));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return fromJSON_(json, ignore_private_if_present).first;
 }
 
 void JWKSet::addKey(std::variant<JWK, JWE> const &key)
