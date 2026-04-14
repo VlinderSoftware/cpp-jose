@@ -231,9 +231,21 @@ When adding or modifying a public function, update (or add) its Doxygen comment 
    ```powershell
    clang-tidy src/jws.cpp -- -std=c++20 -I include
    ```
-3. Re-run the test suite and confirm all tests pass:
+3. Re-run the test suite for **both backends** and confirm all tests pass:
+
+   **CNG backend** (Windows default — `vs-latest-x64-debug` preset):
    ```powershell
    cmake --build .\build\vs-latest-x64-debug --target jose_tests
    ctest --test-dir .\build\vs-latest-x64-debug --output-on-failure
    ```
+
+   **OpenSSL backend** (configure once with `-DJOSE_BACKEND=OpenSSL`, then rebuild):
+   ```powershell
+   cmake -B build/baseline-openssl -DJOSE_BACKEND=OpenSSL -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+   cmake --build .\build\baseline-openssl --target jose_tests
+   ctest --test-dir .\build\baseline-openssl --output-on-failure
+   ```
+
+   > **Both must pass.** A change that compiles and passes tests on one backend but fails on the other is a bug. Backend-specific code paths (e.g. different `sign_()` / `verify_()` implementations) are a common source of mismatches.
+
 4. Verify coverage has not dropped below **85 %** on files you touched.
