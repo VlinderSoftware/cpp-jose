@@ -188,6 +188,8 @@ pair<optional<JWS>, string> JWS::fromCompact_(string const &compact)
     json header = json::parse(*header_str_opt, nullptr, false);
     if (header.is_discarded())
         return makeError<JWS>("JWS compact: header is not valid JSON");
+    if (!header.is_object())
+        return makeError<JWS>("JWS compact: header is not a JSON object");
 
     string alg_str = header.value("alg", "");
     auto alg_opt = JWA::signatureAlgorithmFromString(alg_str, nothrow);
