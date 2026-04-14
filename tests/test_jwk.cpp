@@ -698,6 +698,175 @@ TEST_CASE("JWK Oct fromJSON can ignore private parameters", "[jwk][oct][parsing]
     REQUIRE_FALSE(parsed_json.contains("k"));
 }
 
+// ---------------------------------------------------------------------------
+// Step 2.5: Error-path tests for fromJSON nothrow overload
+// ---------------------------------------------------------------------------
+
+SCENARIO("JWK::fromJSON nothrow returns nullopt when JSON is unparseable",
+         "[jwk][fromjson][nothrow][error]")
+{
+    GIVEN("a string that is not valid JSON")
+    {
+        string const bad_input = "not json at all !!!";
+
+        WHEN("calling the nothrow overload")
+        {
+            auto result = JWK::fromJSON(bad_input, false, nothrow);
+
+            THEN("the result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+
+        WHEN("calling the throwing overload")
+        {
+            THEN("it throws")
+            {
+                REQUIRE_THROWS(JWK::fromJSON(bad_input));
+            }
+        }
+    }
+}
+
+SCENARIO("JWK::fromJSON nothrow returns nullopt when 'kty' is missing",
+         "[jwk][fromjson][nothrow][error]")
+{
+    GIVEN("a JSON object without a 'kty' field")
+    {
+        string const no_kty = R"({"use":"sig","alg":"RS256"})";
+
+        WHEN("calling the nothrow overload")
+        {
+            auto result = JWK::fromJSON(no_kty, false, nothrow);
+
+            THEN("the result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+
+        WHEN("calling the throwing overload")
+        {
+            THEN("it throws with a message mentioning 'kty'")
+            {
+                REQUIRE_THROWS_WITH(JWK::fromJSON(no_kty),
+                                    Catch::Matchers::ContainsSubstring("kty"));
+            }
+        }
+    }
+}
+
+SCENARIO("JWK::fromJSON nothrow returns nullopt for an unknown key type",
+         "[jwk][fromjson][nothrow][error]")
+{
+    GIVEN("a JSON object with an unrecognised 'kty' value")
+    {
+        string const bad_kty = R"({"kty":"QUANTUM","use":"sig"})";
+
+        WHEN("calling the nothrow overload")
+        {
+            auto result = JWK::fromJSON(bad_kty, false, nothrow);
+
+            THEN("the result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+
+        WHEN("calling the throwing overload")
+        {
+            THEN("it throws with a message mentioning the unknown type")
+            {
+                REQUIRE_THROWS_WITH(JWK::fromJSON(bad_kty),
+                                    Catch::Matchers::ContainsSubstring("QUANTUM"));
+            }
+        }
+    }
+}
+
+SCENARIO("JWK::fromJSON nothrow returns nullopt when neither 'use' nor 'alg' is present",
+         "[jwk][fromjson][nothrow][error]")
+{
+    GIVEN("a JSON RSA JWK with no 'use' and no 'alg'")
+    {
+        string const no_use_no_alg = R"({"kty":"RSA","n":"AQAB","e":"AQAB"})";
+
+        WHEN("calling the nothrow overload")
+        {
+            auto result = JWK::fromJSON(no_use_no_alg, false, nothrow);
+
+            THEN("the result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+
+        WHEN("calling the throwing overload")
+        {
+            THEN("it throws with a message mentioning 'use' or 'alg'")
+            {
+                REQUIRE_THROWS_WITH(JWK::fromJSON(no_use_no_alg),
+                                    Catch::Matchers::ContainsSubstring("use"));
+            }
+        }
+    }
+}
+
+SCENARIO("JWK::fromJSON nothrow returns nullopt when RSA key params are missing",
+         "[jwk][fromjson][nothrow][error]")
+{
+    GIVEN("a JSON RSA JWK without 'n' and 'e'")
+    {
+        string const no_params = R"({"kty":"RSA","use":"sig"})";
+
+        WHEN("calling the nothrow overload")
+        {
+            auto result = JWK::fromJSON(no_params, false, nothrow);
+
+            THEN("the result is empty")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+
+        WHEN("calling the throwing overload")
+        {
+            THEN("it throws with a message mentioning missing RSA parameters")
+            {
+                REQUIRE_THROWS_WITH(JWK::fromJSON(no_params),
+                                    Catch::Matchers::ContainsSubstring("RSA"));
+            }
+        }
+    }
+}
+
+SCENARIO("JWK::fromJSON nothrow and throwing agree on valid JSON",
+         "[jwk][fromjson][nothrow][roundtrip]")
+{
+    GIVEN("a valid symmetric JWK JSON string")
+    {
+        JWK original = JWK::generateOct(JWK::Use::signature, 256);
+        string const valid_json = original.toJSON(true);
+
+        WHEN("calling both overloads")
+        {
+            auto opt_key = JWK::fromJSON(valid_json, false, nothrow);
+            JWK throw_key = JWK::fromJSON(valid_json);
+
+            THEN("the nothrow overload returns a value")
+            {
+                REQUIRE(opt_key.has_value());
+            }
+
+            AND_THEN("both produce the same key type")
+            {
+                REQUIRE(opt_key->getKeyType() == throw_key.getKeyType());
+            }
+        }
+    }
+}
+
 #if defined(JOSE_USE_OPENSSL)
 TEST_CASE("JWK OKP signature key generation works", "[jwk][okp][openssl]")
 {

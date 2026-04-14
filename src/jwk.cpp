@@ -19,42 +19,49 @@ namespace JOSE {
 namespace {
 
 // Default algorithms for key type + use combinations
-string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, string const &curve = "")
+Private::Result<string>
+getDefaultAlgorithm_(JWK::KeyType key_type, JWK::Use use, string const &curve = "")
 {
     if (key_type == JWK::KeyType::rsa)
     {
-        return (use == JWK::Use::signature) ? "RS256" : "RSA-OAEP-256";
+        return Private::makeOk<string>((use == JWK::Use::signature) ? "RS256" : "RSA-OAEP-256");
     }
-    else if (key_type == JWK::KeyType::ec)
+    if (key_type == JWK::KeyType::ec)
     {
         if (use == JWK::Use::encryption)
         {
-            return "ECDH-ES";  // Default ECDH key agreement algorithm
+            return Private::makeOk<string>("ECDH-ES");
         }
-
-        // Default based on curve for signature
         if (curve == "P-256")
-            return "ES256";
+            return Private::makeOk<string>("ES256");
         if (curve == "P-384")
-            return "ES384";
+            return Private::makeOk<string>("ES384");
         if (curve == "P-521")
-            return "ES512";
-        return "ES256";  // fallback
+            return Private::makeOk<string>("ES512");
+        return Private::makeOk<string>("ES256");
     }
-    else if (key_type == JWK::KeyType::oct)
+    if (key_type == JWK::KeyType::oct)
     {
-        return (use == JWK::Use::signature) ? "HS256" : "A256KW";
+        return Private::makeOk<string>((use == JWK::Use::signature) ? "HS256" : "A256KW");
     }
-    else if (key_type == JWK::KeyType::okp)
+    if (key_type == JWK::KeyType::okp)
     {
-        return (use == JWK::Use::signature) ? "EdDSA" : "ECDH-ES";
+        return Private::makeOk<string>((use == JWK::Use::signature) ? "EdDSA" : "ECDH-ES");
     }
-
-    throw runtime_error("Unsupported key type for default algorithm");
+    return Private::makeError<string>("Unsupported key type for default algorithm");
 }
 
-// Validate algorithm for key type + use combination
-void validateAlgorithm(string const &alg, JWK::KeyType key_type, JWK::Use use)
+string getDefaultAlgorithm(JWK::KeyType key_type, JWK::Use use, string const &curve = "")
+{
+    auto [alg_opt, alg_err] = getDefaultAlgorithm_(key_type, use, curve);
+    if (!alg_opt)
+        throw runtime_error(alg_err);
+    return *alg_opt;
+}
+
+// Validate algorithm for key type + use combination.
+// Returns empty string on success; a non-empty error message on failure.
+string validateAlgorithm_(string const &alg, JWK::KeyType key_type, JWK::Use use)
 {
     static set<string> const rsa_sig_algs = {"RS256", "RS384", "RS512", "PS256", "PS384", "PS512"};
     static set<string> const rsa_enc_algs = {"RSA-OAEP",
@@ -80,64 +87,67 @@ void validateAlgorithm(string const &alg, JWK::KeyType key_type, JWK::Use use)
     {
         if (use == JWK::Use::signature && rsa_sig_algs.find(alg) == rsa_sig_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg +
-                                "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, "
-                                "PS256, PS384, or PS512");
+            return "Algorithm '" + alg +
+                   "' is not valid for RSA signature keys. Use: RS256, RS384, RS512, "
+                   "PS256, PS384, or PS512";
         }
         if (use == JWK::Use::encryption && rsa_enc_algs.find(alg) == rsa_enc_algs.end())
         {
-            throw runtime_error(
-                "Algorithm '" + alg +
-                "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.");
+            return "Algorithm '" + alg +
+                   "' is not valid for RSA encryption keys. Use: RSA-OAEP, RSA-OAEP-256, etc.";
         }
     }
     else if (key_type == JWK::KeyType::ec)
     {
         if (use == JWK::Use::signature && ec_sig_algs.find(alg) == ec_sig_algs.end())
         {
-            throw runtime_error(
-                "Algorithm '" + alg +
-                "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K");
+            return "Algorithm '" + alg +
+                   "' is not valid for EC signature keys. Use: ES256, ES384, ES512, or ES256K";
         }
         if (use == JWK::Use::encryption && ec_enc_algs.find(alg) == ec_enc_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg +
-                                "' is not valid for EC encryption keys. Use: ECDH-ES, "
-                                "ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW");
+            return "Algorithm '" + alg +
+                   "' is not valid for EC encryption keys. Use: ECDH-ES, "
+                   "ECDH-ES+A128KW, ECDH-ES+A192KW, or ECDH-ES+A256KW";
         }
     }
     else if (key_type == JWK::KeyType::oct)
     {
         if (use == JWK::Use::signature && oct_sig_algs.find(alg) == oct_sig_algs.end())
         {
-            throw runtime_error(
-                "Algorithm '" + alg +
-                "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512");
+            return "Algorithm '" + alg +
+                   "' is not valid for symmetric signature keys. Use: HS256, HS384, or HS512";
         }
         if (use == JWK::Use::encryption && oct_enc_algs.find(alg) == oct_enc_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg +
-                                "' is not valid for symmetric encryption keys. Use: A128KW, "
-                                "A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW");
+            return "Algorithm '" + alg +
+                   "' is not valid for symmetric encryption keys. Use: A128KW, "
+                   "A192KW, A256KW, A128GCMKW, A192GCMKW, or A256GCMKW";
         }
     }
     else if (key_type == JWK::KeyType::okp)
     {
         if (use == JWK::Use::signature && okp_sig_algs.find(alg) == okp_sig_algs.end())
         {
-            throw runtime_error("Algorithm '" + alg +
-                                "' is not valid for OKP signature keys. Use: EdDSA");
+            return "Algorithm '" + alg + "' is not valid for OKP signature keys. Use: EdDSA";
         }
         if (use == JWK::Use::encryption && okp_enc_algs.find(alg) == okp_enc_algs.end())
         {
-            throw runtime_error(
-                "Algorithm '" + alg +
-                "' is not valid for OKP encryption keys. Use: ECDH-ES or ECDH-ES+AxxxKW");
+            return "Algorithm '" + alg +
+                   "' is not valid for OKP encryption keys. Use: ECDH-ES or ECDH-ES+AxxxKW";
         }
     }
+    return {};  // success
 }
 
-JWK::Use inferUseFromAlgorithm(string const &alg)
+void validateAlgorithm(string const &alg, JWK::KeyType key_type, JWK::Use use)
+{
+    string err = validateAlgorithm_(alg, key_type, use);
+    if (!err.empty())
+        throw runtime_error(err);
+}
+
+Private::Result<JWK::Use> inferUseFromAlgorithm_(string const &alg)
 {
     static set<string> const sig_algs = {"RS256",
                                          "RS384",
@@ -169,10 +179,18 @@ JWK::Use inferUseFromAlgorithm(string const &alg)
                                          "A192GCMKW",
                                          "A256GCMKW"};
     if (sig_algs.count(alg))
-        return JWK::Use::signature;
+        return Private::makeOk<JWK::Use>(JWK::Use::signature);
     if (enc_algs.count(alg))
-        return JWK::Use::encryption;
-    throw runtime_error("Cannot infer 'use' from unknown algorithm: '" + alg + "'");
+        return Private::makeOk<JWK::Use>(JWK::Use::encryption);
+    return Private::makeError<JWK::Use>("Cannot infer 'use' from unknown algorithm: '" + alg + "'");
+}
+
+JWK::Use inferUseFromAlgorithm(string const &alg)
+{
+    auto [use_opt, use_err] = inferUseFromAlgorithm_(alg);
+    if (!use_opt)
+        throw runtime_error(use_err);
+    return *use_opt;
 }
 
 void ensureKeyID(JWK &jwk)
@@ -204,6 +222,241 @@ unsigned int keySizeFromAlg(string const &alg)
 }
 
 }  // anonymous namespace
+
+// Helper macro: decode a base64url JSON field into a vector, returning early on failure.
+#define DECODE_FIELD(var_name_, json_obj_, field_name_)                                            \
+    auto var_name_##_opt_ =                                                                        \
+        Base64URL::decode(json_obj_[field_name_].get<string>(), nothrow);                          \
+    if (!var_name_##_opt_)                                                                         \
+        return Private::makeError<JWK>("Invalid base64url in '" field_name_ "'");                  \
+    auto var_name_ = std::move(*var_name_##_opt_)
+
+// Nothrow core implementation of JWK::fromJSON.
+// Returns Result<JWK>: a populated optional on success, or an empty optional + error string.
+Private::Result<JWK>
+JWK::fromJSON_(string const &json_str, bool ignore_private_if_present)
+{
+    json jwk_json = json::parse(json_str, nullptr, false);
+    if (jwk_json.is_discarded())
+        return Private::makeError<JWK>("JSON parse error: invalid JSON input");
+
+    if (!jwk_json.contains("kty"))
+        return Private::makeError<JWK>("Missing kty field");
+
+    string const kty = jwk_json["kty"].get<string>();
+    if (kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
+        return Private::makeError<JWK>("Unsupported key type: " + kty);
+
+    KeyType key_type;
+    if (kty == "RSA")
+        key_type = KeyType::rsa;
+    else if (kty == "EC")
+        key_type = KeyType::ec;
+    else if (kty == "oct")
+        key_type = KeyType::oct;
+    else
+        key_type = KeyType::okp;
+
+    bool has_use = jwk_json.contains("use");
+    Use use = (has_use && jwk_json["use"].get<string>() == "enc") ? Use::encryption : Use::signature;
+    string alg = jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "";
+
+    if (!has_use && alg.empty())
+        return Private::makeError<JWK>("JWK must contain at least one of 'use' or 'alg'");
+
+    string ec_curve;
+    if (key_type == KeyType::ec)
+    {
+        if (!jwk_json.contains("crv"))
+            return Private::makeError<JWK>("Missing required 'crv' parameter for EC key");
+        ec_curve = jwk_json["crv"].get<string>();
+    }
+
+    if (has_use && !alg.empty())
+    {
+        string alg_err = validateAlgorithm_(alg, key_type, use);
+        if (!alg_err.empty())
+            return Private::makeError<JWK>(alg_err);
+    }
+    else if (!has_use)
+    {
+        auto [use_opt, use_err] = inferUseFromAlgorithm_(alg);
+        if (!use_opt)
+            return Private::makeError<JWK>(use_err);
+        use = *use_opt;
+        has_use = true;
+    }
+    else
+    {
+        auto [alg_opt, alg_err] = getDefaultAlgorithm_(key_type, use, ec_curve);
+        if (!alg_opt)
+            return Private::makeError<JWK>(alg_err);
+        alg = *alg_opt;
+    }
+
+    Private::BackEndFactory &factory = Private::BackEndFactory::get();
+    auto back_end = factory.createBackEnd();
+    Impl impl(key_type, use, alg);
+    if (jwk_json.contains("kid"))
+        impl.kid_ = jwk_json["kid"].get<string>();
+
+    switch (key_type)
+    {
+        case KeyType::rsa:
+        {
+            if (!jwk_json.contains("n") || !jwk_json.contains("e"))
+                return Private::makeError<JWK>("Missing required RSA parameters");
+
+            DECODE_FIELD(n_bytes, jwk_json, "n");
+            DECODE_FIELD(e_bytes, jwk_json, "e");
+
+            auto d_bytes = vector<unsigned char>{};
+            auto p_bytes = vector<unsigned char>{};
+            auto q_bytes = vector<unsigned char>{};
+            auto dp_bytes = vector<unsigned char>{};
+            auto dq_bytes = vector<unsigned char>{};
+            auto qi_bytes = vector<unsigned char>{};
+
+            if (!ignore_private_if_present)
+            {
+                if (jwk_json.contains("d"))
+                {
+                    DECODE_FIELD(d_tmp, jwk_json, "d");
+                    d_bytes = std::move(d_tmp);
+                }
+                if (jwk_json.contains("p"))
+                {
+                    DECODE_FIELD(p_tmp, jwk_json, "p");
+                    p_bytes = std::move(p_tmp);
+                }
+                if (jwk_json.contains("q"))
+                {
+                    DECODE_FIELD(q_tmp, jwk_json, "q");
+                    q_bytes = std::move(q_tmp);
+                }
+                if (jwk_json.contains("dp"))
+                {
+                    DECODE_FIELD(dp_tmp, jwk_json, "dp");
+                    dp_bytes = std::move(dp_tmp);
+                }
+                if (jwk_json.contains("dq"))
+                {
+                    DECODE_FIELD(dq_tmp, jwk_json, "dq");
+                    dq_bytes = std::move(dq_tmp);
+                }
+                if (jwk_json.contains("qi"))
+                {
+                    DECODE_FIELD(qi_tmp, jwk_json, "qi");
+                    qi_bytes = std::move(qi_tmp);
+                }
+            }
+
+            bool const has_d = !d_bytes.empty();
+            bool const has_p = !p_bytes.empty();
+            bool const has_q = !q_bytes.empty();
+            bool const has_dp = !dp_bytes.empty();
+            bool const has_dq = !dq_bytes.empty();
+            bool const has_qi = !qi_bytes.empty();
+            bool const has_any_crt = has_p || has_q || has_dp || has_dq || has_qi;
+            bool const has_full_crt = has_p && has_q && has_dp && has_dq && has_qi;
+
+            if (has_any_crt && !has_d)
+                return Private::makeError<JWK>(
+                    "Ill-formed RSA private key: parameter 'd' is required "
+                    "when CRT parameters are present");
+            if (has_any_crt && !has_full_crt)
+                return Private::makeError<JWK>(
+                    "Ill-formed RSA private key: if any of p, q, dp, dq, qi "
+                    "are present, all must be present");
+
+            auto [key_opt, key_err] = back_end->generateRSA(n_bytes,
+                                                            e_bytes,
+                                                            d_bytes,
+                                                            p_bytes,
+                                                            q_bytes,
+                                                            dp_bytes,
+                                                            dq_bytes,
+                                                            qi_bytes);
+            if (!key_opt)
+                return Private::makeError<JWK>(key_err);
+            impl.key_ = std::move(*key_opt);
+            break;
+        }
+        case KeyType::ec:
+        {
+            if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
+                return Private::makeError<JWK>("Missing required EC parameters");
+
+            DECODE_FIELD(x_bytes, jwk_json, "x");
+            DECODE_FIELD(y_bytes, jwk_json, "y");
+
+            auto d_bytes = vector<unsigned char>{};
+            if (!ignore_private_if_present && jwk_json.contains("d"))
+            {
+                DECODE_FIELD(d_tmp, jwk_json, "d");
+                d_bytes = std::move(d_tmp);
+            }
+
+            auto [key_opt, key_err] =
+                back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes);
+            if (!key_opt)
+                return Private::makeError<JWK>(key_err);
+            impl.key_ = std::move(*key_opt);
+            break;
+        }
+        case KeyType::okp:
+#if defined(JOSE_USE_CNG)
+            return Private::makeError<JWK>(
+                "OKP keys are not supported with CNG backend -- use OpenSSL");
+#else
+        {
+            if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
+                return Private::makeError<JWK>("Missing required OKP parameters");
+
+            DECODE_FIELD(x_bytes, jwk_json, "x");
+
+            auto d_bytes = vector<unsigned char>{};
+            if (!ignore_private_if_present && jwk_json.contains("d"))
+            {
+                DECODE_FIELD(d_tmp, jwk_json, "d");
+                d_bytes = std::move(d_tmp);
+            }
+
+            auto [key_opt, key_err] =
+                back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes);
+            if (!key_opt)
+                return Private::makeError<JWK>(key_err);
+            impl.key_ = std::move(*key_opt);
+            break;
+        }
+#endif
+        case KeyType::oct:
+        {
+            auto k_bytes = vector<unsigned char>{};
+            if (!ignore_private_if_present)
+            {
+                if (!jwk_json.contains("k"))
+                    return Private::makeError<JWK>(
+                        "Missing required 'k' parameter for symmetric key");
+                DECODE_FIELD(k_tmp, jwk_json, "k");
+                k_bytes = std::move(k_tmp);
+            }
+            impl.key_ = make_unique<Private::OctKey>(k_bytes);
+            break;
+        }
+    }
+
+    JWK jwk(std::move(impl));
+    if (jwk.getKeyID().empty())
+    {
+        auto tp_opt = JWKThumbprint::compute(jwk, "SHA-256", nothrow);
+        if (tp_opt)
+            jwk.setKeyID(tp_opt->get());
+    }
+    return Private::makeOk<JWK>(std::move(jwk));
+}
+
+#undef DECODE_FIELD
 
 JWK::JWK(Impl &&impl)
 {
@@ -480,225 +733,16 @@ string JWK::toJSON(bool include_private) const
 
 JWK JWK::fromJSON(string const &json_str, bool ignore_private_if_present)
 {
-    json jwk_json = json::parse(json_str);
-
-    if (!jwk_json.contains("kty"))
-    {
-        throw runtime_error("Missing kty field");
-    }
-
-    string kty = jwk_json["kty"].get<string>();
-    if (kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
-    {
-        throw runtime_error("Unsupported key type: " + kty);
-    }
-    KeyType key_type;
-    bool has_use(jwk_json.contains("use"));
-    Use use(has_use ? jwk_json["use"].get<string>() == "sig" ? Use::signature : Use::encryption
-                    : Use::signature);
-    string alg(jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "");
-
-    // We need either the algorithm or the use. If neither is present, we won't know how to use the
-    // key. If both are present, we'll validate that they are compatible. But if only one is
-    // present, we can infer the other.
-    if (!has_use && alg.empty())
-    {
-        throw runtime_error("JWK must contain at least one of 'use' or 'alg'");
-    }
-
-    // Derive key_type from kty for use in validation and inference
-    if (kty == "RSA")
-        key_type = KeyType::rsa;
-    else if (kty == "EC")
-        key_type = KeyType::ec;
-    else if (kty == "oct")
-        key_type = KeyType::oct;
-    else
-        key_type = KeyType::okp;
-
-    string ec_curve;
-    if (key_type == KeyType::ec)
-    {
-        if (!jwk_json.contains("crv"))
-        {
-            throw runtime_error("Missing required 'crv' parameter for EC key");
-        }
-        ec_curve = jwk_json["crv"].get<string>();
-    }
-
-    if (has_use && !alg.empty())
-    {
-        validateAlgorithm(alg, key_type, use);
-    }
-    else if (!has_use)
-    {
-        // Only alg present: infer use from the algorithm
-        use = inferUseFromAlgorithm(alg);
-        has_use = true;
-    }
-    else
-    {
-        // Only use present: infer alg from use.
-        // For EC signature keys the curve drives the default (P-256→ES256, P-384→ES384,
-        // P-521→ES512), so pass ec_curve. For EC encryption the result is always ECDH-ES
-        // regardless of curve — the curve is carried in the key's 'crv' field, not the alg name.
-        alg = getDefaultAlgorithm(key_type, use, ec_curve);
-    }
-
-    Private::BackEndFactory &factory(Private::BackEndFactory::get());
-    auto back_end(factory.createBackEnd());
-    Impl impl(key_type, use, alg);
-    if (jwk_json.contains("kid"))
-    {
-        impl.kid_ = jwk_json["kid"].get<string>();
-    }
-
-    switch (key_type)
-    {
-        case KeyType::rsa:
-        {
-            if (!jwk_json.contains("n") || !jwk_json.contains("e"))
-            {
-                throw runtime_error("Missing required RSA parameters");
-            }
-            auto n_bytes = Base64URL::decode(jwk_json["n"].get<string>());
-            auto e_bytes = Base64URL::decode(jwk_json["e"].get<string>());
-            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
-                               ? Base64URL::decode(jwk_json["d"].get<string>())
-                               : vector<unsigned char>{};
-            auto p_bytes = !ignore_private_if_present && jwk_json.contains("p")
-                               ? Base64URL::decode(jwk_json["p"].get<string>())
-                               : vector<unsigned char>{};
-            auto q_bytes = !ignore_private_if_present && jwk_json.contains("q")
-                               ? Base64URL::decode(jwk_json["q"].get<string>())
-                               : vector<unsigned char>{};
-            auto dp_bytes = !ignore_private_if_present && jwk_json.contains("dp")
-                                ? Base64URL::decode(jwk_json["dp"].get<string>())
-                                : vector<unsigned char>{};
-            auto dq_bytes = !ignore_private_if_present && jwk_json.contains("dq")
-                                ? Base64URL::decode(jwk_json["dq"].get<string>())
-                                : vector<unsigned char>{};
-            auto qi_bytes = !ignore_private_if_present && jwk_json.contains("qi")
-                                ? Base64URL::decode(jwk_json["qi"].get<string>())
-                                : vector<unsigned char>{};
-
-            bool const has_d = !d_bytes.empty();
-            bool const has_p = !p_bytes.empty();
-            bool const has_q = !q_bytes.empty();
-            bool const has_dp = !dp_bytes.empty();
-            bool const has_dq = !dq_bytes.empty();
-            bool const has_qi = !qi_bytes.empty();
-            bool const has_any_crt = has_p || has_q || has_dp || has_dq || has_qi;
-            bool const has_full_crt = has_p && has_q && has_dp && has_dq && has_qi;
-
-            if (has_any_crt)
-            {
-                if (!has_d)
-                {
-                    throw runtime_error("Ill-formed RSA private key: parameter 'd' is required "
-                                        "when CRT parameters are present");
-                }
-                if (!has_full_crt)
-                {
-                    throw runtime_error("Ill-formed RSA private key: if any of p, q, dp, dq, qi "
-                                        "are present, all must be present");
-                }
-            }
-
-            {
-                // transitional: unwrap Result until fromJSON is made nothrow
-                auto [key_opt, key_err] = back_end->generateRSA(n_bytes,
-                                                                e_bytes,
-                                                                d_bytes,
-                                                                p_bytes,
-                                                                q_bytes,
-                                                                dp_bytes,
-                                                                dq_bytes,
-                                                                qi_bytes);
-                if (!key_opt)
-                    throw runtime_error(key_err);
-                impl.key_ = std::move(*key_opt);
-            }
-            break;
-        }
-        case KeyType::ec:
-        {
-            if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
-            {
-                throw runtime_error("Missing required EC parameters");
-            }
-
-            auto x_bytes = Base64URL::decode(jwk_json["x"].get<string>());
-            auto y_bytes = Base64URL::decode(jwk_json["y"].get<string>());
-            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
-                               ? Base64URL::decode(jwk_json["d"].get<string>())
-                               : vector<unsigned char>{};
-
-            {
-                // transitional: unwrap Result until fromJSON is made nothrow
-                auto [key_opt, key_err] =
-                    back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes);
-                if (!key_opt)
-                    throw runtime_error(key_err);
-                impl.key_ = std::move(*key_opt);
-            }
-            break;
-        }
-        case KeyType::okp:
-#if defined(JOSE_USE_CNG)
-            throw runtime_error("OKP keys are not supported with CNG backend -- use OpenSSL");
-#else
-        {
-            if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
-            {
-                throw runtime_error("Missing required OKP parameters");
-            }
-
-            auto x_bytes = Base64URL::decode(jwk_json["x"].get<string>());
-            auto d_bytes = !ignore_private_if_present && jwk_json.contains("d")
-                               ? Base64URL::decode(jwk_json["d"].get<string>())
-                               : vector<unsigned char>{};
-            {
-                // transitional: unwrap Result until fromJSON is made nothrow
-                auto [key_opt, key_err] =
-                    back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes);
-                if (!key_opt)
-                    throw runtime_error(key_err);
-                impl.key_ = std::move(*key_opt);
-            }
-            break;
-        }
-#endif
-        case KeyType::oct:
-        {
-            if (!ignore_private_if_present && !jwk_json.contains("k"))
-            {
-                throw runtime_error("Missing required 'k' parameter for symmetric key");
-            }
-            auto k_bytes = !ignore_private_if_present && jwk_json.contains("k")
-                               ? Base64URL::decode(jwk_json["k"].get<string>())
-                               : vector<unsigned char>{};
-            impl.key_ = make_unique<Private::OctKey>(k_bytes);
-            break;
-        }
-    }
-
-    JWK jwk(std::move(impl));
-    ensureKeyID(jwk);
-    return jwk;
+    auto [jwk_opt, err] = fromJSON_(json_str, ignore_private_if_present);
+    if (!jwk_opt)
+        throw runtime_error(err);
+    return std::move(*jwk_opt);
 }
 
 optional<JWK>
 JWK::fromJSON(string const &json, bool ignore_private_if_present, nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<JWK>(JWK::fromJSON(json, ignore_private_if_present));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return fromJSON_(json, ignore_private_if_present).first;
 }
 
 JWK::KeyType JWK::getKeyType() const

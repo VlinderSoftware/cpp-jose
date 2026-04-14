@@ -147,7 +147,7 @@ string JWA::toString(ContentEncryptionAlgorithm alg)
 }
 
 namespace {
-Result<JWA::SignatureAlgorithm> signatureAlgorithmFromStringCore(string const &alg) noexcept
+Result<JWA::SignatureAlgorithm> signatureAlgorithmFromString_(string const &alg) noexcept
 {
     static map<string, JWA::SignatureAlgorithm> const alg_map = {
         {"HS256", JWA::SignatureAlgorithm::hs256},
@@ -173,7 +173,7 @@ Result<JWA::SignatureAlgorithm> signatureAlgorithmFromStringCore(string const &a
     return makeOk(it->second);
 }
 
-Result<JWA::KeyEncryptionAlgorithm> keyEncryptionAlgorithmFromStringCore(string const &alg) noexcept
+Result<JWA::KeyEncryptionAlgorithm> keyEncryptionAlgorithmFromString_(string const &alg) noexcept
 {
     static map<string, JWA::KeyEncryptionAlgorithm> const alg_map = {
         {"RSA1_5", JWA::KeyEncryptionAlgorithm::rsa1_5},
@@ -197,7 +197,7 @@ Result<JWA::KeyEncryptionAlgorithm> keyEncryptionAlgorithmFromStringCore(string 
 }
 
 Result<JWA::ContentEncryptionAlgorithm>
-contentEncryptionAlgorithmFromStringCore(string const &alg) noexcept
+contentEncryptionAlgorithmFromString_(string const &alg) noexcept
 {
     static map<string, JWA::ContentEncryptionAlgorithm> const alg_map = {
         {"A128CBC-HS256", JWA::ContentEncryptionAlgorithm::a128cbc_hs256},
@@ -219,7 +219,7 @@ contentEncryptionAlgorithmFromStringCore(string const &alg) noexcept
 
 JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(string const &alg)
 {
-    auto [result, error] = signatureAlgorithmFromStringCore(alg);
+    auto [result, error] = signatureAlgorithmFromString_(alg);
     if (!result)
     {
         throw runtime_error(error);
@@ -229,7 +229,7 @@ JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(string const &alg)
 
 JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(string const &alg)
 {
-    auto [result, error] = keyEncryptionAlgorithmFromStringCore(alg);
+    auto [result, error] = keyEncryptionAlgorithmFromString_(alg);
     if (!result)
     {
         throw runtime_error(error);
@@ -239,7 +239,7 @@ JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(string const &
 
 JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(string const &alg)
 {
-    auto [result, error] = contentEncryptionAlgorithmFromStringCore(alg);
+    auto [result, error] = contentEncryptionAlgorithmFromString_(alg);
     if (!result)
     {
         throw runtime_error(error);
@@ -250,19 +250,19 @@ JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(string
 optional<JWA::SignatureAlgorithm> JWA::signatureAlgorithmFromString(string const &alg,
                                                                     nothrow_t const &) noexcept
 {
-    return signatureAlgorithmFromStringCore(alg).first;
+    return signatureAlgorithmFromString_(alg).first;
 }
 
 optional<JWA::KeyEncryptionAlgorithm>
 JWA::keyEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
 {
-    return keyEncryptionAlgorithmFromStringCore(alg).first;
+    return keyEncryptionAlgorithmFromString_(alg).first;
 }
 
 optional<JWA::ContentEncryptionAlgorithm>
 JWA::contentEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
 {
-    return contentEncryptionAlgorithmFromStringCore(alg).first;
+    return contentEncryptionAlgorithmFromString_(alg).first;
 }
 
 }  // namespace JOSE

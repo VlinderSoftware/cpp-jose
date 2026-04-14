@@ -70,7 +70,7 @@ string Base64URL::encode(string const &str)
 }
 
 namespace {
-Result<vector<unsigned char>> decodeCore(string const &encoded) noexcept
+Result<vector<unsigned char>> decode_(string const &encoded) noexcept
 {
     if (encoded.empty())
     {
@@ -99,7 +99,7 @@ Result<vector<unsigned char>> decodeCore(string const &encoded) noexcept
 
 vector<unsigned char> Base64URL::decode(string const &encoded)
 {
-    auto [result, error] = decodeCore(encoded);
+    auto [result, error] = decode_(encoded);
     if (!result)
     {
         throw runtime_error(error);
@@ -115,12 +115,12 @@ string Base64URL::decodeToString(string const &encoded)
 
 optional<vector<unsigned char>> Base64URL::decode(string const &encoded, nothrow_t const &) noexcept
 {
-    return decodeCore(encoded).first;
+    return decode_(encoded).first;
 }
 
 optional<string> Base64URL::decodeToString(string const &encoded, nothrow_t const &) noexcept
 {
-    auto result = decodeCore(encoded).first;
+    auto result = decode_(encoded).first;
     if (!result)
     {
         return nullopt;

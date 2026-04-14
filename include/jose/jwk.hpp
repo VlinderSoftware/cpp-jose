@@ -158,6 +158,9 @@ private:
 
     std::unique_ptr<Impl> impl_;
 
+    static std::pair<std::optional<JWK>, std::string>
+    fromJSON_(std::string const &json, bool ignore_private_if_present);
+
     friend class Private::BackEnd;
 };
 
