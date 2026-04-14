@@ -44,7 +44,7 @@ SCENARIO("a symmetric key can sign and verify a compact JWS", "[jws][hmac]")
         WHEN("a payload is signed with HS256")
         {
             auto const jws = sign(key, JWA::SignatureAlgorithm::hs256,
-                                  std::span< char const >("hello", 5));
+                                  std::span<char const>("hello", 5));
             string const token = jws.toCompact();
 
             THEN("the compact token is non-empty and has three dot-delimited parts")
@@ -156,7 +156,7 @@ When testing higher-level code that depends on `BackEnd`, implement a minimal mo
 struct MockBackEnd : Vlinder::JOSE::Private::BackEnd
 {
     // override only the methods under test; leave others as default stubs
-    std::unique_ptr< Vlinder::JOSE::Private::Key >
+    std::unique_ptr<Vlinder::JOSE::Private::Key>
     generateOct(std::size_t bits) override { /* ... */ }
 };
 ```

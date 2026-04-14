@@ -60,7 +60,7 @@ Check every new/changed identifier:
 
 ### 1.3 Template Spacing
 
-- [ ] Templates use a space before `>`: `vector< T >`, `pair< string, JWK >`, `template< typename T >`.
+- [ ] Templates use a space after the `template` keyword, with no spaces inside angle brackets: `vector<T>`, `pair<string, JWK>`, `template <typename T>`.
 
 ### 1.4 Namespace Braces
 
