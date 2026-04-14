@@ -238,221 +238,231 @@ Private::Result<JWK> JWK::fromJSON_(string const &json_str, bool ignore_private_
     if (jwk_json.is_discarded())
         return Private::makeError<JWK>("JSON parse error: invalid JSON input");
 
-    if (!jwk_json.contains("kty"))
-        return Private::makeError<JWK>("Missing kty field");
+    if (!jwk_json.is_object())
+        return Private::makeError<JWK>("JWK must be a JSON object");
 
-    string const kty = jwk_json["kty"].get<string>();
-    if (kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
-        return Private::makeError<JWK>("Unsupported key type: " + kty);
-
-    KeyType key_type;
-    if (kty == "RSA")
-        key_type = KeyType::rsa;
-    else if (kty == "EC")
-        key_type = KeyType::ec;
-    else if (kty == "oct")
-        key_type = KeyType::oct;
-    else
-        key_type = KeyType::okp;
-
-    bool has_use = jwk_json.contains("use");
-    Use use =
-        (has_use && jwk_json["use"].get<string>() == "enc") ? Use::encryption : Use::signature;
-    string alg = jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "";
-
-    if (!has_use && alg.empty())
-        return Private::makeError<JWK>("JWK must contain at least one of 'use' or 'alg'");
-
-    string ec_curve;
-    if (key_type == KeyType::ec)
+    try
     {
-        if (!jwk_json.contains("crv"))
-            return Private::makeError<JWK>("Missing required 'crv' parameter for EC key");
-        ec_curve = jwk_json["crv"].get<string>();
-    }
+        if (!jwk_json.contains("kty"))
+            return Private::makeError<JWK>("Missing kty field");
 
-    if (has_use && !alg.empty())
-    {
-        string alg_err = validateAlgorithm_(alg, key_type, use);
-        if (!alg_err.empty())
-            return Private::makeError<JWK>(alg_err);
-    }
-    else if (!has_use)
-    {
-        auto [use_opt, use_err] = inferUseFromAlgorithm_(alg);
-        if (!use_opt)
-            return Private::makeError<JWK>(use_err);
-        use = *use_opt;
-        has_use = true;
-    }
-    else
-    {
-        auto [alg_opt, alg_err] = getDefaultAlgorithm_(key_type, use, ec_curve);
-        if (!alg_opt)
-            return Private::makeError<JWK>(alg_err);
-        alg = *alg_opt;
-    }
+        string const kty = jwk_json["kty"].get<string>();
+        if (kty != "RSA" && kty != "EC" && kty != "oct" && kty != "OKP")
+            return Private::makeError<JWK>("Unsupported key type: " + kty);
 
-    Private::BackEndFactory &factory = Private::BackEndFactory::get();
-    auto back_end = factory.createBackEnd();
-    Impl impl(key_type, use, alg);
-    if (jwk_json.contains("kid"))
-        impl.kid_ = jwk_json["kid"].get<string>();
+        KeyType key_type;
+        if (kty == "RSA")
+            key_type = KeyType::rsa;
+        else if (kty == "EC")
+            key_type = KeyType::ec;
+        else if (kty == "oct")
+            key_type = KeyType::oct;
+        else
+            key_type = KeyType::okp;
 
-    switch (key_type)
-    {
-        case KeyType::rsa:
+        bool has_use = jwk_json.contains("use");
+        Use use =
+            (has_use && jwk_json["use"].get<string>() == "enc") ? Use::encryption : Use::signature;
+        string alg = jwk_json.contains("alg") ? jwk_json["alg"].get<string>() : "";
+
+        if (!has_use && alg.empty())
+            return Private::makeError<JWK>("JWK must contain at least one of 'use' or 'alg'");
+
+        string ec_curve;
+        if (key_type == KeyType::ec)
         {
-            if (!jwk_json.contains("n") || !jwk_json.contains("e"))
-                return Private::makeError<JWK>("Missing required RSA parameters");
+            if (!jwk_json.contains("crv"))
+                return Private::makeError<JWK>("Missing required 'crv' parameter for EC key");
+            ec_curve = jwk_json["crv"].get<string>();
+        }
 
-            DECODE_FIELD(n_bytes, jwk_json, "n");
-            DECODE_FIELD(e_bytes, jwk_json, "e");
+        if (has_use && !alg.empty())
+        {
+            string alg_err = validateAlgorithm_(alg, key_type, use);
+            if (!alg_err.empty())
+                return Private::makeError<JWK>(alg_err);
+        }
+        else if (!has_use)
+        {
+            auto [use_opt, use_err] = inferUseFromAlgorithm_(alg);
+            if (!use_opt)
+                return Private::makeError<JWK>(use_err);
+            use = *use_opt;
+            has_use = true;
+        }
+        else
+        {
+            auto [alg_opt, alg_err] = getDefaultAlgorithm_(key_type, use, ec_curve);
+            if (!alg_opt)
+                return Private::makeError<JWK>(alg_err);
+            alg = *alg_opt;
+        }
 
-            auto d_bytes = vector<unsigned char>{};
-            auto p_bytes = vector<unsigned char>{};
-            auto q_bytes = vector<unsigned char>{};
-            auto dp_bytes = vector<unsigned char>{};
-            auto dq_bytes = vector<unsigned char>{};
-            auto qi_bytes = vector<unsigned char>{};
+        Private::BackEndFactory &factory = Private::BackEndFactory::get();
+        auto back_end = factory.createBackEnd();
+        Impl impl(key_type, use, alg);
+        if (jwk_json.contains("kid"))
+            impl.kid_ = jwk_json["kid"].get<string>();
 
-            if (!ignore_private_if_present)
+        switch (key_type)
+        {
+            case KeyType::rsa:
             {
-                if (jwk_json.contains("d"))
+                if (!jwk_json.contains("n") || !jwk_json.contains("e"))
+                    return Private::makeError<JWK>("Missing required RSA parameters");
+
+                DECODE_FIELD(n_bytes, jwk_json, "n");
+                DECODE_FIELD(e_bytes, jwk_json, "e");
+
+                auto d_bytes = vector<unsigned char>{};
+                auto p_bytes = vector<unsigned char>{};
+                auto q_bytes = vector<unsigned char>{};
+                auto dp_bytes = vector<unsigned char>{};
+                auto dq_bytes = vector<unsigned char>{};
+                auto qi_bytes = vector<unsigned char>{};
+
+                if (!ignore_private_if_present)
+                {
+                    if (jwk_json.contains("d"))
+                    {
+                        DECODE_FIELD(d_tmp, jwk_json, "d");
+                        d_bytes = std::move(d_tmp);
+                    }
+                    if (jwk_json.contains("p"))
+                    {
+                        DECODE_FIELD(p_tmp, jwk_json, "p");
+                        p_bytes = std::move(p_tmp);
+                    }
+                    if (jwk_json.contains("q"))
+                    {
+                        DECODE_FIELD(q_tmp, jwk_json, "q");
+                        q_bytes = std::move(q_tmp);
+                    }
+                    if (jwk_json.contains("dp"))
+                    {
+                        DECODE_FIELD(dp_tmp, jwk_json, "dp");
+                        dp_bytes = std::move(dp_tmp);
+                    }
+                    if (jwk_json.contains("dq"))
+                    {
+                        DECODE_FIELD(dq_tmp, jwk_json, "dq");
+                        dq_bytes = std::move(dq_tmp);
+                    }
+                    if (jwk_json.contains("qi"))
+                    {
+                        DECODE_FIELD(qi_tmp, jwk_json, "qi");
+                        qi_bytes = std::move(qi_tmp);
+                    }
+                }
+
+                bool const has_d = !d_bytes.empty();
+                bool const has_p = !p_bytes.empty();
+                bool const has_q = !q_bytes.empty();
+                bool const has_dp = !dp_bytes.empty();
+                bool const has_dq = !dq_bytes.empty();
+                bool const has_qi = !qi_bytes.empty();
+                bool const has_any_crt = has_p || has_q || has_dp || has_dq || has_qi;
+                bool const has_full_crt = has_p && has_q && has_dp && has_dq && has_qi;
+
+                if (has_any_crt && !has_d)
+                    return Private::makeError<JWK>(
+                        "Ill-formed RSA private key: parameter 'd' is required "
+                        "when CRT parameters are present");
+                if (has_any_crt && !has_full_crt)
+                    return Private::makeError<JWK>(
+                        "Ill-formed RSA private key: if any of p, q, dp, dq, qi "
+                        "are present, all must be present");
+
+                auto [key_opt, key_err] = back_end->generateRSA(n_bytes,
+                                                                e_bytes,
+                                                                d_bytes,
+                                                                p_bytes,
+                                                                q_bytes,
+                                                                dp_bytes,
+                                                                dq_bytes,
+                                                                qi_bytes);
+                if (!key_opt)
+                    return Private::makeError<JWK>(key_err);
+                impl.key_ = std::move(*key_opt);
+                break;
+            }
+            case KeyType::ec:
+            {
+                if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
+                    return Private::makeError<JWK>("Missing required EC parameters");
+
+                DECODE_FIELD(x_bytes, jwk_json, "x");
+                DECODE_FIELD(y_bytes, jwk_json, "y");
+
+                auto d_bytes = vector<unsigned char>{};
+                if (!ignore_private_if_present && jwk_json.contains("d"))
                 {
                     DECODE_FIELD(d_tmp, jwk_json, "d");
                     d_bytes = std::move(d_tmp);
                 }
-                if (jwk_json.contains("p"))
-                {
-                    DECODE_FIELD(p_tmp, jwk_json, "p");
-                    p_bytes = std::move(p_tmp);
-                }
-                if (jwk_json.contains("q"))
-                {
-                    DECODE_FIELD(q_tmp, jwk_json, "q");
-                    q_bytes = std::move(q_tmp);
-                }
-                if (jwk_json.contains("dp"))
-                {
-                    DECODE_FIELD(dp_tmp, jwk_json, "dp");
-                    dp_bytes = std::move(dp_tmp);
-                }
-                if (jwk_json.contains("dq"))
-                {
-                    DECODE_FIELD(dq_tmp, jwk_json, "dq");
-                    dq_bytes = std::move(dq_tmp);
-                }
-                if (jwk_json.contains("qi"))
-                {
-                    DECODE_FIELD(qi_tmp, jwk_json, "qi");
-                    qi_bytes = std::move(qi_tmp);
-                }
+
+                auto [key_opt, key_err] =
+                    back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes);
+                if (!key_opt)
+                    return Private::makeError<JWK>(key_err);
+                impl.key_ = std::move(*key_opt);
+                break;
             }
-
-            bool const has_d = !d_bytes.empty();
-            bool const has_p = !p_bytes.empty();
-            bool const has_q = !q_bytes.empty();
-            bool const has_dp = !dp_bytes.empty();
-            bool const has_dq = !dq_bytes.empty();
-            bool const has_qi = !qi_bytes.empty();
-            bool const has_any_crt = has_p || has_q || has_dp || has_dq || has_qi;
-            bool const has_full_crt = has_p && has_q && has_dp && has_dq && has_qi;
-
-            if (has_any_crt && !has_d)
-                return Private::makeError<JWK>(
-                    "Ill-formed RSA private key: parameter 'd' is required "
-                    "when CRT parameters are present");
-            if (has_any_crt && !has_full_crt)
-                return Private::makeError<JWK>(
-                    "Ill-formed RSA private key: if any of p, q, dp, dq, qi "
-                    "are present, all must be present");
-
-            auto [key_opt, key_err] = back_end->generateRSA(n_bytes,
-                                                            e_bytes,
-                                                            d_bytes,
-                                                            p_bytes,
-                                                            q_bytes,
-                                                            dp_bytes,
-                                                            dq_bytes,
-                                                            qi_bytes);
-            if (!key_opt)
-                return Private::makeError<JWK>(key_err);
-            impl.key_ = std::move(*key_opt);
-            break;
-        }
-        case KeyType::ec:
-        {
-            if (!jwk_json.contains("crv") || !jwk_json.contains("x") || !jwk_json.contains("y"))
-                return Private::makeError<JWK>("Missing required EC parameters");
-
-            DECODE_FIELD(x_bytes, jwk_json, "x");
-            DECODE_FIELD(y_bytes, jwk_json, "y");
-
-            auto d_bytes = vector<unsigned char>{};
-            if (!ignore_private_if_present && jwk_json.contains("d"))
-            {
-                DECODE_FIELD(d_tmp, jwk_json, "d");
-                d_bytes = std::move(d_tmp);
-            }
-
-            auto [key_opt, key_err] =
-                back_end->generateEC(jwk_json["crv"].get<string>(), x_bytes, y_bytes, d_bytes);
-            if (!key_opt)
-                return Private::makeError<JWK>(key_err);
-            impl.key_ = std::move(*key_opt);
-            break;
-        }
-        case KeyType::okp:
+            case KeyType::okp:
 #if defined(JOSE_USE_CNG)
-            return Private::makeError<JWK>(
-                "OKP keys are not supported with CNG backend -- use OpenSSL");
+                return Private::makeError<JWK>(
+                    "OKP keys are not supported with CNG backend -- use OpenSSL");
 #else
-        {
-            if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
-                return Private::makeError<JWK>("Missing required OKP parameters");
-
-            DECODE_FIELD(x_bytes, jwk_json, "x");
-
-            auto d_bytes = vector<unsigned char>{};
-            if (!ignore_private_if_present && jwk_json.contains("d"))
             {
-                DECODE_FIELD(d_tmp, jwk_json, "d");
-                d_bytes = std::move(d_tmp);
-            }
+                if (!jwk_json.contains("crv") || !jwk_json.contains("x"))
+                    return Private::makeError<JWK>("Missing required OKP parameters");
 
-            auto [key_opt, key_err] =
-                back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes);
-            if (!key_opt)
-                return Private::makeError<JWK>(key_err);
-            impl.key_ = std::move(*key_opt);
-            break;
-        }
+                DECODE_FIELD(x_bytes, jwk_json, "x");
+
+                auto d_bytes = vector<unsigned char>{};
+                if (!ignore_private_if_present && jwk_json.contains("d"))
+                {
+                    DECODE_FIELD(d_tmp, jwk_json, "d");
+                    d_bytes = std::move(d_tmp);
+                }
+
+                auto [key_opt, key_err] =
+                    back_end->generateOkp(jwk_json["crv"].get<string>(), x_bytes, d_bytes);
+                if (!key_opt)
+                    return Private::makeError<JWK>(key_err);
+                impl.key_ = std::move(*key_opt);
+                break;
+            }
 #endif
-        case KeyType::oct:
-        {
-            auto k_bytes = vector<unsigned char>{};
-            if (!ignore_private_if_present)
+            case KeyType::oct:
             {
-                if (!jwk_json.contains("k"))
-                    return Private::makeError<JWK>(
-                        "Missing required 'k' parameter for symmetric key");
-                DECODE_FIELD(k_tmp, jwk_json, "k");
-                k_bytes = std::move(k_tmp);
+                auto k_bytes = vector<unsigned char>{};
+                if (!ignore_private_if_present)
+                {
+                    if (!jwk_json.contains("k"))
+                        return Private::makeError<JWK>(
+                            "Missing required 'k' parameter for symmetric key");
+                    DECODE_FIELD(k_tmp, jwk_json, "k");
+                    k_bytes = std::move(k_tmp);
+                }
+                impl.key_ = make_unique<Private::OctKey>(k_bytes);
+                break;
             }
-            impl.key_ = make_unique<Private::OctKey>(k_bytes);
-            break;
         }
-    }
 
-    JWK jwk(std::move(impl));
-    if (jwk.getKeyID().empty())
-    {
-        auto tp_opt = JWKThumbprint::compute(jwk, "SHA-256", nothrow);
-        if (tp_opt)
-            jwk.setKeyID(tp_opt->get());
+        JWK jwk(std::move(impl));
+        if (jwk.getKeyID().empty())
+        {
+            auto tp_opt = JWKThumbprint::compute(jwk, "SHA-256", nothrow);
+            if (tp_opt)
+                jwk.setKeyID(tp_opt->get());
+        }
+        return Private::makeOk<JWK>(std::move(jwk));
     }
-    return Private::makeOk<JWK>(std::move(jwk));
+    catch (json::exception const &e)
+    {
+        return Private::makeError<JWK>(string("JSON error: ") + e.what());
+    }
 }
 
 #undef DECODE_FIELD
