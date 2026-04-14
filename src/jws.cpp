@@ -242,6 +242,8 @@ pair<optional<JWS>, string> JWS::fromJSON_(string const &json_str)
     json const j = json::parse(json_str, nullptr, false);
     if (j.is_discarded())
         return makeError<JWS>("JWS JSON: input is not valid JSON");
+    if (!j.is_object())
+        return makeError<JWS>("JWS JSON: top-level value is not a JSON object");
 
     auto const parse_sig_entry_ =
         [](string const &hdr_b64,
@@ -254,6 +256,9 @@ pair<optional<JWS>, string> JWS::fromJSON_(string const &json_str)
         json header = json::parse(*header_str_opt, nullptr, false);
         if (header.is_discarded())
             return makeError<Impl::SignatureEntry>("JWS JSON: protected header is not valid JSON");
+        if (!header.is_object())
+            return makeError<Impl::SignatureEntry>(
+                "JWS JSON: protected header is not a JSON object");
         string const alg_str = header.value("alg", "");
         auto alg_opt = JWA::signatureAlgorithmFromString(alg_str, nothrow);
         if (!alg_opt)
@@ -283,13 +288,20 @@ pair<optional<JWS>, string> JWS::fromJSON_(string const &json_str)
             return makeError<JWS>("JWS JSON: missing 'payload' field");
         payload_b64 = j.at("payload").get<string>();
         auto const &sigs = j.at("signatures");
+        if (!sigs.is_array())
+            return makeError<JWS>("JWS JSON: 'signatures' field is not an array");
         if (sigs.empty())
             return makeError<JWS>("JWS JSON: 'signatures' array is empty");
         for (auto const &entry : sigs)
         {
+            if (!entry.is_object())
+                return makeError<JWS>("JWS JSON: signature entry is not a JSON object");
             if (!entry.contains("protected") || !entry.contains("signature"))
                 return makeError<JWS>(
                     "JWS JSON: signature entry missing 'protected' or 'signature'");
+            if (!entry["protected"].is_string() || !entry["signature"].is_string())
+                return makeError<JWS>(
+                    "JWS JSON: 'protected' and 'signature' in signature entry must be strings");
             auto [sig_opt, sig_err] = parse_sig_entry_(entry.at("protected").get<string>(),
                                                        entry.at("signature").get<string>());
             if (!sig_opt)
@@ -302,6 +314,8 @@ pair<optional<JWS>, string> JWS::fromJSON_(string const &json_str)
         if (!j.contains("payload") || !j.at("payload").is_string())
             return makeError<JWS>("JWS JSON: missing 'payload' field");
         payload_b64 = j.at("payload").get<string>();
+        if (!j["protected"].is_string() || !j["signature"].is_string())
+            return makeError<JWS>("JWS JSON: 'protected' and 'signature' fields must be strings");
         auto [sig_opt, sig_err] =
             parse_sig_entry_(j.at("protected").get<string>(), j.at("signature").get<string>());
         if (!sig_opt)
