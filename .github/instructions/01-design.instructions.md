@@ -57,12 +57,12 @@ Specific patterns for this project:
 ```cpp
 // WRONG — return type mismatch
 /// @return Pair of optional JWS object and success flag
-std::optional< JWS > fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
+std::optional<JWS> fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
 
 // CORRECT
 /// @return std::optional<JWS> containing the loaded token if valid, or empty
 ///         if the input could not be parsed.
-std::optional< JWS > fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
+std::optional<JWS> fromJSON(std::string const &json, std::nothrow_t const &) noexcept;
 
 // WRONG — @param name does not match the declared identifier
 /// @param input  Compact or JSON serialization string
@@ -111,27 +111,29 @@ const T *ptr;
 
 ## Template Spacing
 
+`clang-format` enforces a space after the `template` keyword but no spaces inside angle brackets:
+
 ```cpp
 // CORRECT
-template< typename T >
-std::vector< T > doSomething(std::map< std::string, T > const &input);
+template <typename T>
+std::vector<T> doSomething(std::map<std::string, T> const &input);
 
 // WRONG
-template<typename T>
-std::vector<T> doSomething(std::map<std::string, T> const &input);
+template< typename T >
+std::vector< T > doSomething(std::map< std::string, T > const &input);
 ```
 
 ## Strong Typing — Non-Negotiable
 
 - Never pass an `int` where a domain concept exists. Wrap it.
 - Use `enum class` for all categorical values (key type, key use, algorithm, curve).
-- Use `std::span< std::byte const >` or `std::span< char const >` for binary payloads, not raw pointers.
+- Use `std::span<std::byte const>` or `std::span<char const>` for binary payloads, not raw pointers.
 - Public API functions that accept algorithm identifiers must accept the corresponding `JWA::*` enum, not a raw string.
 
 ## Pimpl / Internal Separation
 
 - Public headers (`include/jose/`) must expose **no implementation details**.
-- Use the Pimpl idiom (`struct Impl; std::unique_ptr< Impl > impl_;`) when the implementation requires third-party types (OpenSSL, CNG).
+- Use the Pimpl idiom (`struct Impl; std::unique_ptr<Impl> impl_;`) when the implementation requires third-party types (OpenSSL, CNG).
 - Internal types live in `src/private/`; they must never appear in `include/`.
 
 ## Backend Abstraction
@@ -153,7 +155,7 @@ Operations that produce a new JOSE object must be expressed as **free functions 
 
 ```cpp
 // CORRECT — JWS pattern: free function returns typed result
-JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::span< char const > payload);
+JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::span<char const> payload);
 bool verify(JWS const &jws, JWK const &key);
 
 // WRONG — builder pattern: JWE original anti-pattern
@@ -193,16 +195,16 @@ bool validate(std::string const &issuer,
 bool validate(std::string const &issuer, std::string const &audience, int leeway = 0) const;
 ```
 
-### Nothrow Overloads Return `std::optional< T >`
+### Nothrow Overloads Return `std::optional<T>`
 
-When a nothrow parsing overload is needed, it returns `std::optional< T >`, **not** `std::pair< std::optional< T >, bool >`. An empty optional signals failure; no separate boolean is needed.
+When a nothrow parsing overload is needed, it returns `std::optional<T>`, **not** `std::pair<std::optional<T>, bool>`. An empty optional signals failure; no separate boolean is needed.
 
 ```cpp
 // CORRECT — new pattern (JWS is the reference implementation)
-static std::optional< JWS > fromCompact(std::string const &compact, std::nothrow_t const &) noexcept;
+static std::optional<JWS> fromCompact(std::string const &compact, std::nothrow_t const &) noexcept;
 
 // WRONG — old pattern; do not use for new types
-static std::pair< std::optional< JWE >, bool > fromJSON(std::string const &json, std::nothrow_t const &);
+static std::pair<std::optional<JWE>, bool> fromJSON(std::string const &json, std::nothrow_t const &);
 ```
 
 Note: JWK and JWKSet still carry the old `pair` pattern as a known deficiency (tracked in `TODO.txt`). Do not propagate it to any new type.
@@ -235,11 +237,11 @@ bool operator>=(T const &lhs, T const &rhs);
 
 ### `std::span` for Binary Payloads
 
-Parameters that accept opaque binary input use `std::span< unsigned char const >` or `std::span< char const >`. Do not accept `std::string` as a binary payload parameter; keep convenience overloads separate and clearly named.
+Parameters that accept opaque binary input use `std::span<unsigned char const>` or `std::span<char const>`. Do not accept `std::string` as a binary payload parameter; keep convenience overloads separate and clearly named.
 
 ### Caller-Supplied Parameter Maps Must Document Reserved Names
 
-Any API function that accepts a `std::map< std::string, std::string >` (or similar) of caller-supplied header or claim parameters **must document in its Doxygen comment which names are reserved and will be rejected**. Never leave the validation implicit.
+Any API function that accepts a `std::map<std::string, std::string>` (or similar) of caller-supplied header or claim parameters **must document in its Doxygen comment which names are reserved and will be rejected**. Never leave the validation implicit.
 
 ```cpp
 // CORRECT — documents the constraint
@@ -247,14 +249,14 @@ Any API function that accepts a `std::map< std::string, std::string >` (or simil
 ///                       reserved JOSE header names: \"alg\", \"kid\", \"typ\", \"cty\".
 ///                       Throws std::invalid_argument if a reserved name is supplied.
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg, std::string const &type,
-         std::map< std::string, std::string > const &header_params,
-         std::span< char const > payload);
+         std::map<std::string, std::string> const &header_params,
+         std::span<char const> payload);
 
 // WRONG — caller has no idea which names are forbidden
 /// @param header_params  Additional header parameters to include.
 JWS sign(JWK const &key, JWA::SignatureAlgorithm alg,
-         std::map< std::string, std::string > const &header_params,
-         std::span< char const > payload);
+         std::map<std::string, std::string> const &header_params,
+         std::span<char const> payload);
 ```
 
 The implementation must validate and throw **before** writing any caller-supplied field (see implementation instructions).
@@ -277,7 +279,7 @@ This prevents accidental direct construction while keeping the header self-docum
 - [ ] Are error paths expressible without exceptions leaking implementation detail types?
 - [ ] Does the interface allow RFC 7520 test vectors to be exercised end-to-end?
 - [ ] Is there a clear seam for injecting a mock `BackEnd` in tests?
-- [ ] Nothrow overloads return `std::optional< T >`, not a pair?
+- [ ] Nothrow overloads return `std::optional<T>`, not a pair?
 - [ ] All algorithm parameters use `JWA` enum types, not `std::string`?
 - [ ] All duration parameters use `std::chrono` types, not `int`?
 - [ ] No `<iostream>` included (use `<iosfwd>` if stream operators are needed)?
