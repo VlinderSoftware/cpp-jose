@@ -403,11 +403,11 @@ string BackEnd::base64Encode(vector<unsigned char> const &data) const
     return base64Encode(span<unsigned char const>(data.data(), data.size()));
 }
 
-vector<unsigned char> BackEnd::base64Decode(string const &encoded) const
+Result<vector<unsigned char>> BackEnd::base64Decode(string const &encoded) const
 {
     if (encoded.empty())
     {
-        return {};
+        return makeOk(vector<unsigned char>{});
     }
 
     // Build reverse lookup: accepts both standard (+/) and URL-safe (-_) alphabet
@@ -445,12 +445,12 @@ vector<unsigned char> BackEnd::base64Decode(string const &encoded) const
 
     if (cleaned.empty())
     {
-        return {};
+        return makeOk(vector<unsigned char>{});
     }
 
     if ((cleaned.size() % 4) != 0)
     {
-        throw runtime_error("Invalid base64 input length");
+        return makeError<vector<unsigned char>>("Invalid base64 input length");
     }
 
     size_t padding = 0;
@@ -471,7 +471,7 @@ vector<unsigned char> BackEnd::base64Decode(string const &encoded) const
 
         if (v0 < 0 || v1 < 0 || v2 < 0 || v3 < 0)
         {
-            throw runtime_error("Invalid character in base64 input");
+            return makeError<vector<unsigned char>>("Invalid character in base64 input");
         }
 
         uint32_t const triple = (static_cast<uint32_t>(v0) << 18) |
@@ -489,7 +489,7 @@ vector<unsigned char> BackEnd::base64Decode(string const &encoded) const
         }
     }
 
-    return out;
+    return makeOk(std::move(out));
 }
 
 }  // namespace Private

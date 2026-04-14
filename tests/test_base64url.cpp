@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -429,6 +430,84 @@ SCENARIO("Base64URL::decodeToString nothrow returns empty optional for an invali
         WHEN("decoding to string with nothrow")
         {
             auto result = Base64URL::decodeToString(encoded, std::nothrow);
+
+            THEN("the result is an empty optional")
+            {
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+// --- Step 2.4: Nothrow-first error-path tests ---
+
+SCENARIO("Base64URL::decode throwing gives descriptive error for invalid input",
+         "[base64url][decode][nothrow-first]")
+{
+    GIVEN("a string with invalid base64 characters")
+    {
+        string encoded = "!!!invalid!!!";
+
+        WHEN("decoding with throwing overload")
+        {
+            THEN("it throws runtime_error")
+            {
+                REQUIRE_THROWS_AS(Base64URL::decode(encoded), runtime_error);
+            }
+        }
+    }
+}
+
+SCENARIO("Base64URL::decode nothrow and throwing agree on valid input",
+         "[base64url][decode][nothrow-first]")
+{
+    GIVEN("a valid base64url-encoded string")
+    {
+        string encoded = "aGVsbG8";  // "hello"
+
+        WHEN("decoding with both overloads")
+        {
+            auto throwing_result = Base64URL::decode(encoded);
+            auto nothrow_result = Base64URL::decode(encoded, std::nothrow);
+
+            THEN("both return the same decoded bytes")
+            {
+                REQUIRE(nothrow_result.has_value());
+                REQUIRE(*nothrow_result == throwing_result);
+            }
+        }
+    }
+}
+
+SCENARIO("Base64URL::decodeToString nothrow and throwing agree on valid input",
+         "[base64url][decodetostring][nothrow-first]")
+{
+    GIVEN("a valid base64url-encoded string")
+    {
+        string encoded = "aGVsbG8";  // "hello"
+
+        WHEN("decoding to string with both overloads")
+        {
+            auto throwing_result = Base64URL::decodeToString(encoded);
+            auto nothrow_result = Base64URL::decodeToString(encoded, std::nothrow);
+
+            THEN("both return the same decoded string")
+            {
+                REQUIRE(nothrow_result.has_value());
+                REQUIRE(*nothrow_result == throwing_result);
+            }
+        }
+    }
+}
+
+SCENARIO("Base64URL::decode nothrow returns empty optional for invalid input",
+         "[base64url][decode][nothrow-first]")
+{
+    GIVEN("various invalid base64url inputs")
+    {
+        WHEN("decoding a string with invalid characters using nothrow")
+        {
+            auto result = Base64URL::decode("!!!invalid!!!", std::nothrow);
 
             THEN("the result is an empty optional")
             {

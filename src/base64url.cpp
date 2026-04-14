@@ -5,8 +5,10 @@
 #include <stdexcept>
 
 #include "private/back_end_factory.hpp"
+#include "private/result.hpp"
 
 using namespace std;
+using namespace Vlinder::JOSE::Private;
 
 namespace Vlinder {
 namespace JOSE {
@@ -67,11 +69,12 @@ string Base64URL::encode(string const &str)
     return encode(data);
 }
 
-vector<unsigned char> Base64URL::decode(string const &encoded)
+namespace {
+Result<vector<unsigned char>> decodeCore(string const &encoded) noexcept
 {
     if (encoded.empty())
     {
-        return {};
+        return makeOk(vector<unsigned char>{});
     }
     string base64 = encoded;
     for (char &c : base64)
@@ -92,35 +95,37 @@ vector<unsigned char> Base64URL::decode(string const &encoded)
     auto const &back_end = getBackEnd();
     return back_end.base64Decode(base64);
 }
+}  // namespace
+
+vector<unsigned char> Base64URL::decode(string const &encoded)
+{
+    auto [result, error] = decodeCore(encoded);
+    if (!result)
+    {
+        throw runtime_error(error);
+    }
+    return std::move(*result);
+}
 
 string Base64URL::decodeToString(string const &encoded)
 {
-    auto const data = decode(encoded);
+    auto data = decode(encoded);
     return string(data.begin(), data.end());
 }
 
 optional<vector<unsigned char>> Base64URL::decode(string const &encoded, nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<vector<unsigned char>>(decode(encoded));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return decodeCore(encoded).first;
 }
 
 optional<string> Base64URL::decodeToString(string const &encoded, nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<string>(decodeToString(encoded));
-    }
-    catch (...)
+    auto result = decodeCore(encoded).first;
+    if (!result)
     {
         return nullopt;
     }
+    return string(result->begin(), result->end());
 }
 
 }  // namespace JOSE

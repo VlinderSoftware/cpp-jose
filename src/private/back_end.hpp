@@ -254,7 +254,7 @@ public:
     /// Base64 encode (standard alphabet, no line breaks, with padding)
     std::string base64Encode(std::span<unsigned char const> const &data) const;
     /// Base64 decode (standard or URL-safe alphabet, optional padding)
-    std::vector<unsigned char> base64Decode(std::string const &encoded) const;
+    Result<std::vector<unsigned char>> base64Decode(std::string const &encoded) const;
 
     ///// Get hash algorithm for signature
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;

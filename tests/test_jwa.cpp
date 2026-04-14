@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -764,6 +765,167 @@ SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow returns empty option
             THEN("the result is an empty optional")
             {
                 REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
+
+// --- Step 2.4: Nothrow-first error-path tests ---
+
+SCENARIO("JWA::signatureAlgorithmFromString throwing gives descriptive error for unknown string",
+         "[jwa][signaturealgorithmfromstring][nothrow-first]")
+{
+    GIVEN("an unknown signature algorithm string")
+    {
+        string alg = "BOGUS";
+
+        WHEN("converting with throwing overload")
+        {
+            THEN("it throws runtime_error with a descriptive message")
+            {
+                REQUIRE_THROWS_AS(JWA::signatureAlgorithmFromString(alg), runtime_error);
+                try
+                {
+                    JWA::signatureAlgorithmFromString(alg);
+                }
+                catch (runtime_error const &e)
+                {
+                    REQUIRE(string(e.what()).find("BOGUS") != string::npos);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO(
+    "JWA::keyEncryptionAlgorithmFromString throwing gives descriptive error for unknown string",
+    "[jwa][keyencryptionalgorithmfromstring][nothrow-first]")
+{
+    GIVEN("an unknown key encryption algorithm string")
+    {
+        string alg = "BOGUS-KEA";
+
+        WHEN("converting with throwing overload")
+        {
+            THEN("it throws runtime_error with a descriptive message")
+            {
+                REQUIRE_THROWS_AS(JWA::keyEncryptionAlgorithmFromString(alg), runtime_error);
+                try
+                {
+                    JWA::keyEncryptionAlgorithmFromString(alg);
+                }
+                catch (runtime_error const &e)
+                {
+                    REQUIRE(string(e.what()).find("BOGUS-KEA") != string::npos);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO(
+    "JWA::contentEncryptionAlgorithmFromString throwing gives descriptive error for unknown string",
+    "[jwa][contentencryptionalgorithmfromstring][nothrow-first]")
+{
+    GIVEN("an unknown content encryption algorithm string")
+    {
+        string alg = "BOGUS-CEA";
+
+        WHEN("converting with throwing overload")
+        {
+            THEN("it throws runtime_error with a descriptive message")
+            {
+                REQUIRE_THROWS_AS(JWA::contentEncryptionAlgorithmFromString(alg), runtime_error);
+                try
+                {
+                    JWA::contentEncryptionAlgorithmFromString(alg);
+                }
+                catch (runtime_error const &e)
+                {
+                    REQUIRE(string(e.what()).find("BOGUS-CEA") != string::npos);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::signatureAlgorithmFromString nothrow and throwing agree on known strings",
+         "[jwa][signaturealgorithmfromstring][nothrow-first]")
+{
+    GIVEN("all known signature algorithm strings")
+    {
+        vector<pair<string, JWA::SignatureAlgorithm>> known = {
+            {"HS256", JWA::SignatureAlgorithm::hs256},
+            {"RS256", JWA::SignatureAlgorithm::rs256},
+            {"ES256", JWA::SignatureAlgorithm::es256},
+            {"PS256", JWA::SignatureAlgorithm::ps256},
+            {"EdDSA", JWA::SignatureAlgorithm::eddsa},
+            {"none", JWA::SignatureAlgorithm::none}};
+
+        WHEN("converting each with both overloads")
+        {
+            THEN("both overloads return the same value")
+            {
+                for (auto const &[str, expected] : known)
+                {
+                    REQUIRE(JWA::signatureAlgorithmFromString(str) == expected);
+                    auto nothrow_result = JWA::signatureAlgorithmFromString(str, std::nothrow);
+                    REQUIRE(nothrow_result.has_value());
+                    REQUIRE(*nothrow_result == expected);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::keyEncryptionAlgorithmFromString nothrow and throwing agree on known strings",
+         "[jwa][keyencryptionalgorithmfromstring][nothrow-first]")
+{
+    GIVEN("a subset of known key encryption algorithm strings")
+    {
+        vector<pair<string, JWA::KeyEncryptionAlgorithm>> known = {
+            {"RSA-OAEP", JWA::KeyEncryptionAlgorithm::rsa_oaep},
+            {"A128KW", JWA::KeyEncryptionAlgorithm::a128kw},
+            {"dir", JWA::KeyEncryptionAlgorithm::dir},
+            {"ECDH-ES", JWA::KeyEncryptionAlgorithm::ecdh_es}};
+
+        WHEN("converting each with both overloads")
+        {
+            THEN("both overloads return the same value")
+            {
+                for (auto const &[str, expected] : known)
+                {
+                    REQUIRE(JWA::keyEncryptionAlgorithmFromString(str) == expected);
+                    auto nothrow_result = JWA::keyEncryptionAlgorithmFromString(str, std::nothrow);
+                    REQUIRE(nothrow_result.has_value());
+                    REQUIRE(*nothrow_result == expected);
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("JWA::contentEncryptionAlgorithmFromString nothrow and throwing agree on known strings",
+         "[jwa][contentencryptionalgorithmfromstring][nothrow-first]")
+{
+    GIVEN("a subset of known content encryption algorithm strings")
+    {
+        vector<pair<string, JWA::ContentEncryptionAlgorithm>> known = {
+            {"A128GCM", JWA::ContentEncryptionAlgorithm::a128gcm},
+            {"A128CBC-HS256", JWA::ContentEncryptionAlgorithm::a128cbc_hs256}};
+
+        WHEN("converting each with both overloads")
+        {
+            THEN("both overloads return the same value")
+            {
+                for (auto const &[str, expected] : known)
+                {
+                    REQUIRE(JWA::contentEncryptionAlgorithmFromString(str) == expected);
+                    auto nothrow_result =
+                        JWA::contentEncryptionAlgorithmFromString(str, std::nothrow);
+                    REQUIRE(nothrow_result.has_value());
+                    REQUIRE(*nothrow_result == expected);
+                }
             }
         }
     }
