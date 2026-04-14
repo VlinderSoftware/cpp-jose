@@ -140,7 +140,7 @@ JWKThumbprint::compute(JWK const &key, string const &algorithm, nothrow_t const 
     auto [raw_opt, raw_err] = computeRaw_(key, algorithm);
     if (!raw_opt)
         return nullopt;
-    return make_optional<JWKThumbprint>(std::move(*raw_opt));
+    return JWKThumbprint(*raw_opt);
 }
 
 string JWKThumbprint::get() const
