@@ -2683,9 +2683,9 @@ Result<vector<unsigned char>> OpenSSLBackEnd::signEc(SignatureAlgorithm algorith
     return makeOk<vector<unsigned char>>(signature);
 }
 
-vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
-                                              Key *key,
-                                              span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
+                                                    Key *key,
+                                                    span<unsigned char const> const &data) const
 {
     (void)algorithm;
 
