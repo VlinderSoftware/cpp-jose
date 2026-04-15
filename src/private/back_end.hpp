@@ -206,7 +206,7 @@ public:
 
     Result<std::vector<unsigned char>>
     encryptKey(KeyEncryptionAlgorithm algorithm,
-               const JWK &key,
+               JWK const &key,
                std::vector<unsigned char> const &cek,
                std::optional<std::vector<unsigned char>> const &iv,
                std::optional<std::vector<unsigned char>> const &tag,
