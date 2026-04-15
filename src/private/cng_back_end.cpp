@@ -2506,156 +2506,166 @@ Result<vector<unsigned char>> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm alg
 {
     (void)iv;
     (void)tag;
-    try
+    if (key == nullptr)
     {
-        if (key == nullptr)
+        return makeError<vector<unsigned char>>("Key does not contain valid material");
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::dir)
+    {
+        return makeOk<vector<unsigned char>>(cek);
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::rsa1_5 ||
+        algorithm == KeyEncryptionAlgorithm::rsa_oaep ||
+        algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+    {
+        auto rsa_key(dynamic_cast<RSAKey *>(key));
+        if (rsa_key == nullptr)
         {
-            throw runtime_error("Key does not contain valid material");
+            return makeError<vector<unsigned char>>("RSA key encryption requires an RSA key");
         }
 
-        if (algorithm == KeyEncryptionAlgorithm::dir)
+        vector<unsigned char> public_blob;
+        auto cng_rsa_key(dynamic_cast<CNGRSAKey *>(key));
+        if (cng_rsa_key != nullptr)
         {
-            return makeOk<vector<unsigned char>>(cek);
+            public_blob = cng_rsa_key->getPublicBlob();
+        }
+        if (public_blob.empty())
+        {
+            public_blob = buildRsaPublicBlob(*rsa_key);
         }
 
-        if (algorithm == KeyEncryptionAlgorithm::rsa1_5 ||
-            algorithm == KeyEncryptionAlgorithm::rsa_oaep ||
-            algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+        BCRYPT_ALG_HANDLE h_alg(nullptr);
+        NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
+        if (!BCRYPT_SUCCESS(status))
         {
-            auto rsa_key(dynamic_cast<RSAKey *>(key));
-            if (rsa_key == nullptr)
-            {
-                throw runtime_error("RSA key encryption requires an RSA key");
-            }
+            return makeError<vector<unsigned char>>("BCryptOpenAlgorithmProvider failed: " +
+                                                    getErrorString());
+        }
+        AlgHandle alg_guard(h_alg);
 
-            vector<unsigned char> public_blob;
-            auto cng_rsa_key(dynamic_cast<CNGRSAKey *>(key));
-            if (cng_rsa_key != nullptr)
-            {
-                public_blob = cng_rsa_key->getPublicBlob();
-            }
-            if (public_blob.empty())
-            {
-                public_blob = buildRsaPublicBlob(*rsa_key);
-            }
+        BCRYPT_KEY_HANDLE h_key(nullptr);
+        status = BCryptImportKeyPair(alg_guard.get(),
+                                     nullptr,
+                                     BCRYPT_RSAPUBLIC_BLOB,
+                                     &h_key,
+                                     public_blob.data(),
+                                     static_cast<ULONG>(public_blob.size()),
+                                     0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            return makeError<vector<unsigned char>>("BCryptImportKeyPair failed: " +
+                                                    getErrorString());
+        }
+        KeyHandle key_guard(h_key);
 
-            BCRYPT_ALG_HANDLE h_alg(nullptr);
-            NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
-            }
-            AlgHandle alg_guard(h_alg);
+        ULONG encrypted_size(0);
+        ULONG flags(0);
+        void *padding_info(nullptr);
+        BCRYPT_OAEP_PADDING_INFO oaep_padding_info{};
 
-            BCRYPT_KEY_HANDLE h_key(nullptr);
-            status = BCryptImportKeyPair(alg_guard.get(),
-                                         nullptr,
-                                         BCRYPT_RSAPUBLIC_BLOB,
-                                         &h_key,
-                                         public_blob.data(),
-                                         static_cast<ULONG>(public_blob.size()),
-                                         0);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
-            }
-            KeyHandle key_guard(h_key);
-
-            ULONG encrypted_size(0);
-            ULONG flags(0);
-            void *padding_info(nullptr);
-            BCRYPT_OAEP_PADDING_INFO oaep_padding_info{};
-
-            if (algorithm == KeyEncryptionAlgorithm::rsa1_5)
-            {
-                flags = BCRYPT_PAD_PKCS1;
-            }
-            else
-            {
-                oaep_padding_info.pszAlgId = (algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
-                                                 ? BCRYPT_SHA256_ALGORITHM
-                                                 : BCRYPT_SHA1_ALGORITHM;
-                oaep_padding_info.pbLabel = nullptr;
-                oaep_padding_info.cbLabel = 0;
-                padding_info = &oaep_padding_info;
-                flags = BCRYPT_PAD_OAEP;
-            }
-
-            status = BCryptEncrypt(key_guard.get(),
-                                   cek.empty() ? nullptr : const_cast<PUCHAR>(cek.data()),
-                                   static_cast<ULONG>(cek.size()),
-                                   padding_info,
-                                   nullptr,
-                                   0,
-                                   nullptr,
-                                   0,
-                                   &encrypted_size,
-                                   flags);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptEncrypt(size query) failed: " + getErrorString());
-            }
-
-            vector<unsigned char> encrypted(encrypted_size);
-            status = BCryptEncrypt(key_guard.get(),
-                                   cek.empty() ? nullptr : const_cast<PUCHAR>(cek.data()),
-                                   static_cast<ULONG>(cek.size()),
-                                   padding_info,
-                                   nullptr,
-                                   0,
-                                   encrypted.data(),
-                                   static_cast<ULONG>(encrypted.size()),
-                                   &encrypted_size,
-                                   flags);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptEncrypt failed: " + getErrorString());
-            }
-
-            encrypted.resize(encrypted_size);
-            return makeOk<vector<unsigned char>>(std::move(encrypted));
+        if (algorithm == KeyEncryptionAlgorithm::rsa1_5)
+        {
+            flags = BCRYPT_PAD_PKCS1;
+        }
+        else
+        {
+            oaep_padding_info.pszAlgId = (algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+                                             ? BCRYPT_SHA256_ALGORITHM
+                                             : BCRYPT_SHA1_ALGORITHM;
+            oaep_padding_info.pbLabel = nullptr;
+            oaep_padding_info.cbLabel = 0;
+            padding_info = &oaep_padding_info;
+            flags = BCRYPT_PAD_OAEP;
         }
 
-        if (algorithm == KeyEncryptionAlgorithm::a128kw ||
-            algorithm == KeyEncryptionAlgorithm::a192kw ||
-            algorithm == KeyEncryptionAlgorithm::a256kw)
+        status = BCryptEncrypt(key_guard.get(),
+                               cek.empty() ? nullptr : const_cast<PUCHAR>(cek.data()),
+                               static_cast<ULONG>(cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               nullptr,
+                               0,
+                               &encrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
         {
-            auto oct_key(dynamic_cast<OctKey *>(key));
-            if (oct_key == nullptr)
-            {
-                throw runtime_error("AES key wrap requires an octet key");
-            }
+            return makeError<vector<unsigned char>>("BCryptEncrypt(size query) failed: " +
+                                                    getErrorString());
+        }
 
-            vector<unsigned char> kek(oct_key->getK());
-            size_t expected_kek_size = 0;
-            if (algorithm == KeyEncryptionAlgorithm::a128kw)
-            {
-                expected_kek_size = 16;
-            }
-            else if (algorithm == KeyEncryptionAlgorithm::a192kw)
-            {
-                expected_kek_size = 24;
-            }
-            else
-            {
-                expected_kek_size = 32;
-            }
+        vector<unsigned char> encrypted(encrypted_size);
+        status = BCryptEncrypt(key_guard.get(),
+                               cek.empty() ? nullptr : const_cast<PUCHAR>(cek.data()),
+                               static_cast<ULONG>(cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               encrypted.data(),
+                               static_cast<ULONG>(encrypted.size()),
+                               &encrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            return makeError<vector<unsigned char>>("BCryptEncrypt failed: " + getErrorString());
+        }
 
-            if (kek.size() != expected_kek_size)
-            {
-                throw runtime_error("AES key wrap key size does not match algorithm");
-            }
+        encrypted.resize(encrypted_size);
+        return makeOk<vector<unsigned char>>(std::move(encrypted));
+    }
 
+    if (algorithm == KeyEncryptionAlgorithm::a128kw ||
+        algorithm == KeyEncryptionAlgorithm::a192kw || algorithm == KeyEncryptionAlgorithm::a256kw)
+    {
+        auto oct_key(dynamic_cast<OctKey *>(key));
+        if (oct_key == nullptr)
+        {
+            return makeError<vector<unsigned char>>("AES key wrap requires an octet key");
+        }
+
+        vector<unsigned char> kek(oct_key->getK());
+        size_t expected_kek_size = 0;
+        if (algorithm == KeyEncryptionAlgorithm::a128kw)
+        {
+            expected_kek_size = 16;
+        }
+        else if (algorithm == KeyEncryptionAlgorithm::a192kw)
+        {
+            expected_kek_size = 24;
+        }
+        else
+        {
+            expected_kek_size = 32;
+        }
+
+        if (kek.size() != expected_kek_size)
+        {
+            return makeError<vector<unsigned char>>(
+                "AES key wrap key size does not match algorithm");
+        }
+
+        try
+        {
             return makeOk<vector<unsigned char>>(aesKeyWrap(kek, cek));
         }
-
-        if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
+        catch (exception const &e)
         {
-            auto ec_eph = dynamic_cast<ECKey *>(ephemeral_key);
-            if (ec_eph == nullptr)
-            {
-                throw runtime_error("ECDH-ES requires an ephemeral EC key");
-            }
+            return makeError<vector<unsigned char>>(e.what());
+        }
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
+    {
+        auto ec_eph = dynamic_cast<ECKey *>(ephemeral_key);
+        if (ec_eph == nullptr)
+        {
+            return makeError<vector<unsigned char>>("ECDH-ES requires an ephemeral EC key");
+        }
+        try
+        {
             auto shared_secret = computeECDHSharedSecret(ec_eph, key);
             auto [kdf_opt, kdf_err] =
                 concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
@@ -2663,34 +2673,42 @@ Result<vector<unsigned char>> CNGBackEnd::encryptKey_(KeyEncryptionAlgorithm alg
                 return makeError<vector<unsigned char>>(kdf_err);
             return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
         }
-
-        if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||
-            algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
-            algorithm == KeyEncryptionAlgorithm::a256gcmkw)
+        catch (exception const &e)
         {
-            auto oct_key = dynamic_cast<OctKey *>(key);
-            if (oct_key == nullptr)
-            {
-                throw runtime_error("AES-GCM key wrap requires an octet key");
-            }
-            size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
-                                       : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
-                                                                                          : 32;
-            vector<unsigned char> kek = oct_key->getK();
-            if (kek.size() != expected_kek_size)
-            {
-                throw runtime_error("AES-GCM key wrap key size does not match algorithm");
-            }
-            // Returns [IV(12)][ciphertext][tag(16)] — jwe.cpp splits these out.
+            return makeError<vector<unsigned char>>(e.what());
+        }
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||
+        algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
+        algorithm == KeyEncryptionAlgorithm::a256gcmkw)
+    {
+        auto oct_key = dynamic_cast<OctKey *>(key);
+        if (oct_key == nullptr)
+        {
+            return makeError<vector<unsigned char>>("AES-GCM key wrap requires an octet key");
+        }
+        size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
+                                   : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
+                                                                                      : 32;
+        vector<unsigned char> kek = oct_key->getK();
+        if (kek.size() != expected_kek_size)
+        {
+            return makeError<vector<unsigned char>>(
+                "AES-GCM key wrap key size does not match algorithm");
+        }
+        // Returns [IV(12)][ciphertext][tag(16)] — jwe.cpp splits these out.
+        try
+        {
             return makeOk<vector<unsigned char>>(aesGcmKeyWrapHelper(kek, cek));
         }
+        catch (exception const &e)
+        {
+            return makeError<vector<unsigned char>>(e.what());
+        }
+    }
 
-        throw runtime_error("Unsupported key encryption algorithm");
-    }
-    catch (exception const &e)
-    {
-        return makeError<vector<unsigned char>>(e.what());
-    }
+    return makeError<vector<unsigned char>>("Unsupported key encryption algorithm");
 }
 
 Result<vector<unsigned char>> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
@@ -2701,160 +2719,170 @@ Result<vector<unsigned char>> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm alg
                                                       Key *ephemeral_key,
                                                       ContentEncryptionAlgorithm content_alg) const
 {
-    try
+    if (key == nullptr)
     {
-        if (key == nullptr)
+        return makeError<vector<unsigned char>>("Key does not contain valid material");
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::dir)
+    {
+        return makeOk<vector<unsigned char>>(encrypted_cek);
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::rsa1_5 ||
+        algorithm == KeyEncryptionAlgorithm::rsa_oaep ||
+        algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+    {
+        auto rsa_key(dynamic_cast<RSAKey *>(key));
+        if (rsa_key == nullptr)
         {
-            throw runtime_error("Key does not contain valid material");
+            return makeError<vector<unsigned char>>("RSA key decryption requires an RSA key");
         }
 
-        if (algorithm == KeyEncryptionAlgorithm::dir)
+        vector<unsigned char> private_blob;
+        auto cng_rsa_key(dynamic_cast<CNGRSAKey *>(key));
+        if (cng_rsa_key != nullptr)
         {
-            return makeOk<vector<unsigned char>>(encrypted_cek);
+            private_blob = cng_rsa_key->getPrivateBlob();
+        }
+        if (private_blob.empty())
+        {
+            private_blob = buildRsaFullPrivateBlob(*rsa_key);
         }
 
-        if (algorithm == KeyEncryptionAlgorithm::rsa1_5 ||
-            algorithm == KeyEncryptionAlgorithm::rsa_oaep ||
-            algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+        BCRYPT_ALG_HANDLE h_alg(nullptr);
+        NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
+        if (!BCRYPT_SUCCESS(status))
         {
-            auto rsa_key(dynamic_cast<RSAKey *>(key));
-            if (rsa_key == nullptr)
-            {
-                throw runtime_error("RSA key decryption requires an RSA key");
-            }
+            return makeError<vector<unsigned char>>("BCryptOpenAlgorithmProvider failed: " +
+                                                    getErrorString());
+        }
+        AlgHandle alg_guard(h_alg);
 
-            vector<unsigned char> private_blob;
-            auto cng_rsa_key(dynamic_cast<CNGRSAKey *>(key));
-            if (cng_rsa_key != nullptr)
-            {
-                private_blob = cng_rsa_key->getPrivateBlob();
-            }
-            if (private_blob.empty())
-            {
-                private_blob = buildRsaFullPrivateBlob(*rsa_key);
-            }
+        BCRYPT_KEY_HANDLE h_key(nullptr);
+        status = BCryptImportKeyPair(alg_guard.get(),
+                                     nullptr,
+                                     BCRYPT_RSAFULLPRIVATE_BLOB,
+                                     &h_key,
+                                     private_blob.data(),
+                                     static_cast<ULONG>(private_blob.size()),
+                                     0);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            return makeError<vector<unsigned char>>("BCryptImportKeyPair failed: " +
+                                                    getErrorString());
+        }
+        KeyHandle key_guard(h_key);
 
-            BCRYPT_ALG_HANDLE h_alg(nullptr);
-            NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_RSA_ALGORITHM, nullptr, 0);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptOpenAlgorithmProvider failed: " + getErrorString());
-            }
-            AlgHandle alg_guard(h_alg);
+        ULONG decrypted_size(0);
+        ULONG flags(0);
+        void *padding_info(nullptr);
+        BCRYPT_OAEP_PADDING_INFO oaep_padding_info{};
 
-            BCRYPT_KEY_HANDLE h_key(nullptr);
-            status = BCryptImportKeyPair(alg_guard.get(),
-                                         nullptr,
-                                         BCRYPT_RSAFULLPRIVATE_BLOB,
-                                         &h_key,
-                                         private_blob.data(),
-                                         static_cast<ULONG>(private_blob.size()),
-                                         0);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptImportKeyPair failed: " + getErrorString());
-            }
-            KeyHandle key_guard(h_key);
-
-            ULONG decrypted_size(0);
-            ULONG flags(0);
-            void *padding_info(nullptr);
-            BCRYPT_OAEP_PADDING_INFO oaep_padding_info{};
-
-            if (algorithm == KeyEncryptionAlgorithm::rsa1_5)
-            {
-                flags = BCRYPT_PAD_PKCS1;
-            }
-            else
-            {
-                oaep_padding_info.pszAlgId = (algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
-                                                 ? BCRYPT_SHA256_ALGORITHM
-                                                 : BCRYPT_SHA1_ALGORITHM;
-                oaep_padding_info.pbLabel = nullptr;
-                oaep_padding_info.cbLabel = 0;
-                padding_info = &oaep_padding_info;
-                flags = BCRYPT_PAD_OAEP;
-            }
-
-            status = BCryptDecrypt(key_guard.get(),
-                                   encrypted_cek.empty() ? nullptr
-                                                         : const_cast<PUCHAR>(encrypted_cek.data()),
-                                   static_cast<ULONG>(encrypted_cek.size()),
-                                   padding_info,
-                                   nullptr,
-                                   0,
-                                   nullptr,
-                                   0,
-                                   &decrypted_size,
-                                   flags);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptDecrypt(size query) failed: " + getErrorString());
-            }
-
-            vector<unsigned char> decrypted(decrypted_size);
-            status = BCryptDecrypt(key_guard.get(),
-                                   encrypted_cek.empty() ? nullptr
-                                                         : const_cast<PUCHAR>(encrypted_cek.data()),
-                                   static_cast<ULONG>(encrypted_cek.size()),
-                                   padding_info,
-                                   nullptr,
-                                   0,
-                                   decrypted.data(),
-                                   static_cast<ULONG>(decrypted.size()),
-                                   &decrypted_size,
-                                   flags);
-            if (!BCRYPT_SUCCESS(status))
-            {
-                throw runtime_error("BCryptDecrypt failed: " + getErrorString());
-            }
-
-            decrypted.resize(decrypted_size);
-            return makeOk<vector<unsigned char>>(std::move(decrypted));
+        if (algorithm == KeyEncryptionAlgorithm::rsa1_5)
+        {
+            flags = BCRYPT_PAD_PKCS1;
+        }
+        else
+        {
+            oaep_padding_info.pszAlgId = (algorithm == KeyEncryptionAlgorithm::rsa_oaep_256)
+                                             ? BCRYPT_SHA256_ALGORITHM
+                                             : BCRYPT_SHA1_ALGORITHM;
+            oaep_padding_info.pbLabel = nullptr;
+            oaep_padding_info.cbLabel = 0;
+            padding_info = &oaep_padding_info;
+            flags = BCRYPT_PAD_OAEP;
         }
 
-        if (algorithm == KeyEncryptionAlgorithm::a128kw ||
-            algorithm == KeyEncryptionAlgorithm::a192kw ||
-            algorithm == KeyEncryptionAlgorithm::a256kw)
+        status = BCryptDecrypt(key_guard.get(),
+                               encrypted_cek.empty() ? nullptr
+                                                     : const_cast<PUCHAR>(encrypted_cek.data()),
+                               static_cast<ULONG>(encrypted_cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               nullptr,
+                               0,
+                               &decrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
         {
-            auto oct_key(dynamic_cast<OctKey *>(key));
-            if (oct_key == nullptr)
-            {
-                throw runtime_error("AES key unwrap requires an octet key");
-            }
+            return makeError<vector<unsigned char>>("BCryptDecrypt(size query) failed: " +
+                                                    getErrorString());
+        }
 
-            vector<unsigned char> kek(oct_key->getK());
-            size_t expected_kek_size = 0;
-            if (algorithm == KeyEncryptionAlgorithm::a128kw)
-            {
-                expected_kek_size = 16;
-            }
-            else if (algorithm == KeyEncryptionAlgorithm::a192kw)
-            {
-                expected_kek_size = 24;
-            }
-            else
-            {
-                expected_kek_size = 32;
-            }
+        vector<unsigned char> decrypted(decrypted_size);
+        status = BCryptDecrypt(key_guard.get(),
+                               encrypted_cek.empty() ? nullptr
+                                                     : const_cast<PUCHAR>(encrypted_cek.data()),
+                               static_cast<ULONG>(encrypted_cek.size()),
+                               padding_info,
+                               nullptr,
+                               0,
+                               decrypted.data(),
+                               static_cast<ULONG>(decrypted.size()),
+                               &decrypted_size,
+                               flags);
+        if (!BCRYPT_SUCCESS(status))
+        {
+            return makeError<vector<unsigned char>>("BCryptDecrypt failed: " + getErrorString());
+        }
 
-            if (kek.size() != expected_kek_size)
-            {
-                throw runtime_error("AES key unwrap key size does not match algorithm");
-            }
+        decrypted.resize(decrypted_size);
+        return makeOk<vector<unsigned char>>(std::move(decrypted));
+    }
 
+    if (algorithm == KeyEncryptionAlgorithm::a128kw ||
+        algorithm == KeyEncryptionAlgorithm::a192kw || algorithm == KeyEncryptionAlgorithm::a256kw)
+    {
+        auto oct_key(dynamic_cast<OctKey *>(key));
+        if (oct_key == nullptr)
+        {
+            return makeError<vector<unsigned char>>("AES key unwrap requires an octet key");
+        }
+
+        vector<unsigned char> kek(oct_key->getK());
+        size_t expected_kek_size = 0;
+        if (algorithm == KeyEncryptionAlgorithm::a128kw)
+        {
+            expected_kek_size = 16;
+        }
+        else if (algorithm == KeyEncryptionAlgorithm::a192kw)
+        {
+            expected_kek_size = 24;
+        }
+        else
+        {
+            expected_kek_size = 32;
+        }
+
+        if (kek.size() != expected_kek_size)
+        {
+            return makeError<vector<unsigned char>>(
+                "AES key unwrap key size does not match algorithm");
+        }
+
+        try
+        {
             return makeOk<vector<unsigned char>>(aesKeyUnwrap(kek, encrypted_cek));
         }
-
-        if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
+        catch (exception const &e)
         {
-            auto ec_key = dynamic_cast<ECKey *>(key);
-            auto ec_eph = dynamic_cast<ECKey *>(ephemeral_key);
-            if (ec_key == nullptr || ec_eph == nullptr)
-            {
-                throw runtime_error("ECDH-ES key agreement requires EC keys");
-            }
-            // shared secret: recipient_private × ephemeral_public
+            return makeError<vector<unsigned char>>(e.what());
+        }
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::ecdh_es)
+    {
+        auto ec_key = dynamic_cast<ECKey *>(key);
+        auto ec_eph = dynamic_cast<ECKey *>(ephemeral_key);
+        if (ec_key == nullptr || ec_eph == nullptr)
+        {
+            return makeError<vector<unsigned char>>("ECDH-ES key agreement requires EC keys");
+        }
+        // shared secret: recipient_private × ephemeral_public
+        try
+        {
             auto shared_secret = computeECDHSharedSecret(key, ephemeral_key);
 
             // Derive the CEK — its length depends on the content algorithm.
@@ -2880,7 +2908,8 @@ Result<vector<unsigned char>> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm alg
                     derived_key_len = 64;  // 32 (HMAC-SHA-512) + 32 (AES-256)
                     break;
                 default:
-                    throw runtime_error("Unsupported content algorithm for ECDH-ES");
+                    return makeError<vector<unsigned char>>(
+                        "Unsupported content algorithm for ECDH-ES");
             }
             auto [kdf_opt, kdf_err] =
                 concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
@@ -2888,34 +2917,42 @@ Result<vector<unsigned char>> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm alg
                 return makeError<vector<unsigned char>>(kdf_err);
             return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
         }
-
-        if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||
-            algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
-            algorithm == KeyEncryptionAlgorithm::a256gcmkw)
+        catch (exception const &e)
         {
-            auto oct_key = dynamic_cast<OctKey *>(key);
-            if (oct_key == nullptr)
-            {
-                throw runtime_error("AES-GCM key unwrap requires an octet key");
-            }
-            size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
-                                       : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
-                                                                                          : 32;
-            vector<unsigned char> kek = oct_key->getK();
-            if (kek.size() != expected_kek_size)
-            {
-                throw runtime_error("AES-GCM key unwrap key size does not match algorithm");
-            }
+            return makeError<vector<unsigned char>>(e.what());
+        }
+    }
+
+    if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||
+        algorithm == KeyEncryptionAlgorithm::a192gcmkw ||
+        algorithm == KeyEncryptionAlgorithm::a256gcmkw)
+    {
+        auto oct_key = dynamic_cast<OctKey *>(key);
+        if (oct_key == nullptr)
+        {
+            return makeError<vector<unsigned char>>("AES-GCM key unwrap requires an octet key");
+        }
+        size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
+                                   : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
+                                                                                      : 32;
+        vector<unsigned char> kek = oct_key->getK();
+        if (kek.size() != expected_kek_size)
+        {
+            return makeError<vector<unsigned char>>(
+                "AES-GCM key unwrap key size does not match algorithm");
+        }
+        try
+        {
             return makeOk<vector<unsigned char>>(
                 aesGcmKeyUnwrapHelper(kek, encrypted_cek, iv, tag));
         }
+        catch (exception const &e)
+        {
+            return makeError<vector<unsigned char>>(e.what());
+        }
+    }
 
-        throw runtime_error("Unsupported key encryption algorithm");
-    }
-    catch (exception const &e)
-    {
-        return makeError<vector<unsigned char>>(e.what());
-    }
+    return makeError<vector<unsigned char>>("Unsupported key encryption algorithm");
 }
 
 Result<pair<vector<unsigned char>, vector<unsigned char>>>
@@ -2926,29 +2963,50 @@ CNGBackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
                             vector<unsigned char> const &aad) const
 {
     using R = pair<vector<unsigned char>, vector<unsigned char>>;
-    try
+    switch (algorithm)
     {
-        switch (algorithm)
-        {
-            case ContentEncryptionAlgorithm::a128gcm:
-                if (cek.size() != 16)
-                {
-                    throw runtime_error("A128GCM requires a 128-bit CEK");
-                }
+        case ContentEncryptionAlgorithm::a128gcm:
+            if (cek.size() != 16)
+            {
+                return makeError<R>("A128GCM requires a 128-bit CEK");
+            }
+            try
+            {
                 return makeOk<R>(aesGcmEncrypt(cek, iv, plaintext, aad));
-            case ContentEncryptionAlgorithm::a192gcm:
-                if (cek.size() != 24)
-                {
-                    throw runtime_error("A192GCM requires a 192-bit CEK");
-                }
+            }
+            catch (exception const &e)
+            {
+                return makeError<R>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a192gcm:
+            if (cek.size() != 24)
+            {
+                return makeError<R>("A192GCM requires a 192-bit CEK");
+            }
+            try
+            {
                 return makeOk<R>(aesGcmEncrypt(cek, iv, plaintext, aad));
-            case ContentEncryptionAlgorithm::a256gcm:
-                if (cek.size() != 32)
-                {
-                    throw runtime_error("A256GCM requires a 256-bit CEK");
-                }
+            }
+            catch (exception const &e)
+            {
+                return makeError<R>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a256gcm:
+            if (cek.size() != 32)
+            {
+                return makeError<R>("A256GCM requires a 256-bit CEK");
+            }
+            try
+            {
                 return makeOk<R>(aesGcmEncrypt(cek, iv, plaintext, aad));
-            case ContentEncryptionAlgorithm::a128cbc_hs256:
+            }
+            catch (exception const &e)
+            {
+                return makeError<R>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a128cbc_hs256:
+            try
+            {
                 return makeOk<R>(aesCbcHmacEncrypt(16,
                                                    16,
                                                    BCRYPT_SHA256_ALGORITHM,
@@ -2957,7 +3015,14 @@ CNGBackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
                                                    iv,
                                                    plaintext,
                                                    aad));
-            case ContentEncryptionAlgorithm::a192cbc_hs384:
+            }
+            catch (exception const &e)
+            {
+                return makeError<R>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a192cbc_hs384:
+            try
+            {
                 return makeOk<R>(aesCbcHmacEncrypt(24,
                                                    24,
                                                    BCRYPT_SHA384_ALGORITHM,
@@ -2966,7 +3031,14 @@ CNGBackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
                                                    iv,
                                                    plaintext,
                                                    aad));
-            case ContentEncryptionAlgorithm::a256cbc_hs512:
+            }
+            catch (exception const &e)
+            {
+                return makeError<R>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a256cbc_hs512:
+            try
+            {
                 return makeOk<R>(aesCbcHmacEncrypt(32,
                                                    32,
                                                    BCRYPT_SHA512_ALGORITHM,
@@ -2975,13 +3047,13 @@ CNGBackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
                                                    iv,
                                                    plaintext,
                                                    aad));
-            default:
-                throw runtime_error("Unsupported content encryption algorithm");
-        }
-    }
-    catch (exception const &e)
-    {
-        return makeError<R>(e.what());
+            }
+            catch (exception const &e)
+            {
+                return makeError<R>(e.what());
+            }
+        default:
+            return makeError<R>("Unsupported content encryption algorithm");
     }
 }
 
@@ -2992,29 +3064,50 @@ Result<vector<unsigned char>> CNGBackEnd::decryptContent_(ContentEncryptionAlgor
                                                           vector<unsigned char> const &aad,
                                                           vector<unsigned char> const &tag) const
 {
-    try
+    switch (algorithm)
     {
-        switch (algorithm)
-        {
-            case ContentEncryptionAlgorithm::a128gcm:
-                if (cek.size() != 16)
-                {
-                    throw runtime_error("A128GCM requires a 128-bit CEK");
-                }
+        case ContentEncryptionAlgorithm::a128gcm:
+            if (cek.size() != 16)
+            {
+                return makeError<vector<unsigned char>>("A128GCM requires a 128-bit CEK");
+            }
+            try
+            {
                 return makeOk<vector<unsigned char>>(aesGcmDecrypt(cek, iv, ciphertext, aad, tag));
-            case ContentEncryptionAlgorithm::a192gcm:
-                if (cek.size() != 24)
-                {
-                    throw runtime_error("A192GCM requires a 192-bit CEK");
-                }
+            }
+            catch (exception const &e)
+            {
+                return makeError<vector<unsigned char>>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a192gcm:
+            if (cek.size() != 24)
+            {
+                return makeError<vector<unsigned char>>("A192GCM requires a 192-bit CEK");
+            }
+            try
+            {
                 return makeOk<vector<unsigned char>>(aesGcmDecrypt(cek, iv, ciphertext, aad, tag));
-            case ContentEncryptionAlgorithm::a256gcm:
-                if (cek.size() != 32)
-                {
-                    throw runtime_error("A256GCM requires a 256-bit CEK");
-                }
+            }
+            catch (exception const &e)
+            {
+                return makeError<vector<unsigned char>>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a256gcm:
+            if (cek.size() != 32)
+            {
+                return makeError<vector<unsigned char>>("A256GCM requires a 256-bit CEK");
+            }
+            try
+            {
                 return makeOk<vector<unsigned char>>(aesGcmDecrypt(cek, iv, ciphertext, aad, tag));
-            case ContentEncryptionAlgorithm::a128cbc_hs256:
+            }
+            catch (exception const &e)
+            {
+                return makeError<vector<unsigned char>>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a128cbc_hs256:
+            try
+            {
                 return makeOk<vector<unsigned char>>(aesCbcHmacDecrypt(16,
                                                                        16,
                                                                        BCRYPT_SHA256_ALGORITHM,
@@ -3024,7 +3117,14 @@ Result<vector<unsigned char>> CNGBackEnd::decryptContent_(ContentEncryptionAlgor
                                                                        ciphertext,
                                                                        aad,
                                                                        tag));
-            case ContentEncryptionAlgorithm::a192cbc_hs384:
+            }
+            catch (exception const &e)
+            {
+                return makeError<vector<unsigned char>>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a192cbc_hs384:
+            try
+            {
                 return makeOk<vector<unsigned char>>(aesCbcHmacDecrypt(24,
                                                                        24,
                                                                        BCRYPT_SHA384_ALGORITHM,
@@ -3034,7 +3134,14 @@ Result<vector<unsigned char>> CNGBackEnd::decryptContent_(ContentEncryptionAlgor
                                                                        ciphertext,
                                                                        aad,
                                                                        tag));
-            case ContentEncryptionAlgorithm::a256cbc_hs512:
+            }
+            catch (exception const &e)
+            {
+                return makeError<vector<unsigned char>>(e.what());
+            }
+        case ContentEncryptionAlgorithm::a256cbc_hs512:
+            try
+            {
                 return makeOk<vector<unsigned char>>(aesCbcHmacDecrypt(32,
                                                                        32,
                                                                        BCRYPT_SHA512_ALGORITHM,
@@ -3044,13 +3151,13 @@ Result<vector<unsigned char>> CNGBackEnd::decryptContent_(ContentEncryptionAlgor
                                                                        ciphertext,
                                                                        aad,
                                                                        tag));
-            default:
-                throw runtime_error("Unsupported content decryption algorithm");
-        }
-    }
-    catch (exception const &e)
-    {
-        return makeError<vector<unsigned char>>(e.what());
+            }
+            catch (exception const &e)
+            {
+                return makeError<vector<unsigned char>>(e.what());
+            }
+        default:
+            return makeError<vector<unsigned char>>("Unsupported content decryption algorithm");
     }
 }
 
