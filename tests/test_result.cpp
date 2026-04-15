@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "../src/private/result.hpp"
