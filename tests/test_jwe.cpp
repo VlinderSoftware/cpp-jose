@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <map>
-#include <span>
 #include <string>
 #include <vector>
 
@@ -35,7 +34,7 @@ SCENARIO("JWE compact round-trip with RSA-OAEP + A128GCM", "[jwe][rsa][compact][
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             THEN("toCompact() returns a 5-part token")
             {
@@ -69,7 +68,7 @@ SCENARIO("JWE compact round-trip with RSA-OAEP + A256GCM", "[jwe][rsa][compact][
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a256gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -96,7 +95,7 @@ SCENARIO("JWE compact round-trip with RSA-OAEP-256 + A128GCM", "[jwe][rsa][compa
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep_256,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -123,7 +122,7 @@ SCENARIO("JWE compact round-trip with RSA-OAEP + A128CBC-HS256", "[jwe][rsa][cbc
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a128cbc_hs256,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -150,7 +149,7 @@ SCENARIO("JWE compact round-trip with RSA-OAEP + A256CBC-HS512", "[jwe][rsa][cbc
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a256cbc_hs512,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -179,7 +178,7 @@ SCENARIO("JWE compact round-trip with A128KW + A128GCM", "[jwe][aeskw][rfc7516]"
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::a128kw,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -206,7 +205,7 @@ SCENARIO("JWE compact round-trip with A256KW + A256GCM", "[jwe][aeskw][rfc7516]"
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::a256kw,
                               JWA::ContentEncryptionAlgorithm::a256gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -235,7 +234,7 @@ SCENARIO("JWE compact round-trip with dir + A128GCM", "[jwe][dir][rfc7516]")
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::dir,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -264,7 +263,7 @@ SCENARIO("JWE compact round-trip with ECDH-ES + A128GCM (P-256)", "[jwe][ecdh][r
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::ecdh_es,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             THEN("the token has 5 parts")
             {
@@ -296,7 +295,7 @@ SCENARIO("JWE compact round-trip with ECDH-ES + A256GCM (P-256)", "[jwe][ecdh][r
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::ecdh_es,
                               JWA::ContentEncryptionAlgorithm::a256gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -323,7 +322,7 @@ SCENARIO("JWE compact round-trip with ECDH-ES + A256CBC-HS512 (P-384)", "[jwe][e
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::ecdh_es,
                               JWA::ContentEncryptionAlgorithm::a256cbc_hs512,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -352,7 +351,7 @@ SCENARIO("JWE compact round-trip with A128GCMKW + A128GCM", "[jwe][aesgcmkw][rfc
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::a128gcmkw,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -379,7 +378,7 @@ SCENARIO("JWE compact round-trip with A256GCMKW + A256GCM", "[jwe][aesgcmkw][rfc
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::a256gcmkw,
                               JWA::ContentEncryptionAlgorithm::a256gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -406,7 +405,7 @@ SCENARIO("JWE compact round-trip with A192GCMKW + A192GCM", "[jwe][aesgcmkw][rfc
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::a192gcmkw,
                               JWA::ContentEncryptionAlgorithm::a192gcm,
-                              span<char const>{plaintext});
+                              plaintext);
 
             AND_WHEN("decrypting")
             {
@@ -492,7 +491,7 @@ SCENARIO("encrypt() with type header stores typ in protected header", "[jwe][hea
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
                               string{"JWE+JSON"},
-                              span<char const>{plaintext});
+                              plaintext);
 
             THEN("getType() returns the set type")
             {
@@ -591,7 +590,7 @@ SCENARIO("Custom header parameters survive a fromCompact round-trip",
                               JWA::ContentEncryptionAlgorithm::a128gcm,
                               string{""},
                               map<string, string>{{"x-tenant", "acme"}},
-                              span<char const>{string{"payload"}});
+                              "payload");
 
             AND_WHEN("parsing the compact token back")
             {
@@ -630,7 +629,7 @@ SCENARIO("encrypt() rejects reserved header parameter names", "[jwe][header][res
                                           JWA::ContentEncryptionAlgorithm::a128gcm,
                                           string{""},
                                           map<string, string>{{"alg", "bogus"}},
-                                          span<char const>{plaintext}),
+                                          plaintext),
                                   invalid_argument);
             }
         }
@@ -644,7 +643,7 @@ SCENARIO("encrypt() rejects reserved header parameter names", "[jwe][header][res
                                           JWA::ContentEncryptionAlgorithm::a128gcm,
                                           string{""},
                                           map<string, string>{{"enc", "bogus"}},
-                                          span<char const>{plaintext}),
+                                          plaintext),
                                   invalid_argument);
             }
         }
@@ -658,7 +657,7 @@ SCENARIO("encrypt() rejects reserved header parameter names", "[jwe][header][res
                                           JWA::ContentEncryptionAlgorithm::a128gcm,
                                           string{""},
                                           map<string, string>{{"kid", "x"}},
-                                          span<char const>{plaintext}),
+                                          plaintext),
                                   invalid_argument);
             }
         }
@@ -672,7 +671,7 @@ SCENARIO("encrypt() rejects reserved header parameter names", "[jwe][header][res
                                           JWA::ContentEncryptionAlgorithm::a128gcm,
                                           string{""},
                                           map<string, string>{{"epk", "x"}},
-                                          span<char const>{plaintext}),
+                                          plaintext),
                                   invalid_argument);
             }
         }
@@ -686,7 +685,7 @@ SCENARIO("encrypt() rejects reserved header parameter names", "[jwe][header][res
                                         JWA::ContentEncryptionAlgorithm::a128gcm,
                                         string{""},
                                         map<string, string>{{"x-custom", "value"}},
-                                        span<char const>{plaintext}));
+                                        plaintext));
             }
         }
     }
@@ -828,7 +827,7 @@ SCENARIO("decrypt(compact, key) convenience overload works", "[jwe][decrypt][con
         JWE jwe = encrypt(key,
                           JWA::KeyEncryptionAlgorithm::rsa_oaep,
                           JWA::ContentEncryptionAlgorithm::a256gcm,
-                          span<char const>{plaintext});
+                          plaintext);
         string compact = jwe.toCompact();
 
         WHEN("decrypting via the compact-string convenience overload")
@@ -1013,7 +1012,7 @@ SCENARIO("Encrypting a JSON document as plaintext round-trips correctly",
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{json_payload});
+                              json_payload);
 
             AND_WHEN("decrypting")
             {
@@ -1041,7 +1040,7 @@ SCENARIO("Encrypting a payload with special characters round-trips correctly",
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{special});
+                              special);
 
             AND_WHEN("decrypting")
             {
@@ -1120,7 +1119,7 @@ SCENARIO("Encrypting a large payload (10 KB) round-trips", "[jwe][edge]")
             JWE jwe = encrypt(key,
                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
                               JWA::ContentEncryptionAlgorithm::a128gcm,
-                              span<char const>{large});
+                              large);
 
             AND_WHEN("decrypting")
             {
@@ -1178,11 +1177,11 @@ SCENARIO("Encrypting the same plaintext twice produces different tokens", "[jwe]
             JWE jwe1 = encrypt(key,
                                JWA::KeyEncryptionAlgorithm::rsa_oaep,
                                JWA::ContentEncryptionAlgorithm::a128gcm,
-                               span<char const>{plaintext});
+                               plaintext);
             JWE jwe2 = encrypt(key,
                                JWA::KeyEncryptionAlgorithm::rsa_oaep,
                                JWA::ContentEncryptionAlgorithm::a128gcm,
-                               span<char const>{plaintext});
+                               plaintext);
 
             THEN("the compact tokens differ (probabilistic encryption)")
             {

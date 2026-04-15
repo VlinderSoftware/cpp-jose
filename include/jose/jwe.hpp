@@ -155,19 +155,6 @@ JWE encrypt(JWK const &key,
             JWA::ContentEncryptionAlgorithm cea,
             std::span<unsigned char const> const &payload);
 
-/// @brief Encrypt a char-span payload.  Convenience overload; forwards to the
-///        @c unsigned @c char variant.
-/// @param key     Recipient key.
-/// @param kea     Key encryption algorithm.
-/// @param cea     Content encryption algorithm.
-/// @param payload Plaintext span.
-/// @return JWE object.
-/// @throws std::runtime_error on encryption failure.
-JWE encrypt(JWK const &key,
-            JWA::KeyEncryptionAlgorithm kea,
-            JWA::ContentEncryptionAlgorithm cea,
-            std::span<char const> const &payload);
-
 /// @brief Encrypt a payload with a given type header.
 /// @param key     Recipient key.
 /// @param kea     Key encryption algorithm.
@@ -182,19 +169,19 @@ JWE encrypt(JWK const &key,
             std::string const &type,
             std::span<unsigned char const> const &payload);
 
-/// @brief Encrypt a char-span payload with a given type header.
+/// @brief Encrypt a string payload with a given type header.
 /// @param key     Recipient key.
 /// @param kea     Key encryption algorithm.
 /// @param cea     Content encryption algorithm.
 /// @param type    Value for the @c typ protected header field.
-/// @param payload Plaintext span.
+/// @param payload Plaintext string.
 /// @return JWE object.
 /// @throws std::runtime_error on encryption failure.
 JWE encrypt(JWK const &key,
             JWA::KeyEncryptionAlgorithm kea,
             JWA::ContentEncryptionAlgorithm cea,
             std::string const &type,
-            std::span<char const> const &payload);
+            std::string const &payload);
 
 /// @brief Encrypt a payload with a type header and additional header parameters.
 /// @param key           Recipient key.
@@ -218,13 +205,14 @@ JWE encrypt(JWK const &key,
             std::map<std::string, std::string> const &header_params,
             std::span<unsigned char const> const &payload);
 
-/// @brief Encrypt a char-span payload with a type header and additional header parameters.
+/// @brief Encrypt a string payload with a type header and additional header parameters.
 /// @param key           Recipient key.
 /// @param kea           Key encryption algorithm.
 /// @param cea           Content encryption algorithm.
 /// @param type          Value for the @c typ protected header field.
 /// @param header_params Additional, non-reserved header parameters.
-/// @param payload       Plaintext span.
+///                      Must not contain any of the reserved JWE header names.
+/// @param payload       Plaintext string.
 /// @return JWE object.
 /// @throws std::invalid_argument if any key in @p header_params is a reserved JWE header name.
 /// @throws std::runtime_error on encryption failure.
@@ -233,7 +221,7 @@ JWE encrypt(JWK const &key,
             JWA::ContentEncryptionAlgorithm cea,
             std::string const &type,
             std::map<std::string, std::string> const &header_params,
-            std::span<char const> const &payload);
+            std::string const &payload);
 
 /// @brief Encrypt a @c vector<unsigned char> payload.  Convenience overload.
 /// @param key     Recipient key.

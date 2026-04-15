@@ -109,7 +109,7 @@ int main()
             JWE jdir = encrypt(dir_key,
                                JWA::KeyEncryptionAlgorithm::dir,
                                JWA::ContentEncryptionAlgorithm::a256gcm,
-                               string{"Direct encryption example"});
+                               "Direct encryption example");
             auto dec_dir = decrypt(jdir, dir_key);
             string s(dec_dir.begin(), dec_dir.end());
             cout << "Match: " << (s == "Direct encryption example" ? "SUCCESS" : "FAILED") << endl;

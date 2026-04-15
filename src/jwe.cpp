@@ -530,21 +530,6 @@ JWE encrypt(JWK const &key,
 JWE encrypt(JWK const &key,
             JWA::KeyEncryptionAlgorithm kea,
             JWA::ContentEncryptionAlgorithm cea,
-            span<char const> const &payload)
-{
-    return encrypt(
-        key,
-        kea,
-        cea,
-        "",
-        {},
-        span<unsigned char const>(reinterpret_cast<unsigned char const *>(payload.data()),
-                                  payload.size()));
-}
-
-JWE encrypt(JWK const &key,
-            JWA::KeyEncryptionAlgorithm kea,
-            JWA::ContentEncryptionAlgorithm cea,
             string const &type,
             span<unsigned char const> const &payload)
 {
@@ -555,7 +540,7 @@ JWE encrypt(JWK const &key,
             JWA::KeyEncryptionAlgorithm kea,
             JWA::ContentEncryptionAlgorithm cea,
             string const &type,
-            span<char const> const &payload)
+            string const &payload)
 {
     return encrypt(
         key,
@@ -572,7 +557,7 @@ JWE encrypt(JWK const &key,
             JWA::ContentEncryptionAlgorithm cea,
             string const &type,
             map<string, string> const &header_params,
-            span<char const> const &payload)
+            string const &payload)
 {
     return encrypt(
         key,
