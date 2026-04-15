@@ -45,12 +45,12 @@ pair<optional<JWKSet>, string> fromJSON_(string const &json_string, bool ignore_
             auto jwe = JWE::fromJSON(key_json_string, nothrow);
             if (!jwe.has_value())
             {
-                string key_id =
-                    (key_json.is_object() && key_json.contains("kid") && key_json["kid"].is_string())
-                        ? ("kid=" + key_json["kid"].get<string>())
-                        : ("index=" + to_string(key_index));
-                return makeError<JWKSet>("JWKSet fromJSON: failed to parse key entry as JWK or JWE (" +
-                                         key_id + ")");
+                string key_id = (key_json.is_object() && key_json.contains("kid") &&
+                                 key_json["kid"].is_string())
+                                    ? ("kid=" + key_json["kid"].get<string>())
+                                    : ("index=" + to_string(key_index));
+                return makeError<JWKSet>(
+                    "JWKSet fromJSON: failed to parse key entry as JWK or JWE (" + key_id + ")");
             }
             set.addKey(*jwe);
         }
