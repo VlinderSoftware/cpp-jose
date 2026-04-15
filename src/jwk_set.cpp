@@ -42,7 +42,7 @@ pair<optional<JWKSet>, string> fromJSON_(string const &json_string, bool ignore_
         }
         else
         {
-            auto jwe = JWE::fromJSON(key_json_string, nothrow);
+            auto jwe = JWE::fromCompact(key_json_string, nothrow);
             if (!jwe.has_value())
             {
                 string key_id = (key_json.is_object() && key_json.contains("kid") &&

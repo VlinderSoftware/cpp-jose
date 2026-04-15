@@ -199,17 +199,17 @@ TEST_CASE("Section5_1_RSA_v15_KeyEncryption", "[jwa][section5-1-rsa-v15-keyencry
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
-    JWE jwe;
-    jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa1_5);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
-
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    string token = jwe.encrypt(key);
+    JWE jwe = encrypt(key,
+                      JWA::KeyEncryptionAlgorithm::rsa1_5,
+                      JWA::ContentEncryptionAlgorithm::a128cbc_hs256,
+                      plaintext);
+    string token = jwe.toCompact();
     REQUIRE_FALSE(token.empty());
 
-    string decrypted = JWE::decrypt(token, key);
+    auto decrypted_bytes = decrypt(token, key);
+    string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
     REQUIRE(plaintext == decrypted);
 }
 
@@ -223,17 +223,17 @@ TEST_CASE("Section5_2_RSA_OAEP_KeyEncryption", "[jwa][section5-2-rsa-oaep-keyenc
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
-    JWE jwe;
-    jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
-
     JWK key = JWK::generateRSA(JWK::Use::signature, 2048);
 
-    string token = jwe.encrypt(key);
+    JWE jwe = encrypt(key,
+                      JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                      JWA::ContentEncryptionAlgorithm::a256gcm,
+                      plaintext);
+    string token = jwe.toCompact();
     REQUIRE_FALSE(token.empty());
 
-    string decrypted = JWE::decrypt(token, key);
+    auto decrypted_bytes = decrypt(token, key);
+    string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
     REQUIRE(plaintext == decrypted);
 }
 
@@ -247,17 +247,17 @@ TEST_CASE("Section5_3_AES_KeyWrap", "[jwa][section5-3-aes-keywrap]")
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
-    JWE jwe;
-    jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128kw);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
-
     JWK key = JWK::generateOct(JWK::Use::signature, 128);
 
-    string token = jwe.encrypt(key);
+    JWE jwe = encrypt(key,
+                      JWA::KeyEncryptionAlgorithm::a128kw,
+                      JWA::ContentEncryptionAlgorithm::a128cbc_hs256,
+                      plaintext);
+    string token = jwe.toCompact();
     REQUIRE_FALSE(token.empty());
 
-    string decrypted = JWE::decrypt(token, key);
+    auto decrypted_bytes = decrypt(token, key);
+    string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
     REQUIRE(plaintext == decrypted);
 }
 
@@ -271,17 +271,17 @@ TEST_CASE("Section5_4_DirectEncryption", "[jwa][section5-4-directencryption]")
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
-    JWE jwe;
-    jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::dir);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
-
     JWK key = JWK::generateOct(JWK::Use::signature, 128);
 
-    string token = jwe.encrypt(key);
+    JWE jwe_dir = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::dir,
+                          JWA::ContentEncryptionAlgorithm::a128gcm,
+                          plaintext);
+    string token = jwe_dir.toCompact();
     REQUIRE_FALSE(token.empty());
 
-    string decrypted = JWE::decrypt(token, key);
+    auto decrypted_bytes = decrypt(token, key);
+    string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
     REQUIRE(plaintext == decrypted);
 }
 
@@ -295,17 +295,17 @@ TEST_CASE("Section5_5_DirectKeyAgreement", "[jwa][section5-5-directkeyagreement]
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
-    JWE jwe;
-    jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::ecdh_es);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
-
     JWK key = JWK::generateEC(JWK::Use::signature, "P-256");
 
-    string token = jwe.encrypt(key);
+    JWE jwe = encrypt(key,
+                      JWA::KeyEncryptionAlgorithm::ecdh_es,
+                      JWA::ContentEncryptionAlgorithm::a128gcm,
+                      plaintext);
+    string token = jwe.toCompact();
     REQUIRE_FALSE(token.empty());
 
-    string decrypted = JWE::decrypt(token, key);
+    auto decrypted_bytes = decrypt(token, key);
+    string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
     REQUIRE(plaintext == decrypted);
 }
 
@@ -319,17 +319,17 @@ TEST_CASE("Section5_6_AES_GCM_KeyWrap", "[jwa][section5-6-aes-gcm-keywrap]")
         "yourself. But you cannot trust us to let you face trouble alone, and go off without a "
         "word. We are your friends, Frodo.";
 
-    JWE jwe;
-    jwe.setPlaintext(plaintext);
-    jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a128gcmkw);
-    jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128cbc_hs256);
-
     JWK key = JWK::generateOct(JWK::Use::signature, 128);
 
-    string token = jwe.encrypt(key);
+    JWE jwe = encrypt(key,
+                      JWA::KeyEncryptionAlgorithm::a128gcmkw,
+                      JWA::ContentEncryptionAlgorithm::a128cbc_hs256,
+                      plaintext);
+    string token = jwe.toCompact();
     REQUIRE_FALSE(token.empty());
 
-    string decrypted = JWE::decrypt(token, key);
+    auto decrypted_bytes = decrypt(token, key);
+    string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
     REQUIRE(plaintext == decrypted);
 }
 

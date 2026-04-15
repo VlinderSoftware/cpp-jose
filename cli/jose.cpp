@@ -447,17 +447,13 @@ static int cmdJweEncrypt(Args const &args)
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
 
-    JWE jwe;
-    jwe.setPlaintext(plain);
-    jwe.setKeyEncryptionAlgorithm(kit->second);
-    jwe.setContentEncryptionAlgorithm(eit->second);
+    string typ = args.get("typ");
+    span<char const> const plain_span(plain.data(), plain.size());
+    string compact = typ.empty()
+        ? encrypt(key, kit->second, eit->second, plain_span).toCompact()
+        : encrypt(key, kit->second, eit->second, typ, plain_span).toCompact();
 
-    if (string kid = args.get("kid"); !kid.empty())
-        jwe.setKeyID(kid);
-    if (string typ = args.get("typ"); !typ.empty())
-        jwe.setType(typ);
-
-    cout << jwe.encrypt(key) << "\n";
+    cout << compact << "\n";
     return 0;
 }
 
@@ -467,7 +463,9 @@ static int cmdJweDecrypt(Args const &args)
     string token   = trim(readInput(args.input()));
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
-    cout << JWE::decrypt(token, key);
+    auto plaintext = decrypt(token, key);
+    cout.write(reinterpret_cast<char const *>(plaintext.data()),
+               static_cast<streamsize>(plaintext.size()));
     return 0;
 }
 
