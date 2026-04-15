@@ -45,17 +45,20 @@ Result<SignatureHashConfig> getSignatureHashConfig(SignatureAlgorithm algorithm)
         case SignatureAlgorithm::rs256:
         case SignatureAlgorithm::es256:
         case SignatureAlgorithm::ps256:
-            return makeOk<SignatureHashConfig>({HashAlgorithm::sha256, BCRYPT_SHA256_ALGORITHM, 32});
+            return makeOk<SignatureHashConfig>(
+                {HashAlgorithm::sha256, BCRYPT_SHA256_ALGORITHM, 32});
         case SignatureAlgorithm::hs384:
         case SignatureAlgorithm::rs384:
         case SignatureAlgorithm::es384:
         case SignatureAlgorithm::ps384:
-            return makeOk<SignatureHashConfig>({HashAlgorithm::sha384, BCRYPT_SHA384_ALGORITHM, 48});
+            return makeOk<SignatureHashConfig>(
+                {HashAlgorithm::sha384, BCRYPT_SHA384_ALGORITHM, 48});
         case SignatureAlgorithm::hs512:
         case SignatureAlgorithm::rs512:
         case SignatureAlgorithm::es512:
         case SignatureAlgorithm::ps512:
-            return makeOk<SignatureHashConfig>({HashAlgorithm::sha512, BCRYPT_SHA512_ALGORITHM, 64});
+            return makeOk<SignatureHashConfig>(
+                {HashAlgorithm::sha512, BCRYPT_SHA512_ALGORITHM, 64});
         case SignatureAlgorithm::none:
             break;
         case SignatureAlgorithm::eddsa:
@@ -159,16 +162,16 @@ Result<EcAlgorithmInfo> resolveEcAlgorithm(SignatureAlgorithm algorithm)
     {
         case SignatureAlgorithm::es256:
             return makeOk<EcAlgorithmInfo>({BCRYPT_ECDSA_P256_ALGORITHM,
-                                           BCRYPT_ECDSA_PRIVATE_P256_MAGIC,
-                                           BCRYPT_ECDSA_PUBLIC_P256_MAGIC});
+                                            BCRYPT_ECDSA_PRIVATE_P256_MAGIC,
+                                            BCRYPT_ECDSA_PUBLIC_P256_MAGIC});
         case SignatureAlgorithm::es384:
             return makeOk<EcAlgorithmInfo>({BCRYPT_ECDSA_P384_ALGORITHM,
-                                           BCRYPT_ECDSA_PRIVATE_P384_MAGIC,
-                                           BCRYPT_ECDSA_PUBLIC_P384_MAGIC});
+                                            BCRYPT_ECDSA_PRIVATE_P384_MAGIC,
+                                            BCRYPT_ECDSA_PUBLIC_P384_MAGIC});
         case SignatureAlgorithm::es512:
             return makeOk<EcAlgorithmInfo>({BCRYPT_ECDSA_P521_ALGORITHM,
-                                           BCRYPT_ECDSA_PRIVATE_P521_MAGIC,
-                                           BCRYPT_ECDSA_PUBLIC_P521_MAGIC});
+                                            BCRYPT_ECDSA_PRIVATE_P521_MAGIC,
+                                            BCRYPT_ECDSA_PUBLIC_P521_MAGIC});
         default:
             break;
     }
@@ -229,7 +232,7 @@ Result<vector<unsigned char>> buildEcPublicBlob(ECKey const &ec_key, ULONG publi
 }
 
 Result<vector<unsigned char>> aesEncryptBlockEcb(vector<unsigned char> const &kek,
-                                                  vector<unsigned char> const &block)
+                                                 vector<unsigned char> const &block)
 {
     if (block.size() != 16)
     {
@@ -253,8 +256,8 @@ Result<vector<unsigned char>> aesEncryptBlockEcb(vector<unsigned char> const &ke
                           0);
     if (!BCRYPT_SUCCESS(status))
     {
-        return makeError<vector<unsigned char>>(
-            "BCryptSetProperty(BCRYPT_CHAINING_MODE) failed: " + to_string(status));
+        return makeError<vector<unsigned char>>("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed: " +
+                                                to_string(status));
     }
 
     ULONG key_object_size(0);
@@ -267,8 +270,8 @@ Result<vector<unsigned char>> aesEncryptBlockEcb(vector<unsigned char> const &ke
                                0);
     if (!BCRYPT_SUCCESS(status))
     {
-        return makeError<vector<unsigned char>>(
-            "BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " + to_string(status));
+        return makeError<vector<unsigned char>>("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " +
+                                                to_string(status));
     }
 
     vector<unsigned char> key_object(key_object_size);
@@ -309,7 +312,7 @@ Result<vector<unsigned char>> aesEncryptBlockEcb(vector<unsigned char> const &ke
 }
 
 Result<vector<unsigned char>> aesDecryptBlockEcb(vector<unsigned char> const &kek,
-                                                  vector<unsigned char> const &block)
+                                                 vector<unsigned char> const &block)
 {
     if (block.size() != 16)
     {
@@ -333,8 +336,8 @@ Result<vector<unsigned char>> aesDecryptBlockEcb(vector<unsigned char> const &ke
                           0);
     if (!BCRYPT_SUCCESS(status))
     {
-        return makeError<vector<unsigned char>>(
-            "BCryptSetProperty(BCRYPT_CHAINING_MODE) failed: " + to_string(status));
+        return makeError<vector<unsigned char>>("BCryptSetProperty(BCRYPT_CHAINING_MODE) failed: " +
+                                                to_string(status));
     }
 
     ULONG key_object_size(0);
@@ -347,8 +350,8 @@ Result<vector<unsigned char>> aesDecryptBlockEcb(vector<unsigned char> const &ke
                                0);
     if (!BCRYPT_SUCCESS(status))
     {
-        return makeError<vector<unsigned char>>(
-            "BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " + to_string(status));
+        return makeError<vector<unsigned char>>("BCryptGetProperty(BCRYPT_OBJECT_LENGTH) failed: " +
+                                                to_string(status));
     }
 
     vector<unsigned char> key_object(key_object_size);
@@ -389,7 +392,7 @@ Result<vector<unsigned char>> aesDecryptBlockEcb(vector<unsigned char> const &ke
 }
 
 Result<vector<unsigned char>> aesKeyWrap(vector<unsigned char> const &kek,
-                                          vector<unsigned char> const &plaintext)
+                                         vector<unsigned char> const &plaintext)
 {
     if (plaintext.empty() || (plaintext.size() % 8) != 0 || plaintext.size() < 16)
     {
@@ -443,7 +446,7 @@ Result<vector<unsigned char>> aesKeyWrap(vector<unsigned char> const &kek,
 }
 
 Result<vector<unsigned char>> aesKeyUnwrap(vector<unsigned char> const &kek,
-                                            vector<unsigned char> const &wrapped)
+                                           vector<unsigned char> const &wrapped)
 {
     if (wrapped.size() < 24 || (wrapped.size() % 8) != 0)
     {
@@ -522,9 +525,9 @@ bool constantTimeEqual(vector<unsigned char> const &lhs, vector<unsigned char> c
 }
 
 Result<vector<unsigned char>> computeHmac(wchar_t const *hash_algorithm,
-                                           vector<unsigned char> const &key,
-                                           vector<unsigned char> const &data,
-                                           ULONG expected_hash_size)
+                                          vector<unsigned char> const &key,
+                                          vector<unsigned char> const &data,
+                                          ULONG expected_hash_size)
 {
     BCRYPT_ALG_HANDLE h_alg = nullptr;
     NTSTATUS status =
@@ -692,10 +695,10 @@ aesGcmEncrypt(vector<unsigned char> const &cek,
 }
 
 Result<vector<unsigned char>> aesGcmDecrypt(vector<unsigned char> const &cek,
-                                             vector<unsigned char> const &iv,
-                                             vector<unsigned char> const &ciphertext,
-                                             vector<unsigned char> const &aad,
-                                             vector<unsigned char> const &tag)
+                                            vector<unsigned char> const &iv,
+                                            vector<unsigned char> const &ciphertext,
+                                            vector<unsigned char> const &aad,
+                                            vector<unsigned char> const &tag)
 {
     BCRYPT_ALG_HANDLE h_alg = nullptr;
     NTSTATUS status = BCryptOpenAlgorithmProvider(&h_alg, BCRYPT_AES_ALGORITHM, nullptr, 0);
@@ -885,11 +888,10 @@ Result<vector<unsigned char>> computeECDHSharedSecret(Key *private_key, Key *pub
     auto pub_handle = std::move(*pub_handle_opt);
 
     BCRYPT_SECRET_HANDLE h_secret = nullptr;
-    NTSTATUS status =
-        BCryptSecretAgreement(static_cast<BCRYPT_KEY_HANDLE>(priv_handle.get()),
-                              static_cast<BCRYPT_KEY_HANDLE>(pub_handle.get()),
-                              &h_secret,
-                              0);
+    NTSTATUS status = BCryptSecretAgreement(static_cast<BCRYPT_KEY_HANDLE>(priv_handle.get()),
+                                            static_cast<BCRYPT_KEY_HANDLE>(pub_handle.get()),
+                                            &h_secret,
+                                            0);
     if (!BCRYPT_SUCCESS(status))
     {
         return makeError<vector<unsigned char>>("BCryptSecretAgreement failed");
@@ -931,7 +933,7 @@ Result<vector<unsigned char>> computeECDHSharedSecret(Key *private_key, Key *pub
 
 /// AES-GCM key wrap: returns [IV (12 bytes)][ciphertext][tag (16 bytes)].
 Result<vector<unsigned char>> aesGcmKeyWrapHelper(vector<unsigned char> const &kek,
-                                                   vector<unsigned char> const &cek)
+                                                  vector<unsigned char> const &cek)
 {
     vector<unsigned char> iv(12);
     NTSTATUS status = BCryptGenRandom(nullptr,
@@ -959,11 +961,10 @@ Result<vector<unsigned char>> aesGcmKeyWrapHelper(vector<unsigned char> const &k
 /// AES-GCM key unwrap.
 /// If iv_opt and tag_opt are present they are used directly; otherwise iv and tag are
 /// extracted from the first 12 / last 16 bytes of wrapped_cek.
-Result<vector<unsigned char>> aesGcmKeyUnwrapHelper(
-    vector<unsigned char> const &kek,
-    vector<unsigned char> const &wrapped_cek,
-    optional<vector<unsigned char>> const &iv_opt,
-    optional<vector<unsigned char>> const &tag_opt)
+Result<vector<unsigned char>> aesGcmKeyUnwrapHelper(vector<unsigned char> const &kek,
+                                                    vector<unsigned char> const &wrapped_cek,
+                                                    optional<vector<unsigned char>> const &iv_opt,
+                                                    optional<vector<unsigned char>> const &tag_opt)
 {
     if (iv_opt.has_value() && tag_opt.has_value())
     {
@@ -2869,36 +2870,36 @@ Result<vector<unsigned char>> CNGBackEnd::decryptKey_(KeyEncryptionAlgorithm alg
         auto shared_secret = std::move(*shared_secret_opt);
 
         // Derive the CEK — its length depends on the content algorithm.
-            size_t derived_key_len = 0;
-            switch (content_alg)
-            {
-                case ContentEncryptionAlgorithm::a128gcm:
-                    derived_key_len = 16;
-                    break;
-                case ContentEncryptionAlgorithm::a128cbc_hs256:
-                    derived_key_len = 32;  // 16 (HMAC-SHA-256) + 16 (AES-128)
-                    break;
-                case ContentEncryptionAlgorithm::a192gcm:
-                    derived_key_len = 24;
-                    break;
-                case ContentEncryptionAlgorithm::a192cbc_hs384:
-                    derived_key_len = 48;  // 24 (HMAC-SHA-384) + 24 (AES-192)
-                    break;
-                case ContentEncryptionAlgorithm::a256gcm:
-                    derived_key_len = 32;
-                    break;
-                case ContentEncryptionAlgorithm::a256cbc_hs512:
-                    derived_key_len = 64;  // 32 (HMAC-SHA-512) + 32 (AES-256)
-                    break;
-                default:
-                    return makeError<vector<unsigned char>>(
-                        "Unsupported content algorithm for ECDH-ES");
-            }
-            auto [kdf_opt, kdf_err] =
-                concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
-            if (!kdf_opt)
-                return makeError<vector<unsigned char>>(kdf_err);
-            return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
+        size_t derived_key_len = 0;
+        switch (content_alg)
+        {
+            case ContentEncryptionAlgorithm::a128gcm:
+                derived_key_len = 16;
+                break;
+            case ContentEncryptionAlgorithm::a128cbc_hs256:
+                derived_key_len = 32;  // 16 (HMAC-SHA-256) + 16 (AES-128)
+                break;
+            case ContentEncryptionAlgorithm::a192gcm:
+                derived_key_len = 24;
+                break;
+            case ContentEncryptionAlgorithm::a192cbc_hs384:
+                derived_key_len = 48;  // 24 (HMAC-SHA-384) + 24 (AES-192)
+                break;
+            case ContentEncryptionAlgorithm::a256gcm:
+                derived_key_len = 32;
+                break;
+            case ContentEncryptionAlgorithm::a256cbc_hs512:
+                derived_key_len = 64;  // 32 (HMAC-SHA-512) + 32 (AES-256)
+                break;
+            default:
+                return makeError<vector<unsigned char>>(
+                    "Unsupported content algorithm for ECDH-ES");
+        }
+        auto [kdf_opt, kdf_err] =
+            concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
+        if (!kdf_opt)
+            return makeError<vector<unsigned char>>(kdf_err);
+        return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
     }
 
     if (algorithm == KeyEncryptionAlgorithm::a128gcmkw ||
@@ -2992,14 +2993,35 @@ Result<vector<unsigned char>> CNGBackEnd::decryptContent_(ContentEncryptionAlgor
             }
             return aesGcmDecrypt(cek, iv, ciphertext, aad, tag);
         case ContentEncryptionAlgorithm::a128cbc_hs256:
-            return aesCbcHmacDecrypt(
-                16, 16, BCRYPT_SHA256_ALGORITHM, 16, cek, iv, ciphertext, aad, tag);
+            return aesCbcHmacDecrypt(16,
+                                     16,
+                                     BCRYPT_SHA256_ALGORITHM,
+                                     16,
+                                     cek,
+                                     iv,
+                                     ciphertext,
+                                     aad,
+                                     tag);
         case ContentEncryptionAlgorithm::a192cbc_hs384:
-            return aesCbcHmacDecrypt(
-                24, 24, BCRYPT_SHA384_ALGORITHM, 24, cek, iv, ciphertext, aad, tag);
+            return aesCbcHmacDecrypt(24,
+                                     24,
+                                     BCRYPT_SHA384_ALGORITHM,
+                                     24,
+                                     cek,
+                                     iv,
+                                     ciphertext,
+                                     aad,
+                                     tag);
         case ContentEncryptionAlgorithm::a256cbc_hs512:
-            return aesCbcHmacDecrypt(
-                32, 32, BCRYPT_SHA512_ALGORITHM, 32, cek, iv, ciphertext, aad, tag);
+            return aesCbcHmacDecrypt(32,
+                                     32,
+                                     BCRYPT_SHA512_ALGORITHM,
+                                     32,
+                                     cek,
+                                     iv,
+                                     ciphertext,
+                                     aad,
+                                     tag);
         default:
             return makeError<vector<unsigned char>>("Unsupported content decryption algorithm");
     }
