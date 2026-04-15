@@ -9,9 +9,12 @@
 #include "jwk.hpp"
 #include "jws.hpp"
 #include "private/json_utils.hpp"
+#include "private/result.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
+using Vlinder::JOSE::Private::makeError;
+using Vlinder::JOSE::Private::makeOk;
 namespace Vlinder {
 namespace JOSE {
 
@@ -274,91 +277,69 @@ string JWT::sign(const JWK &key, string const &algorithm) const
         .toCompact();
 }
 
-JWT JWT::verify(string const &jwt, const JWK &key)
+pair<optional<JWT>, string> JWT::parse_(string const &jwt_str)
 {
-    JWS jws = JWS::fromCompact(jwt);
-    if (!JOSE::verify(jws, key))
-    {
-        throw runtime_error("JWT signature verification failed");
-    }
-
-    // Parse if verification succeeded
-    return parse(jwt);
-}
-
-JWT JWT::parse(string const &jwt)
-{
-    // Parse as JWS
-    JWS jws = JWS::fromCompact(jwt);
-
-    // Parse payload as JSON
-    auto payload_bytes = jws.getPayload();
-    string payload(payload_bytes.begin(), payload_bytes.end());
-    json claims_json = json::parse(payload);
-
+    auto jws_opt = JWS::fromCompact(jwt_str, nothrow);
+    if (!jws_opt)
+        return makeError<JWT>("JWT parse: invalid compact serialization");
+    auto payload_bytes = jws_opt->getPayload();
+    string payload_str(payload_bytes.begin(), payload_bytes.end());
+    json claims_json = json::parse(payload_str, nullptr, false);
+    if (claims_json.is_discarded())
+        return makeError<JWT>("JWT parse: payload is not valid JSON");
     if (!claims_json.is_object())
-    {
-        throw runtime_error("JWT payload is not a JSON object");
-    }
-
+        return makeError<JWT>("JWT parse: payload is not a JSON object");
     JWT result;
-
-    // Extract claims using nlohmann::json iteration
-    // Standard claims
-    if (claims_json.contains("iss") && claims_json["iss"].is_string())
-    {
-        result.setIssuer(claims_json["iss"].get<string>());
-    }
-    if (claims_json.contains("sub") && claims_json["sub"].is_string())
-    {
-        result.setSubject(claims_json["sub"].get<string>());
-    }
-    if (claims_json.contains("aud"))
-    {
-        if (claims_json["aud"].is_string())
-        {
-            result.setAudience(claims_json["aud"].get<string>());
-        }
-        else if (claims_json["aud"].is_array())
-        {
-            vector<string> audiences;
-            for (auto const &elem : claims_json["aud"])
-            {
-                if (elem.is_string())
-                {
-                    audiences.push_back(elem.get<string>());
-                }
-            }
-            result.setAudience(audiences);
-        }
-    }
-    if (claims_json.contains("exp") && claims_json["exp"].is_number())
-    {
-        result.setExpiration(
-            timestampToTimePoint(static_cast<int64_t>(claims_json["exp"].get<int>())));
-    }
-    if (claims_json.contains("nbf") && claims_json["nbf"].is_number())
-    {
-        result.setNotBefore(
-            timestampToTimePoint(static_cast<int64_t>(claims_json["nbf"].get<int>())));
-    }
-    if (claims_json.contains("iat") && claims_json["iat"].is_number())
-    {
-        result.setIssuedAt(
-            timestampToTimePoint(static_cast<int64_t>(claims_json["iat"].get<int>())));
-    }
-    if (claims_json.contains("jti") && claims_json["jti"].is_string())
-    {
-        result.setJWTID(claims_json["jti"].get<string>());
-    }
-
-    // Store all claims directly
     for (auto it = claims_json.begin(); it != claims_json.end(); ++it)
     {
         result.impl_->claims_[it.key()] = it.value();
     }
+    return makeOk<JWT>(move(result));
+}
 
-    return result;
+pair<optional<JWT>, string> JWT::verify_(string const &jwt_str, JWK const &key)
+{
+    auto jws_opt = JWS::fromCompact(jwt_str, nothrow);
+    if (!jws_opt)
+        return makeError<JWT>("JWT verify: invalid compact serialization");
+    bool valid;
+    try
+    {
+        valid = JOSE::verify(*jws_opt, key);
+    }
+    catch (exception const &e)
+    {
+        return makeError<JWT>(e.what());
+    }
+    if (!valid)
+        return makeError<JWT>("JWT verify: signature verification failed");
+    return parse_(jwt_str);
+}
+
+JWT JWT::verify(string const &jwt, const JWK &key)
+{
+    auto [opt, err] = verify_(jwt, key);
+    if (!opt)
+        throw runtime_error(err);
+    return move(*opt);
+}
+
+optional<JWT> JWT::verify(string const &jwt, JWK const &key, nothrow_t const &) noexcept
+{
+    return verify_(jwt, key).first;
+}
+
+JWT JWT::parse(string const &jwt)
+{
+    auto [opt, err] = parse_(jwt);
+    if (!opt)
+        throw runtime_error(err);
+    return move(*opt);
+}
+
+optional<JWT> JWT::parse(string const &jwt, nothrow_t const &) noexcept
+{
+    return parse_(jwt).first;
 }
 
 bool JWT::validate(string const &issuer, string const &audience, int leeway) const

@@ -38,10 +38,19 @@ Complete every item before opening the PR or marking it ready for review.
 ### Tests
 
 - [ ] All new behaviour is covered by `SCENARIO`/`GIVEN`/`WHEN`/`THEN` tests (BDD-style) or descriptive `TEST_CASE` tests.
-- [ ] All existing tests still pass:
+- [ ] All existing tests still pass on **both backends**:
+
+  **CNG backend** (Windows default):
   ```powershell
   cmake --build .\build\vs-latest-x64-debug --target jose_tests
   ctest --test-dir .\build\vs-latest-x64-debug --output-on-failure
+  ```
+
+  **OpenSSL backend** (Windows — separate build tree):
+  ```powershell
+  cmake -B build/baseline-openssl -DJOSE_BACKEND=OpenSSL -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+  cmake --build .\build\baseline-openssl --target jose_tests
+  ctest --test-dir .\build\baseline-openssl --output-on-failure
   ```
 - [ ] Coverage on **modified** source files is ≥ **85 %**. Run locally if available:
   ```bash
@@ -66,7 +75,7 @@ Complete every item before opening the PR or marking it ready for review.
 ### Architecture
 
 - [ ] No OpenSSL or CNG types leak into `include/jose/` headers.
-- [ ] Both OpenSSL and CNG backends compile (CI matrix covers this, but verify locally for the primary platform).
+- [ ] Both OpenSSL and CNG backends compile **and pass all tests** locally. The CI matrix covers OpenSSL on Linux; CNG is verified only on Windows.
 - [ ] New source files are registered in `CMakeLists.txt`.
 
 ---

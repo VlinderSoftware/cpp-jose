@@ -5,8 +5,10 @@
 #include <stdexcept>
 
 #include "private/back_end_factory.hpp"
+#include "private/result.hpp"
 
 using namespace std;
+using namespace Vlinder::JOSE::Private;
 
 namespace Vlinder {
 namespace JOSE {
@@ -32,7 +34,10 @@ bool JWA::verify(SignatureAlgorithm algorithm,
                  std::vector<unsigned char> const &data,
                  std::vector<unsigned char> const &signature)
 {
-    return getBackEnd().verify(algorithm, key, data, signature);
+    auto [result_opt, result_err] = getBackEnd().verify(algorithm, key, data, signature);
+    if (!result_opt)
+        throw runtime_error(result_err);
+    return *result_opt;
 }
 
 vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
@@ -43,7 +48,11 @@ vector<unsigned char> JWA::encryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return getBackEnd().encryptKey(algorithm, key, cek, iv, tag, ephemeral_key, content_alg);
+    auto [enc_opt, enc_err] =
+        getBackEnd().encryptKey(algorithm, key, cek, iv, tag, ephemeral_key, content_alg);
+    if (!enc_opt)
+        throw runtime_error(enc_err);
+    return std::move(*enc_opt);
 }
 
 vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
@@ -54,8 +63,11 @@ vector<unsigned char> JWA::decryptKey(KeyEncryptionAlgorithm algorithm,
                                       optional<JWK> const &ephemeral_key,
                                       ContentEncryptionAlgorithm content_alg)
 {
-    return getBackEnd()
-        .decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
+    auto [dec_opt, dec_err] =
+        getBackEnd().decryptKey(algorithm, key, encrypted_cek, iv, tag, ephemeral_key, content_alg);
+    if (!dec_opt)
+        throw runtime_error(dec_err);
+    return std::move(*dec_opt);
 }
 
 pair<vector<unsigned char>, vector<unsigned char>>
@@ -65,7 +77,10 @@ JWA::encryptContent(ContentEncryptionAlgorithm algorithm,
                     vector<unsigned char> const &plaintext,
                     vector<unsigned char> const &aad)
 {
-    return getBackEnd().encryptContent(algorithm, cek, iv, plaintext, aad);
+    auto [enc_opt, enc_err] = getBackEnd().encryptContent(algorithm, cek, iv, plaintext, aad);
+    if (!enc_opt)
+        throw runtime_error(enc_err);
+    return std::move(*enc_opt);
 }
 
 vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
@@ -75,7 +90,10 @@ vector<unsigned char> JWA::decryptContent(ContentEncryptionAlgorithm algorithm,
                                           vector<unsigned char> const &aad,
                                           vector<unsigned char> const &tag)
 {
-    return getBackEnd().decryptContent(algorithm, cek, iv, ciphertext, aad, tag);
+    auto [dec_opt, dec_err] = getBackEnd().decryptContent(algorithm, cek, iv, ciphertext, aad, tag);
+    if (!dec_opt)
+        throw runtime_error(dec_err);
+    return std::move(*dec_opt);
 }
 
 string JWA::toString(SignatureAlgorithm alg)
@@ -96,12 +114,11 @@ string JWA::toString(SignatureAlgorithm alg)
                                                             {SignatureAlgorithm::none, "none"}};
 
     auto it = alg_map.find(alg);
-    if (it != alg_map.end())
+    if (it == alg_map.end())
     {
-        return it->second;
+        throw runtime_error("Unknown signature algorithm");
     }
-
-    throw runtime_error("Unknown signature algorithm");
+    return it->second;
 }
 
 string JWA::toString(KeyEncryptionAlgorithm alg)
@@ -120,12 +137,11 @@ string JWA::toString(KeyEncryptionAlgorithm alg)
         {KeyEncryptionAlgorithm::a256gcmkw, "A256GCMKW"}};
 
     auto it = alg_map.find(alg);
-    if (it != alg_map.end())
+    if (it == alg_map.end())
     {
-        return it->second;
+        throw runtime_error("Unknown key encryption algorithm");
     }
-
-    throw runtime_error("Unknown key encryption algorithm");
+    return it->second;
 }
 
 string JWA::toString(ContentEncryptionAlgorithm alg)
@@ -139,120 +155,130 @@ string JWA::toString(ContentEncryptionAlgorithm alg)
         {ContentEncryptionAlgorithm::a256gcm, "A256GCM"}};
 
     auto it = alg_map.find(alg);
-    if (it != alg_map.end())
+    if (it == alg_map.end())
     {
-        return it->second;
+        throw runtime_error("Unknown content encryption algorithm");
     }
-
-    throw runtime_error("Unknown content encryption algorithm");
+    return it->second;
 }
+
+namespace {
+Result<JWA::SignatureAlgorithm> signatureAlgorithmFromString_(string const &alg) noexcept
+{
+    static map<string, JWA::SignatureAlgorithm> const alg_map = {
+        {"HS256", JWA::SignatureAlgorithm::hs256},
+        {"HS384", JWA::SignatureAlgorithm::hs384},
+        {"HS512", JWA::SignatureAlgorithm::hs512},
+        {"RS256", JWA::SignatureAlgorithm::rs256},
+        {"RS384", JWA::SignatureAlgorithm::rs384},
+        {"RS512", JWA::SignatureAlgorithm::rs512},
+        {"ES256", JWA::SignatureAlgorithm::es256},
+        {"ES384", JWA::SignatureAlgorithm::es384},
+        {"ES512", JWA::SignatureAlgorithm::es512},
+        {"PS256", JWA::SignatureAlgorithm::ps256},
+        {"PS384", JWA::SignatureAlgorithm::ps384},
+        {"PS512", JWA::SignatureAlgorithm::ps512},
+        {"EdDSA", JWA::SignatureAlgorithm::eddsa},
+        {"none", JWA::SignatureAlgorithm::none}};
+
+    auto it = alg_map.find(alg);
+    if (it == alg_map.end())
+    {
+        return makeError<JWA::SignatureAlgorithm>("Unknown signature algorithm: " + alg);
+    }
+    return makeOk(it->second);
+}
+
+Result<JWA::KeyEncryptionAlgorithm> keyEncryptionAlgorithmFromString_(string const &alg) noexcept
+{
+    static map<string, JWA::KeyEncryptionAlgorithm> const alg_map = {
+        {"RSA1_5", JWA::KeyEncryptionAlgorithm::rsa1_5},
+        {"RSA-OAEP", JWA::KeyEncryptionAlgorithm::rsa_oaep},
+        {"RSA-OAEP-256", JWA::KeyEncryptionAlgorithm::rsa_oaep_256},
+        {"A128KW", JWA::KeyEncryptionAlgorithm::a128kw},
+        {"A192KW", JWA::KeyEncryptionAlgorithm::a192kw},
+        {"A256KW", JWA::KeyEncryptionAlgorithm::a256kw},
+        {"dir", JWA::KeyEncryptionAlgorithm::dir},
+        {"ECDH-ES", JWA::KeyEncryptionAlgorithm::ecdh_es},
+        {"A128GCMKW", JWA::KeyEncryptionAlgorithm::a128gcmkw},
+        {"A192GCMKW", JWA::KeyEncryptionAlgorithm::a192gcmkw},
+        {"A256GCMKW", JWA::KeyEncryptionAlgorithm::a256gcmkw}};
+
+    auto it = alg_map.find(alg);
+    if (it == alg_map.end())
+    {
+        return makeError<JWA::KeyEncryptionAlgorithm>("Unknown key encryption algorithm: " + alg);
+    }
+    return makeOk(it->second);
+}
+
+Result<JWA::ContentEncryptionAlgorithm>
+contentEncryptionAlgorithmFromString_(string const &alg) noexcept
+{
+    static map<string, JWA::ContentEncryptionAlgorithm> const alg_map = {
+        {"A128CBC-HS256", JWA::ContentEncryptionAlgorithm::a128cbc_hs256},
+        {"A192CBC-HS384", JWA::ContentEncryptionAlgorithm::a192cbc_hs384},
+        {"A256CBC-HS512", JWA::ContentEncryptionAlgorithm::a256cbc_hs512},
+        {"A128GCM", JWA::ContentEncryptionAlgorithm::a128gcm},
+        {"A192GCM", JWA::ContentEncryptionAlgorithm::a192gcm},
+        {"A256GCM", JWA::ContentEncryptionAlgorithm::a256gcm}};
+
+    auto it = alg_map.find(alg);
+    if (it == alg_map.end())
+    {
+        return makeError<JWA::ContentEncryptionAlgorithm>("Unknown content encryption algorithm: " +
+                                                          alg);
+    }
+    return makeOk(it->second);
+}
+}  // namespace
 
 JWA::SignatureAlgorithm JWA::signatureAlgorithmFromString(string const &alg)
 {
-    static map<string, SignatureAlgorithm> const alg_map = {{"HS256", SignatureAlgorithm::hs256},
-                                                            {"HS384", SignatureAlgorithm::hs384},
-                                                            {"HS512", SignatureAlgorithm::hs512},
-                                                            {"RS256", SignatureAlgorithm::rs256},
-                                                            {"RS384", SignatureAlgorithm::rs384},
-                                                            {"RS512", SignatureAlgorithm::rs512},
-                                                            {"ES256", SignatureAlgorithm::es256},
-                                                            {"ES384", SignatureAlgorithm::es384},
-                                                            {"ES512", SignatureAlgorithm::es512},
-                                                            {"PS256", SignatureAlgorithm::ps256},
-                                                            {"PS384", SignatureAlgorithm::ps384},
-                                                            {"PS512", SignatureAlgorithm::ps512},
-                                                            {"EdDSA", SignatureAlgorithm::eddsa},
-                                                            {"none", SignatureAlgorithm::none}};
-
-    auto it = alg_map.find(alg);
-    if (it != alg_map.end())
+    auto [result, error] = signatureAlgorithmFromString_(alg);
+    if (!result)
     {
-        return it->second;
+        throw runtime_error(error);
     }
-
-    throw runtime_error("Unknown signature algorithm: " + alg);
+    return *result;
 }
 
 JWA::KeyEncryptionAlgorithm JWA::keyEncryptionAlgorithmFromString(string const &alg)
 {
-    static map<string, KeyEncryptionAlgorithm> const alg_map = {
-        {"RSA1_5", KeyEncryptionAlgorithm::rsa1_5},
-        {"RSA-OAEP", KeyEncryptionAlgorithm::rsa_oaep},
-        {"RSA-OAEP-256", KeyEncryptionAlgorithm::rsa_oaep_256},
-        {"A128KW", KeyEncryptionAlgorithm::a128kw},
-        {"A192KW", KeyEncryptionAlgorithm::a192kw},
-        {"A256KW", KeyEncryptionAlgorithm::a256kw},
-        {"dir", KeyEncryptionAlgorithm::dir},
-        {"ECDH-ES", KeyEncryptionAlgorithm::ecdh_es},
-        {"A128GCMKW", KeyEncryptionAlgorithm::a128gcmkw},
-        {"A192GCMKW", KeyEncryptionAlgorithm::a192gcmkw},
-        {"A256GCMKW", KeyEncryptionAlgorithm::a256gcmkw}};
-
-    auto it = alg_map.find(alg);
-    if (it != alg_map.end())
+    auto [result, error] = keyEncryptionAlgorithmFromString_(alg);
+    if (!result)
     {
-        return it->second;
+        throw runtime_error(error);
     }
-
-    throw runtime_error("Unknown key encryption algorithm: " + alg);
+    return *result;
 }
 
 JWA::ContentEncryptionAlgorithm JWA::contentEncryptionAlgorithmFromString(string const &alg)
 {
-    static map<string, ContentEncryptionAlgorithm> const alg_map = {
-        {"A128CBC-HS256", ContentEncryptionAlgorithm::a128cbc_hs256},
-        {"A192CBC-HS384", ContentEncryptionAlgorithm::a192cbc_hs384},
-        {"A256CBC-HS512", ContentEncryptionAlgorithm::a256cbc_hs512},
-        {"A128GCM", ContentEncryptionAlgorithm::a128gcm},
-        {"A192GCM", ContentEncryptionAlgorithm::a192gcm},
-        {"A256GCM", ContentEncryptionAlgorithm::a256gcm}};
-
-    auto it = alg_map.find(alg);
-    if (it != alg_map.end())
+    auto [result, error] = contentEncryptionAlgorithmFromString_(alg);
+    if (!result)
     {
-        return it->second;
+        throw runtime_error(error);
     }
-
-    throw runtime_error("Unknown content encryption algorithm: " + alg);
+    return *result;
 }
 
 optional<JWA::SignatureAlgorithm> JWA::signatureAlgorithmFromString(string const &alg,
                                                                     nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<SignatureAlgorithm>(signatureAlgorithmFromString(alg));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return signatureAlgorithmFromString_(alg).first;
 }
 
 optional<JWA::KeyEncryptionAlgorithm>
 JWA::keyEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<KeyEncryptionAlgorithm>(keyEncryptionAlgorithmFromString(alg));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return keyEncryptionAlgorithmFromString_(alg).first;
 }
 
 optional<JWA::ContentEncryptionAlgorithm>
 JWA::contentEncryptionAlgorithmFromString(string const &alg, nothrow_t const &) noexcept
 {
-    try
-    {
-        return make_optional<ContentEncryptionAlgorithm>(contentEncryptionAlgorithmFromString(alg));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return contentEncryptionAlgorithmFromString_(alg).first;
 }
 
 }  // namespace JOSE

@@ -6,7 +6,7 @@
 - **Strong Typing:** Always prefer strong typing (e.g., enums, type aliases, class types) over primitive types. Avoid `int`, `void*`, and other weakly-typed parameters unless absolutely necessary. Use `enum class` and custom types for clarity and safety.
  - **Const Declaration Style:** Always declare `const` as `T const t` (not `const T t`) for parameters, variables, and members.
  - **Pointer and reference formatting:** Use the following formatting for pointers and references: `T const &t`, `T &t`, `T *p`, `T const *p`. Place the `const` nearest the type it qualifies (e.g., `T const *p` for pointer-to-const).
- - **Template spacing:** Templates should include a space before the closing angle bracket. Prefer `template< T >` style in code and `std::vector< T >` for instantiations where reasonable to improve readability (e.g., write `<T >` rather than `<T>`).
+ - **Template spacing:** Use a space after the `template` keyword but no spaces inside angle brackets, as enforced by `clang-format`. Write `template <T>` and `std::vector<T>` (not `template< T >` or `std::vector< T >`).
 - **Naming:**
     - **Parameters and local variables:** `snake_case` (all lowercase with underscores)
     - **Members:** `snake_case_` (all lowercase with underscores, ending with underscore)
@@ -74,6 +74,21 @@ After bootstrap, build using:
 cmake --build .\build\vs-latest-x64-debug\
 ctest --test-dir .\build\vs-latest-x64-debug\ --output-on-failure
 ```
+
+### Testing Both Backends on Windows
+
+The `vs-latest-x64-debug` preset builds with **CNG** (the Windows default). You must also build and test with **OpenSSL** to catch signature mismatches and backend-specific bugs before pushing:
+
+```powershell
+# One-time configure for OpenSSL backend (separate build tree)
+cmake -B build/baseline-openssl -DJOSE_BACKEND=OpenSSL -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+
+# Build and test OpenSSL backend
+cmake --build .\build\baseline-openssl --target jose_tests
+ctest --test-dir .\build\baseline-openssl --output-on-failure
+```
+
+> **Both backends must pass before committing.** The CI matrix tests OpenSSL on Linux; CNG is tested only locally on Windows. A mismatch between the header declaration (e.g. `Result<T>` return) and a backend's `.cpp` definition will compile on one backend but fail on the other.
 
 **Important:** `cmake`, `clang-format`, and `clang-tidy` are **only on PATH within the bootstrapped session**. Re-run `.\Bootstrap.ps1` (or source it) in each new terminal. Copilot agent sessions must also call the bootstrap before running any build or lint commands.
 
@@ -143,6 +158,6 @@ This project follows a strict TDD/BDD workflow. Detailed per-phase instructions 
 
 1. **Design** — Finalise the header/interface first. Trace every addition to an RFC in `doc/`.
 2. **Write failing tests** — Use Catch2 `SCENARIO`/`GIVEN`/`WHEN`/`THEN` for behaviour tests; `TEST_CASE` for unit-level checks. Include RFC 7520 test vectors for any serialisation change.
-3. **Implement** — Make the tests green with the minimum necessary code. Run `clang-format` and `clang-tidy` before committing.
+3. **Implement** — Make the tests green with the minimum necessary code. Build and test **both the CNG and OpenSSL backends** before committing. Run `clang-format` and `clang-tidy` before committing.
 4. **Review** — Every PR must pass the style checklist in `04-review.instructions.md`. Coverage on modified `src/` files must be ≥ **85 %**.
 5. **PR** — Use the PR description template, ensure the CI matrix is fully green, and squash-merge into `dev`.

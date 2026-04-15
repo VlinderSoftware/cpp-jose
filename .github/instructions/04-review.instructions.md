@@ -60,7 +60,7 @@ Check every new/changed identifier:
 
 ### 1.3 Template Spacing
 
-- [ ] Templates use a space before `>`: `vector< T >`, `pair< string, JWK >`, `template< typename T >`.
+- [ ] Templates use a space after the `template` keyword, with no spaces inside angle brackets: `vector<T>`, `pair<string, JWK>`, `template <typename T>`.
 
 ### 1.4 Namespace Braces
 
@@ -119,6 +119,11 @@ If the change touches JWS, JWE, JWK, or JWT serialisation:
 
 - [ ] Each new validation check (missing field, bad value, wrong algorithm for key type) has a corresponding negative test that verifies the exception/error is thrown.
 - [ ] Negative tests use `REQUIRE_THROWS` or `REQUIRE_THROWS_AS`.
+
+### 2.6 Both Backends Tested
+
+- [ ] The test suite passes on **both CNG and OpenSSL backends**. On Windows this means both the default `vs-latest-x64-debug` (CNG) build **and** an OpenSSL build (`-DJOSE_BACKEND=OpenSSL`) must be green.
+- [ ] If the change modifies any `BackEnd` virtual method signature, override, or call site, both backend implementations compile and their tests pass. A signature mismatch between a header and one backend's `.cpp` is a **block**.
 
 ---
 

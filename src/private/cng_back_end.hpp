@@ -105,8 +105,8 @@ private:
 class CNGBackEnd : public BackEnd
 {
 public:
-    virtual std::unique_ptr<Key> generateRSA(unsigned int bits) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateRSA(unsigned int bits) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateRSA(std::vector<unsigned char> const &n_bytes,
                 std::vector<unsigned char> const &e_bytes,
                 std::vector<unsigned char> const &d_bytes,
@@ -115,56 +115,59 @@ public:
                 std::vector<unsigned char> const &dp_bytes,
                 std::vector<unsigned char> const &dq_bytes,
                 std::vector<unsigned char> const &qi_bytes) const override;
-    virtual std::unique_ptr<Key> generateEC(std::string const &curve) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateEC(std::string const &curve) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateEC(std::string const &curve,
                std::vector<unsigned char> const &x_bytes,
                std::vector<unsigned char> const &y_bytes,
                std::vector<unsigned char> const &d_bytes) const override;
-    virtual std::unique_ptr<Key> generateOct(unsigned int bits) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateOct(unsigned int bits) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateOct(unsigned int bits, std::vector<unsigned char> const &k_bytes) const override;
-    virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override;
-    virtual std::unique_ptr<Key>
+    virtual Result<std::unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const override;
+    virtual Result<std::unique_ptr<Key>>
     generateOkp(std::string const &curve,
                 std::vector<unsigned char> const &x_bytes,
                 std::vector<unsigned char> const &d_bytes) const override;
 
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
     hash(HashAlgorithm algorithm, std::span<unsigned char const> const &data) const override;
 
     /// Backend-specific error string
     virtual std::string getErrorString() const override;
 
 protected:
-    std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
-                                     Key *key,
-                                     std::span<unsigned char const> const &data) const override;
-    bool verify_(SignatureAlgorithm algorithm,
-                 Key *key,
-                 std::vector<unsigned char> const &data,
-                 std::vector<unsigned char> const &signature) const override;
-    std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
-                                           Key *key,
-                                           std::vector<unsigned char> const &cek,
-                                           std::optional<std::vector<unsigned char>> const &iv,
-                                           std::optional<std::vector<unsigned char>> const &tag,
-                                           Key *ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg) const override;
-    std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
-                                           Key *key,
-                                           std::vector<unsigned char> const &encrypted_cek,
-                                           std::optional<std::vector<unsigned char>> const &iv,
-                                           std::optional<std::vector<unsigned char>> const &tag,
-                                           Key *ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg) const override;
-    std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    Result<std::vector<unsigned char>>
+    sign_(SignatureAlgorithm algorithm,
+          Key *key,
+          std::span<unsigned char const> const &data) const override;
+    Result<bool> verify_(SignatureAlgorithm algorithm,
+                         Key *key,
+                         std::vector<unsigned char> const &data,
+                         std::vector<unsigned char> const &signature) const override;
+    Result<std::vector<unsigned char>>
+    encryptKey_(KeyEncryptionAlgorithm algorithm,
+                Key *key,
+                std::vector<unsigned char> const &cek,
+                std::optional<std::vector<unsigned char>> const &iv,
+                std::optional<std::vector<unsigned char>> const &tag,
+                Key *ephemeral_key,
+                ContentEncryptionAlgorithm content_alg) const override;
+    Result<std::vector<unsigned char>>
+    decryptKey_(KeyEncryptionAlgorithm algorithm,
+                Key *key,
+                std::vector<unsigned char> const &encrypted_cek,
+                std::optional<std::vector<unsigned char>> const &iv,
+                std::optional<std::vector<unsigned char>> const &tag,
+                Key *ephemeral_key,
+                ContentEncryptionAlgorithm content_alg) const override;
+    Result<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     encryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,
                     std::vector<unsigned char> const &plaintext,
                     std::vector<unsigned char> const &aad) const override;
-    std::vector<unsigned char>
+    Result<std::vector<unsigned char>>
     decryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,

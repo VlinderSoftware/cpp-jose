@@ -700,6 +700,22 @@ TEST_CASE("JWS_FromCompactNothrowMissingDot", "[jws][fromcompactnothrowmissingdo
     REQUIRE_FALSE(jws_opt.has_value());
 }
 
+TEST_CASE("JWS_FromCompactNothrowHeaderNotObject", "[jws][fromcompactnothrowheadernotobject]")
+{
+    // Header decodes to a JSON array — valid JSON but not an object.
+    // Must return empty optional rather than throwing through the noexcept wrapper.
+    string const token = "WzEsMiwzXQ.dGVzdA.c2ln";
+    auto jws_opt = JWS::fromCompact(token, std::nothrow);
+    REQUIRE_FALSE(jws_opt.has_value());
+}
+
+TEST_CASE("JWS_FromCompactHeaderNotObjectThrows", "[jws][fromcompactheadernotobjectthrows]")
+{
+    // Throwing overload must propagate the error.
+    string const token = "WzEsMiwzXQ.dGVzdA.c2ln";
+    REQUIRE_THROWS(JWS::fromCompact(token));
+}
+
 // ─── fromCompact preserves custom header params ───────────────────────────────
 
 TEST_CASE("JWS_FromCompactPreservesHeaderParams", "[jws][fromcompactpreservesheaderparams]")

@@ -12,55 +12,56 @@ using namespace Vlinder::JOSE::Private;
 class TestBackEnd : public BackEnd
 {
 public:
-    vector<unsigned char> hash(HashAlgorithm /*algorithm*/,
-                               span<unsigned char const> const & /*data*/) const override
+    Result<vector<unsigned char>> hash(HashAlgorithm /*algorithm*/,
+                                       span<unsigned char const> const & /*data*/) const override
     {
-        return vector<unsigned char>(32, 0xAA);
+        return makeOk<vector<unsigned char>>(vector<unsigned char>(32, 0xAA));
     }
 
-    unique_ptr<Key> generateRSA(unsigned int bits) const override
+    Result<unique_ptr<Key>> generateRSA(unsigned int bits) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateRSA(vector<unsigned char> const &n_bytes,
-                                vector<unsigned char> const &e_bytes,
-                                vector<unsigned char> const &d_bytes,
-                                vector<unsigned char> const &p_bytes,
-                                vector<unsigned char> const &q_bytes,
-                                vector<unsigned char> const &dp_bytes,
-                                vector<unsigned char> const &dq_bytes,
-                                vector<unsigned char> const &qi_bytes) const override
+    Result<unique_ptr<Key>> generateRSA(vector<unsigned char> const &n_bytes,
+                                        vector<unsigned char> const &e_bytes,
+                                        vector<unsigned char> const &d_bytes,
+                                        vector<unsigned char> const &p_bytes,
+                                        vector<unsigned char> const &q_bytes,
+                                        vector<unsigned char> const &dp_bytes,
+                                        vector<unsigned char> const &dq_bytes,
+                                        vector<unsigned char> const &qi_bytes) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateEC(string const &) const override
+    Result<unique_ptr<Key>> generateEC(string const &) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateEC(string const &,
-                               vector<unsigned char> const &,
-                               vector<unsigned char> const &,
-                               vector<unsigned char> const &) const override
+    Result<unique_ptr<Key>> generateEC(string const &,
+                                       vector<unsigned char> const &,
+                                       vector<unsigned char> const &,
+                                       vector<unsigned char> const &) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOct(unsigned int bits) const override
+    Result<unique_ptr<Key>> generateOct(unsigned int bits) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOct(unsigned int bits, vector<unsigned char> const &) const override
+    Result<unique_ptr<Key>> generateOct(unsigned int bits,
+                                        vector<unsigned char> const &) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOkp(Use use, unsigned int bits) const override
+    Result<unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
-    unique_ptr<Key> generateOkp(string const &curve,
-                                vector<unsigned char> const &x_bytes,
-                                vector<unsigned char> const &d_bytes) const override
+    Result<unique_ptr<Key>> generateOkp(string const &curve,
+                                        vector<unsigned char> const &x_bytes,
+                                        vector<unsigned char> const &d_bytes) const override
     {
-        return nullptr;
+        return makeError<unique_ptr<Key>>("not implemented");
     }
     string getErrorString() const override
     {
@@ -68,27 +69,35 @@ public:
     }
 
 protected:
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
     sign_(SignatureAlgorithm algorithm,
           Key *key,
           std::span<unsigned char const> const &data) const override
     {
-        return {};
+        (void)algorithm;
+        (void)key;
+        (void)data;
+        return makeOk<std::vector<unsigned char>>({});
     }
-    bool verify_(SignatureAlgorithm algorithm,
-                 Key *key,
-                 std::vector<unsigned char> const &data,
-                 std::vector<unsigned char> const &signature) const override
+    Result<bool> verify_(SignatureAlgorithm algorithm,
+                         Key *key,
+                         std::vector<unsigned char> const &data,
+                         std::vector<unsigned char> const &signature) const override
     {
-        return false;
+        (void)algorithm;
+        (void)key;
+        (void)data;
+        (void)signature;
+        return makeOk<bool>(false);
     }
-    std::vector<unsigned char> encryptKey_(KeyEncryptionAlgorithm algorithm,
-                                           Key *key,
-                                           std::vector<unsigned char> const &cek,
-                                           std::optional<std::vector<unsigned char>> const &iv,
-                                           std::optional<std::vector<unsigned char>> const &tag,
-                                           Key *ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg) const override
+    Result<std::vector<unsigned char>>
+    encryptKey_(KeyEncryptionAlgorithm algorithm,
+                Key *key,
+                std::vector<unsigned char> const &cek,
+                std::optional<std::vector<unsigned char>> const &iv,
+                std::optional<std::vector<unsigned char>> const &tag,
+                Key *ephemeral_key,
+                ContentEncryptionAlgorithm content_alg) const override
     {
         (void)algorithm;
         (void)key;
@@ -97,15 +106,16 @@ protected:
         (void)tag;
         (void)ephemeral_key;
         (void)content_alg;
-        return {};
+        return makeOk<std::vector<unsigned char>>({});
     }
-    std::vector<unsigned char> decryptKey_(KeyEncryptionAlgorithm algorithm,
-                                           Key *key,
-                                           std::vector<unsigned char> const &encrypted_cek,
-                                           std::optional<std::vector<unsigned char>> const &iv,
-                                           std::optional<std::vector<unsigned char>> const &tag,
-                                           Key *ephemeral_key,
-                                           ContentEncryptionAlgorithm content_alg) const override
+    Result<std::vector<unsigned char>>
+    decryptKey_(KeyEncryptionAlgorithm algorithm,
+                Key *key,
+                std::vector<unsigned char> const &encrypted_cek,
+                std::optional<std::vector<unsigned char>> const &iv,
+                std::optional<std::vector<unsigned char>> const &tag,
+                Key *ephemeral_key,
+                ContentEncryptionAlgorithm content_alg) const override
     {
         (void)algorithm;
         (void)key;
@@ -114,9 +124,9 @@ protected:
         (void)tag;
         (void)ephemeral_key;
         (void)content_alg;
-        return {};
+        return makeOk<std::vector<unsigned char>>({});
     }
-    virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    virtual Result<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     encryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,
@@ -128,9 +138,9 @@ protected:
         (void)iv;
         (void)plaintext;
         (void)aad;
-        return {{}, {}};
+        return makeOk<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>({{}, {}});
     }
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
     decryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,
@@ -144,7 +154,7 @@ protected:
         (void)ciphertext;
         (void)aad;
         (void)tag;
-        return {};
+        return makeOk<std::vector<unsigned char>>({});
     }
 };
 
@@ -157,10 +167,11 @@ TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output"
     SECTION("key length less than hash length")
     {
         size_t key_len = 16;
-        auto derived = backend.concatKDF(shared_secret, key_len, alg);
-        REQUIRE(derived.size() == key_len);
-        REQUIRE(all_of(derived.begin(),
-                       derived.end(),
+        auto [derived_opt, derived_err] = backend.concatKDF(shared_secret, key_len, alg);
+        REQUIRE(derived_opt.has_value());
+        REQUIRE(derived_opt->size() == key_len);
+        REQUIRE(all_of(derived_opt->begin(),
+                       derived_opt->end(),
                        [](unsigned char c)
                        {
                            return c == (unsigned char)0xAA;
@@ -170,10 +181,11 @@ TEST_CASE("BackEnd::concatKDF produces expected length and deterministic output"
     SECTION("key length greater than hash length")
     {
         size_t key_len = 50;
-        auto derived = backend.concatKDF(shared_secret, key_len, alg);
-        REQUIRE(derived.size() == key_len);
-        REQUIRE(all_of(derived.begin(),
-                       derived.end(),
+        auto [derived_opt, derived_err] = backend.concatKDF(shared_secret, key_len, alg);
+        REQUIRE(derived_opt.has_value());
+        REQUIRE(derived_opt->size() == key_len);
+        REQUIRE(all_of(derived_opt->begin(),
+                       derived_opt->end(),
                        [](unsigned char c)
                        {
                            return c == (unsigned char)0xAA;

@@ -78,19 +78,21 @@ Apply this to **every** local variable, parameter, and member declaration you wr
 - Use `std::unique_ptr` / `std::shared_ptr`; never raw `new` / `delete`.
 - Use `nullptr`; never `NULL` or `0` as a pointer value.
 - Use `std::string` and `std::vector`; never C-style arrays or `char *` buffers.
-- Use `std::span< T const >` for non-owning views of contiguous data.
+- Use `std::span<T const>` for non-owning views of contiguous data.
 - Prefer structured bindings (`auto const &[k, v]`) over `.first` / `.second`.
 
 ## Template Spacing
 
+`clang-format` enforces a space after the `template` keyword but no spaces inside angle brackets:
+
 ```cpp
 // CORRECT
-vector< pair< string, JWK > > keys;
-make_unique< OpenSSLBackEnd >();
-
-// WRONG
 vector<pair<string, JWK>> keys;
 make_unique<OpenSSLBackEnd>();
+
+// WRONG
+vector< pair< string, JWK > > keys;
+make_unique< OpenSSLBackEnd >();
 ```
 
 ## Error Handling
@@ -119,7 +121,7 @@ Use `nlohmann::json` (imported via `FetchContent`). Prefer the type-safe accesso
 
 ```cpp
 auto j = json::parse(input);
-string const kty = j.at("kty").get< string >();   // throws on missing key
+string const kty = j.at("kty").get<string>();   // throws on missing key
 string const kid = j.value("kid", string{});       // defaulted optional field
 ```
 
@@ -135,7 +137,7 @@ Do not use `j["kty"]` (no `at`) for required fields — it silently inserts a nu
 
 ### Protocol Field Injection Prevention
 
-Whenever a caller-supplied map (e.g. `std::map< std::string, std::string > const &header_params`) is merged into a protocol-defined header or claims set, **validate every key against the set of reserved field names before writing any of them**. Throw `std::invalid_argument` immediately on the first reserved name found.
+Whenever a caller-supplied map (e.g. `std::map<std::string, std::string> const &header_params`) is merged into a protocol-defined header or claims set, **validate every key against the set of reserved field names before writing any of them**. Throw `std::invalid_argument` immediately on the first reserved name found.
 
 Reserved names for JOSE protected headers: `"alg"`, `"kid"`, `"typ"`, `"cty"`, `"enc"`, `"zip"`, `"jku"`, `"jwk"`, `"x5u"`, `"x5c"`, `"x5t"`, `"x5t#S256"`, `"crit"`.
 
@@ -231,9 +233,21 @@ When adding or modifying a public function, update (or add) its Doxygen comment 
    ```powershell
    clang-tidy src/jws.cpp -- -std=c++20 -I include
    ```
-3. Re-run the test suite and confirm all tests pass:
+3. Re-run the test suite for **both backends** and confirm all tests pass:
+
+   **CNG backend** (Windows default — `vs-latest-x64-debug` preset):
    ```powershell
    cmake --build .\build\vs-latest-x64-debug --target jose_tests
    ctest --test-dir .\build\vs-latest-x64-debug --output-on-failure
    ```
+
+   **OpenSSL backend** (configure once with `-DJOSE_BACKEND=OpenSSL`, then rebuild):
+   ```powershell
+   cmake -B build/baseline-openssl -DJOSE_BACKEND=OpenSSL -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+   cmake --build .\build\baseline-openssl --target jose_tests
+   ctest --test-dir .\build\baseline-openssl --output-on-failure
+   ```
+
+   > **Both must pass.** A change that compiles and passes tests on one backend but fails on the other is a bug. Backend-specific code paths (e.g. different `sign_()` / `verify_()` implementations) are a common source of mismatches.
+
 4. Verify coverage has not dropped below **85 %** on files you touched.

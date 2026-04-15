@@ -13,8 +13,9 @@ TEST_CASE("CNGBackEnd generate RSA and EC keys")
 
     SECTION("generate RSA 2048")
     {
-        auto key = backend.generateRSA(2048);
-        REQUIRE(key != nullptr);
+        auto [key_opt, key_err] = backend.generateRSA(2048);
+        REQUIRE(key_opt.has_value());
+        auto &key = *key_opt;
         CNGRSAKey *rsa = dynamic_cast<CNGRSAKey *>(key.get());
         REQUIRE(rsa != nullptr);
         auto n = rsa->getN();
@@ -26,8 +27,9 @@ TEST_CASE("CNGBackEnd generate RSA and EC keys")
 
     SECTION("generate EC P-256")
     {
-        auto key = backend.generateEC("P-256");
-        REQUIRE(key != nullptr);
+        auto [key_opt, key_err] = backend.generateEC("P-256");
+        REQUIRE(key_opt.has_value());
+        auto &key = *key_opt;
         CNGECKey *ec = dynamic_cast<CNGECKey *>(key.get());
         REQUIRE(ec != nullptr);
         auto pub = ec->getPublicBlob();

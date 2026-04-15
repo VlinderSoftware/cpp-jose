@@ -13,17 +13,19 @@ TEST_CASE("CNGBackEnd base64 encode/decode")
     string enc = backend.base64Encode(data);
     REQUIRE(enc == "aGVsbG8=");
 
-    auto dec = backend.base64Decode(enc);
-    REQUIRE(dec == data);
+    auto [dec_opt, dec_err] = backend.base64Decode(enc);
+    REQUIRE(dec_opt.has_value());
+    REQUIRE(*dec_opt == data);
 }
 
 TEST_CASE("CNGBackEnd base64 decode ignores newlines")
 {
     CNGBackEnd backend;
     string enc = "aGVs\r\nbG8=";  // contains CRLF
-    auto dec = backend.base64Decode(enc);
+    auto [dec_opt, dec_err] = backend.base64Decode(enc);
+    REQUIRE(dec_opt.has_value());
     vector<unsigned char> expected = {'h', 'e', 'l', 'l', 'o'};
-    REQUIRE(dec == expected);
+    REQUIRE(*dec_opt == expected);
 }
 
 TEST_CASE("CNGBackEnd base64 empty inputs")
@@ -33,6 +35,7 @@ TEST_CASE("CNGBackEnd base64 empty inputs")
     string enc = backend.base64Encode(empty_data);
     REQUIRE(enc.empty());
 
-    auto dec = backend.base64Decode(string());
-    REQUIRE(dec.empty());
+    auto [dec_opt, dec_err] = backend.base64Decode(string());
+    REQUIRE(dec_opt.has_value());
+    REQUIRE(dec_opt->empty());
 }

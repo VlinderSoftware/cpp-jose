@@ -44,7 +44,7 @@ SCENARIO("a symmetric key can sign and verify a compact JWS", "[jws][hmac]")
         WHEN("a payload is signed with HS256")
         {
             auto const jws = sign(key, JWA::SignatureAlgorithm::hs256,
-                                  std::span< char const >("hello", 5));
+                                  std::span<char const>("hello", 5));
             string const token = jws.toCompact();
 
             THEN("the compact token is non-empty and has three dot-delimited parts")
@@ -156,7 +156,7 @@ When testing higher-level code that depends on `BackEnd`, implement a minimal mo
 struct MockBackEnd : Vlinder::JOSE::Private::BackEnd
 {
     // override only the methods under test; leave others as default stubs
-    std::unique_ptr< Vlinder::JOSE::Private::Key >
+    std::unique_ptr<Vlinder::JOSE::Private::Key>
     generateOct(std::size_t bits) override { /* ... */ }
 };
 ```
@@ -174,15 +174,40 @@ See `tests/test_concat_kdf.cpp` for a working example.
 
 ## Running Tests
 
+Tests must pass on **both the CNG and OpenSSL backends** before a change is considered complete. On Windows, CNG is the default and OpenSSL requires an explicit `-DJOSE_BACKEND=OpenSSL` configure.
+
+### CNG backend (Windows default)
+
+```powershell
+cmake --build .\build\vs-latest-x64-debug --target jose_tests
+ctest --test-dir .\build\vs-latest-x64-debug --output-on-failure
+```
+
+### OpenSSL backend (Windows — separate build tree)
+
+```powershell
+cmake -B build/baseline-openssl -DJOSE_BACKEND=OpenSSL -DBUILD_TESTS=ON -DBUILD_EXAMPLES=ON
+cmake --build .\build\baseline-openssl --target jose_tests
+ctest --test-dir .\build\baseline-openssl --output-on-failure
+```
+
+### OpenSSL backend (Linux / macOS — the only backend)
+
 ```bash
-# Build and run all tests
-cmake --build build/vs-latest-x64-debug --target jose_tests
-ctest --test-dir build/vs-latest-x64-debug --output-on-failure
+cmake -B build -DCMAKE_BUILD_TYPE=Debug -DJOSE_BACKEND=OpenSSL -DBUILD_TESTS=ON
+cmake --build build --target jose_tests
+ctest --test-dir build --output-on-failure
+```
 
-# Run a single test case by name
+### Running a single test case by name
+
+```powershell
 ctest --test-dir build/vs-latest-x64-debug -R "JWK_Generate"
+```
 
-# Run with coverage (Linux, GCC)
+### Running with coverage (Linux, GCC)
+
+```bash
 cmake -B build/coverage -DCMAKE_BUILD_TYPE=Debug -DJOSE_BACKEND=OpenSSL \
       -DCMAKE_CXX_FLAGS="--coverage"
 cmake --build build/coverage
@@ -192,3 +217,5 @@ lcov --remove coverage.info '/usr/*' '*/tests/*' '*/examples/*' \
      --output-file coverage_filtered.info
 lcov --list coverage_filtered.info
 ```
+
+> **Both backends must pass.** The CNG and OpenSSL implementations have independent code paths. A change that compiles on one backend but not the other (e.g. a signature mismatch between a header and the `.cpp` definition) will be caught by CI and must be fixed before merging.

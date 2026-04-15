@@ -189,34 +189,36 @@ vector<unsigned char> buildRSAPrivateKeyPKCS1DER(vector<unsigned char> const &n_
     return der;
 }
 
-void resolveCurveNames(string const &curve,
+bool resolveCurveNames(string const &curve,
                        string &canonical_curve,
                        string &openssl_curve_name,
-                       size_t &coordinate_size)
+                       size_t &coordinate_size,
+                       string &error)
 {
     if (curve == "P-256" || curve == "prime256v1")
     {
         canonical_curve = "P-256";
         openssl_curve_name = "prime256v1";
         coordinate_size = 32;
-        return;
+        return true;
     }
     if (curve == "P-384" || curve == "secp384r1")
     {
         canonical_curve = "P-384";
         openssl_curve_name = "secp384r1";
         coordinate_size = 48;
-        return;
+        return true;
     }
     if (curve == "P-521" || curve == "secp521r1")
     {
         canonical_curve = "P-521";
         openssl_curve_name = "secp521r1";
         coordinate_size = 66;
-        return;
+        return true;
     }
 
-    throw runtime_error("Unsupported curve: " + curve);
+    error = "Unsupported curve: " + curve;
+    return false;
 }
 
 void resolveOkpNames(Use use,
@@ -257,41 +259,43 @@ void resolveOkpNames(Use use,
     }
 }
 
-void resolveOkpFromCurve(string const &curve,
+bool resolveOkpFromCurve(string const &curve,
                          string &canonical_curve,
                          string &openssl_name,
-                         size_t &key_size)
+                         size_t &key_size,
+                         string &error)
 {
     if (curve == "Ed25519")
     {
         canonical_curve = "Ed25519";
         openssl_name = "ED25519";
         key_size = 32;
-        return;
+        return true;
     }
     if (curve == "Ed448")
     {
         canonical_curve = "Ed448";
         openssl_name = "ED448";
         key_size = 57;
-        return;
+        return true;
     }
     if (curve == "X25519")
     {
         canonical_curve = "X25519";
         openssl_name = "X25519";
         key_size = 32;
-        return;
+        return true;
     }
     if (curve == "X448")
     {
         canonical_curve = "X448";
         openssl_name = "X448";
         key_size = 56;
-        return;
+        return true;
     }
 
-    throw runtime_error("Unsupported OKP curve: " + curve);
+    error = "Unsupported OKP curve: " + curve;
+    return false;
 }
 
 void extractRSAComponents(EVP_PKEY *pkey,
@@ -532,7 +536,7 @@ vector<unsigned char> OpenSSLOKPKey::getD() const
     return d_;
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateRSA(unsigned int bits) const
 {
     unsigned int const max_attempts = static_cast<unsigned int>(JOSE_RSA_GENERATION_MAX_ATTEMPTS);
     string last_reason;
@@ -546,7 +550,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
                                     });
         if (ctx == nullptr)
         {
-            throw runtime_error("Failed to create RSA context: " + getErrorString());
+            return makeError<unique_ptr<Key>>("Failed to create RSA context: " + getErrorString());
         }
 
         OSSL_PARAM params[] = {OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_RSA_BITS, &bits),
@@ -557,7 +561,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
             EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0 ||
             EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
         {
-            throw runtime_error("Failed to generate RSA key: " + getErrorString());
+            return makeError<unique_ptr<Key>>("Failed to generate RSA key: " + getErrorString());
         }
         auto pkey_guard = makeOpenSSLGuard(pkey_raw,
                                            [](EVP_PKEY *key)
@@ -592,37 +596,38 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(unsigned int bits) const
                                       !private_blob.empty();
         if (has_full_private)
         {
-            return make_unique<OpenSSLRSAKey>(n_bytes,
-                                              e_bytes,
-                                              d_bytes,
-                                              p_bytes,
-                                              q_bytes,
-                                              dp_bytes,
-                                              dq_bytes,
-                                              qi_bytes,
-                                              public_blob,
-                                              private_blob);
+            return makeOk<unique_ptr<Key>>(make_unique<OpenSSLRSAKey>(n_bytes,
+                                                                      e_bytes,
+                                                                      d_bytes,
+                                                                      p_bytes,
+                                                                      q_bytes,
+                                                                      dp_bytes,
+                                                                      dq_bytes,
+                                                                      qi_bytes,
+                                                                      public_blob,
+                                                                      private_blob));
         }
 
         last_reason = "incomplete private RSA export from provider";
     }
 
-    throw runtime_error("Failed to generate a complete RSA private key after " +
-                        to_string(max_attempts) + " attempts: " + last_reason);
+    return makeError<unique_ptr<Key>>("Failed to generate a complete RSA private key after " +
+                                      to_string(max_attempts) + " attempts: " + last_reason);
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
-                                            vector<unsigned char> const &e_bytes,
-                                            vector<unsigned char> const &d_bytes,
-                                            vector<unsigned char> const &p_bytes,
-                                            vector<unsigned char> const &q_bytes,
-                                            vector<unsigned char> const &dp_bytes,
-                                            vector<unsigned char> const &dq_bytes,
-                                            vector<unsigned char> const &qi_bytes) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes,
+                                                    vector<unsigned char> const &e_bytes,
+                                                    vector<unsigned char> const &d_bytes,
+                                                    vector<unsigned char> const &p_bytes,
+                                                    vector<unsigned char> const &q_bytes,
+                                                    vector<unsigned char> const &dp_bytes,
+                                                    vector<unsigned char> const &dq_bytes,
+                                                    vector<unsigned char> const &qi_bytes) const
 {
     if (n_bytes.empty() || e_bytes.empty())
     {
-        throw runtime_error("RSA import requires at least modulus (n) and public exponent (e)");
+        return makeError<unique_ptr<Key>>(
+            "RSA import requires at least modulus (n) and public exponent (e)");
     }
 
     bool const has_any_private_input = !d_bytes.empty() || !p_bytes.empty() || !q_bytes.empty() ||
@@ -749,7 +754,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
     {
         if (!has_d)
         {
-            throw runtime_error("RSA private key import requires parameter 'd'");
+            return makeError<unique_ptr<Key>>("RSA private key import requires parameter 'd'");
         }
 
         if (!has_any_crt)
@@ -766,8 +771,9 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
         {
             if (!has_full_crt)
             {
-                throw runtime_error("Ill-formed RSA private key: if any of p, q, dp, dq, qi are "
-                                    "present, all must be present");
+                return makeError<unique_ptr<Key>>(
+                    "Ill-formed RSA private key: if any of p, q, dp, dq, qi are "
+                    "present, all must be present");
             }
 
             pkey = try_import(true,
@@ -848,9 +854,10 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
                 }
                 details += attempt_errors[index];
             }
-            throw runtime_error(details);
+            return makeError<unique_ptr<Key>>(details);
         }
-        throw runtime_error(last_error.empty() ? "Failed to import RSA key" : last_error);
+        return makeError<unique_ptr<Key>>(last_error.empty() ? "Failed to import RSA key"
+                                                             : last_error);
     }
 
     auto pkey_guard = makeOpenSSLGuard(pkey,
@@ -881,24 +888,32 @@ unique_ptr<Key> OpenSSLBackEnd::generateRSA(vector<unsigned char> const &n_bytes
     vector<unsigned char> private_blob =
         imported_d.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
 
-    return make_unique<OpenSSLRSAKey>(n_bytes,
-                                      e_bytes,
-                                      imported_d,
-                                      imported_p,
-                                      imported_q,
-                                      imported_dp,
-                                      imported_dq,
-                                      imported_qi,
-                                      public_blob,
-                                      private_blob);
+    return makeOk<unique_ptr<Key>>(make_unique<OpenSSLRSAKey>(n_bytes,
+                                                              e_bytes,
+                                                              imported_d,
+                                                              imported_p,
+                                                              imported_q,
+                                                              imported_dp,
+                                                              imported_dq,
+                                                              imported_qi,
+                                                              public_blob,
+                                                              private_blob));
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateEC(string const &curve) const
 {
     string canonical_curve;
     string openssl_curve_name;
     size_t coordinate_size = 0;
-    resolveCurveNames(curve, canonical_curve, openssl_curve_name, coordinate_size);
+    string resolve_error;
+    if (!resolveCurveNames(curve,
+                           canonical_curve,
+                           openssl_curve_name,
+                           coordinate_size,
+                           resolve_error))
+    {
+        return makeError<unique_ptr<Key>>(resolve_error);
+    }
 
     string group_name_param = openssl_curve_name;
 
@@ -909,7 +924,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
                                 });
     if (ctx == nullptr)
     {
-        throw runtime_error("Failed to create EC context: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to create EC context: " + getErrorString());
     }
 
     OSSL_PARAM params[] = {OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
@@ -921,7 +936,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
     if (EVP_PKEY_keygen_init(ctx.get()) <= 0 || EVP_PKEY_CTX_set_params(ctx.get(), params) <= 0 ||
         EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
     {
-        throw runtime_error("Failed to generate EC key: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to generate EC key: " + getErrorString());
     }
     auto pkey_guard = makeOpenSSLGuard(pkey_raw,
                                        [](EVP_PKEY *key)
@@ -936,7 +951,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
     if (EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_EC_PUB_X, &x_raw) <= 0 ||
         EVP_PKEY_get_bn_param(pkey_guard.get(), OSSL_PKEY_PARAM_EC_PUB_Y, &y_raw) <= 0)
     {
-        throw runtime_error("Failed to read EC public coordinates: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to read EC public coordinates: " +
+                                          getErrorString());
     }
 
     auto x = makeOpenSSLGuard(x_raw,
@@ -965,38 +981,46 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve) const
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
 
-    return make_unique<OpenSSLECKey>(canonical_curve,
-                                     x_bytes,
-                                     y_bytes,
-                                     d_bytes,
-                                     public_blob,
-                                     private_blob);
+    return makeOk<unique_ptr<Key>>(make_unique<OpenSSLECKey>(canonical_curve,
+                                                             x_bytes,
+                                                             y_bytes,
+                                                             d_bytes,
+                                                             public_blob,
+                                                             private_blob));
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
-                                           vector<unsigned char> const &x_bytes,
-                                           vector<unsigned char> const &y_bytes,
-                                           vector<unsigned char> const &d_bytes) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateEC(string const &curve,
+                                                   vector<unsigned char> const &x_bytes,
+                                                   vector<unsigned char> const &y_bytes,
+                                                   vector<unsigned char> const &d_bytes) const
 {
     if (x_bytes.empty() || y_bytes.empty())
     {
-        throw runtime_error("EC import requires both x and y coordinates");
+        return makeError<unique_ptr<Key>>("EC import requires both x and y coordinates");
     }
 
     string canonical_curve;
     string openssl_curve_name;
     size_t coordinate_size = 0;
-    resolveCurveNames(curve, canonical_curve, openssl_curve_name, coordinate_size);
+    string resolve_error;
+    if (!resolveCurveNames(curve,
+                           canonical_curve,
+                           openssl_curve_name,
+                           coordinate_size,
+                           resolve_error))
+    {
+        return makeError<unique_ptr<Key>>(resolve_error);
+    }
 
     string group_name_param = openssl_curve_name;
 
     if (x_bytes.size() != coordinate_size || y_bytes.size() != coordinate_size)
     {
-        throw runtime_error("EC coordinate size does not match curve");
+        return makeError<unique_ptr<Key>>("EC coordinate size does not match curve");
     }
     if (!d_bytes.empty() && d_bytes.size() != coordinate_size)
     {
-        throw runtime_error("EC private scalar size does not match curve");
+        return makeError<unique_ptr<Key>>("EC private scalar size does not match curve");
     }
 
     vector<unsigned char> public_point;
@@ -1012,12 +1036,13 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
                                 });
     if (ctx == nullptr)
     {
-        throw runtime_error("Failed to create EC import context: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to create EC import context: " +
+                                          getErrorString());
     }
 
     if (EVP_PKEY_fromdata_init(ctx.get()) <= 0)
     {
-        throw runtime_error("Failed to initialize EC import: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to initialize EC import: " + getErrorString());
     }
 
     OSSL_PARAM params[] = {OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,
@@ -1031,7 +1056,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
     EVP_PKEY *pkey_raw = nullptr;
     if (EVP_PKEY_fromdata(ctx.get(), &pkey_raw, EVP_PKEY_PUBLIC_KEY, params) <= 0)
     {
-        throw runtime_error("Failed to import EC key: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to import EC key: " + getErrorString());
     }
     auto pkey_guard = makeOpenSSLGuard(pkey_raw,
                                        [](EVP_PKEY *key)
@@ -1078,42 +1103,42 @@ unique_ptr<Key> OpenSSLBackEnd::generateEC(string const &curve,
         }
     }
 
-    return make_unique<OpenSSLECKey>(canonical_curve,
-                                     x_bytes,
-                                     y_bytes,
-                                     d_bytes,
-                                     public_blob,
-                                     private_blob);
+    return makeOk<unique_ptr<Key>>(make_unique<OpenSSLECKey>(canonical_curve,
+                                                             x_bytes,
+                                                             y_bytes,
+                                                             d_bytes,
+                                                             public_blob,
+                                                             private_blob));
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateOct(unsigned int bits) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateOct(unsigned int bits) const
 {
     if (bits == 0 || (bits % 8) != 0)
     {
-        throw runtime_error("Key size must be a non-zero multiple of 8 bits");
+        return makeError<unique_ptr<Key>>("Key size must be a non-zero multiple of 8 bits");
     }
 
     vector<unsigned char> key_bytes(bits / 8);
     if (RAND_bytes(key_bytes.data(), static_cast<int>(key_bytes.size())) != 1)
     {
-        throw runtime_error("RAND_bytes failed: " + getErrorString());
+        return makeError<unique_ptr<Key>>("RAND_bytes failed: " + getErrorString());
     }
 
-    return make_unique<OctKey>(key_bytes);
+    return makeOk<unique_ptr<Key>>(make_unique<OctKey>(key_bytes));
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateOct(unsigned int bits,
-                                            vector<unsigned char> const &k_bytes) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateOct(unsigned int bits,
+                                                    vector<unsigned char> const &k_bytes) const
 {
     if (k_bytes.size() != (bits / 8))
     {
-        throw runtime_error("Key size error");
+        return makeError<unique_ptr<Key>>("Key size error");
     }
 
-    return make_unique<OctKey>(k_bytes);
+    return makeOk<unique_ptr<Key>>(make_unique<OctKey>(k_bytes));
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateOkp(Use use, unsigned int bits) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateOkp(Use use, unsigned int bits) const
 {
     string curve_name;
     string openssl_name;
@@ -1127,13 +1152,13 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(Use use, unsigned int bits) const
                                 });
     if (ctx == nullptr)
     {
-        throw runtime_error("Failed to create OKP context: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to create OKP context: " + getErrorString());
     }
 
     EVP_PKEY *pkey_raw = nullptr;
     if (EVP_PKEY_keygen_init(ctx.get()) <= 0 || EVP_PKEY_keygen(ctx.get(), &pkey_raw) <= 0)
     {
-        throw runtime_error("Failed to generate OKP key: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to generate OKP key: " + getErrorString());
     }
     auto pkey_guard = makeOpenSSLGuard(pkey_raw,
                                        [](EVP_PKEY *key)
@@ -1145,7 +1170,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(Use use, unsigned int bits) const
     size_t x_len = x_bytes.size();
     if (EVP_PKEY_get_raw_public_key(pkey_guard.get(), x_bytes.data(), &x_len) != 1)
     {
-        throw runtime_error("Failed to read OKP public key bytes: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to read OKP public key bytes: " +
+                                          getErrorString());
     }
     x_bytes.resize(x_len);
 
@@ -1153,37 +1179,43 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(Use use, unsigned int bits) const
     size_t d_len = d_bytes.size();
     if (EVP_PKEY_get_raw_private_key(pkey_guard.get(), d_bytes.data(), &d_len) != 1)
     {
-        throw runtime_error("Failed to read OKP private key bytes: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to read OKP private key bytes: " +
+                                          getErrorString());
     }
     d_bytes.resize(d_len);
 
     vector<unsigned char> public_blob = toDERPublic(pkey_guard.get());
     vector<unsigned char> private_blob = toDERPrivate(pkey_guard.get());
 
-    return make_unique<OpenSSLOKPKey>(curve_name, x_bytes, d_bytes, public_blob, private_blob);
+    return makeOk<unique_ptr<Key>>(
+        make_unique<OpenSSLOKPKey>(curve_name, x_bytes, d_bytes, public_blob, private_blob));
 }
 
-unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
-                                            vector<unsigned char> const &x_bytes,
-                                            vector<unsigned char> const &d_bytes) const
+Result<unique_ptr<Key>> OpenSSLBackEnd::generateOkp(string const &curve,
+                                                    vector<unsigned char> const &x_bytes,
+                                                    vector<unsigned char> const &d_bytes) const
 {
     if (x_bytes.empty())
     {
-        throw runtime_error("OKP import requires public key bytes (x)");
+        return makeError<unique_ptr<Key>>("OKP import requires public key bytes (x)");
     }
 
     string canonical_curve;
     string openssl_name;
     size_t key_size = 0;
-    resolveOkpFromCurve(curve, canonical_curve, openssl_name, key_size);
+    string resolve_error;
+    if (!resolveOkpFromCurve(curve, canonical_curve, openssl_name, key_size, resolve_error))
+    {
+        return makeError<unique_ptr<Key>>(resolve_error);
+    }
 
     if (x_bytes.size() != key_size)
     {
-        throw runtime_error("OKP public key size does not match curve");
+        return makeError<unique_ptr<Key>>("OKP public key size does not match curve");
     }
     if (!d_bytes.empty() && d_bytes.size() != key_size)
     {
-        throw runtime_error("OKP private key size does not match curve");
+        return makeError<unique_ptr<Key>>("OKP private key size does not match curve");
     }
 
     EVP_PKEY *pkey_raw = nullptr;
@@ -1206,7 +1238,7 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
 
     if (pkey_raw == nullptr)
     {
-        throw runtime_error("Failed to import OKP key: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to import OKP key: " + getErrorString());
     }
 
     auto pkey_guard = makeOpenSSLGuard(pkey_raw,
@@ -1219,7 +1251,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
     size_t x_len = actual_x.size();
     if (EVP_PKEY_get_raw_public_key(pkey_guard.get(), actual_x.data(), &x_len) != 1)
     {
-        throw runtime_error("Failed to read imported OKP public bytes: " + getErrorString());
+        return makeError<unique_ptr<Key>>("Failed to read imported OKP public bytes: " +
+                                          getErrorString());
     }
     actual_x.resize(x_len);
 
@@ -1230,7 +1263,8 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
         size_t d_len = actual_d.size();
         if (EVP_PKEY_get_raw_private_key(pkey_guard.get(), actual_d.data(), &d_len) != 1)
         {
-            throw runtime_error("Failed to read imported OKP private bytes: " + getErrorString());
+            return makeError<unique_ptr<Key>>("Failed to read imported OKP private bytes: " +
+                                              getErrorString());
         }
         actual_d.resize(d_len);
     }
@@ -1239,15 +1273,12 @@ unique_ptr<Key> OpenSSLBackEnd::generateOkp(string const &curve,
     vector<unsigned char> private_blob =
         d_bytes.empty() ? vector<unsigned char>{} : toDERPrivate(pkey_guard.get());
 
-    return make_unique<OpenSSLOKPKey>(canonical_curve,
-                                      actual_x,
-                                      actual_d,
-                                      public_blob,
-                                      private_blob);
+    return makeOk<unique_ptr<Key>>(
+        make_unique<OpenSSLOKPKey>(canonical_curve, actual_x, actual_d, public_blob, private_blob));
 }
 
-vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
-                                           span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
+                                                   span<unsigned char const> const &data) const
 {
     EVP_MD const *md = nullptr;
     switch (algorithm)
@@ -1262,7 +1293,7 @@ vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
             md = EVP_sha512();
             break;
         default:
-            throw runtime_error("Unsupported hash algorithm");
+            return makeOk<vector<unsigned char>>({});
     }
 
     auto ctx = makeOpenSSLGuard(EVP_MD_CTX_new(),
@@ -1272,7 +1303,7 @@ vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
                                 });
     if (ctx == nullptr)
     {
-        throw runtime_error("EVP_MD_CTX_new failed: " + getErrorString());
+        return makeError<vector<unsigned char>>("EVP_MD_CTX_new failed: " + getErrorString());
     }
 
     unsigned int out_size = EVP_MD_size(md);
@@ -1282,11 +1313,11 @@ vector<unsigned char> OpenSSLBackEnd::hash(HashAlgorithm algorithm,
         EVP_DigestUpdate(ctx.get(), data.data(), data.size()) != 1 ||
         EVP_DigestFinal_ex(ctx.get(), digest.data(), &out_size) != 1)
     {
-        throw runtime_error("EVP digest failed: " + getErrorString());
+        return makeError<vector<unsigned char>>("EVP digest failed: " + getErrorString());
     }
 
     digest.resize(out_size);
-    return digest;
+    return makeOk<vector<unsigned char>>(std::move(digest));
 }
 
 string OpenSSLBackEnd::getErrorString() const
@@ -1490,7 +1521,15 @@ EVP_PKEY *importEcKey(ECKey const &ec_key, bool require_private)
     string canonical_curve;
     string openssl_curve_name;
     size_t coordinate_size = 0;
-    resolveCurveNames(ec_key.getCurveName(), canonical_curve, openssl_curve_name, coordinate_size);
+    string resolve_error;
+    if (!resolveCurveNames(ec_key.getCurveName(),
+                           canonical_curve,
+                           openssl_curve_name,
+                           coordinate_size,
+                           resolve_error))
+    {
+        throw runtime_error(resolve_error);
+    }
 
     auto x_bytes = ec_key.getX();
     auto y_bytes = ec_key.getY();
@@ -1627,7 +1666,15 @@ EVP_PKEY *importOkpKey(OKPKey const &okp_key, bool require_private)
     string canonical_curve;
     string openssl_name;
     size_t key_size = 0;
-    resolveOkpFromCurve(okp_key.getCurveName(), canonical_curve, openssl_name, key_size);
+    string resolve_error;
+    if (!resolveOkpFromCurve(okp_key.getCurveName(),
+                             canonical_curve,
+                             openssl_name,
+                             key_size,
+                             resolve_error))
+    {
+        throw runtime_error(resolve_error);
+    }
 
     auto x_bytes = okp_key.getX();
     auto d_bytes = okp_key.getD();
@@ -2185,20 +2232,28 @@ vector<unsigned char> aesCbcHmacDecrypt(EVP_CIPHER const *cipher,
 
 }  // namespace
 
-vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
-                                            Key *key,
-                                            span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
+                                                    Key *key,
+                                                    span<unsigned char const> const &data) const
 {
     switch (algorithm)
     {
         case SignatureAlgorithm::none:
-            return {};
+            return makeOk<vector<unsigned char>>({});
         case SignatureAlgorithm::hs256:
         case SignatureAlgorithm::hs384:
         case SignatureAlgorithm::hs512:
         {
             auto md = getDigestAlgorithm(algorithm);
-            auto secret = getOctKeyBytes(key);
+            vector<unsigned char> secret;
+            try
+            {
+                secret = getOctKeyBytes(key);
+            }
+            catch (exception const &ex)
+            {
+                return makeError<vector<unsigned char>>(ex.what());
+            }
             vector<unsigned char> signature(static_cast<size_t>(EVP_MD_size(md)));
             unsigned int signature_size = 0;
             if (HMAC(md,
@@ -2209,10 +2264,11 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
                      signature.data(),
                      &signature_size) == nullptr)
             {
-                throw runtime_error("HMAC signing failed: " + getOpenSSLErrorString());
+                return makeError<vector<unsigned char>>("HMAC signing failed: " +
+                                                        getOpenSSLErrorString());
             }
             signature.resize(signature_size);
-            return signature;
+            return makeOk<vector<unsigned char>>(signature);
         }
         case SignatureAlgorithm::rs256:
         case SignatureAlgorithm::rs384:
@@ -2228,36 +2284,51 @@ vector<unsigned char> OpenSSLBackEnd::sign_(SignatureAlgorithm algorithm,
         case SignatureAlgorithm::eddsa:
             return signOkp(algorithm, key, data);
         default:
-            throw runtime_error("Unsupported signature algorithm");
+            return makeError<vector<unsigned char>>("Unsupported signature algorithm");
     }
 }
 
-bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
-                             Key *key,
-                             std::vector<unsigned char> const &data,
-                             std::vector<unsigned char> const &signature) const
+Result<bool> OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
+                                     Key *key,
+                                     std::vector<unsigned char> const &data,
+                                     std::vector<unsigned char> const &signature) const
 {
     if (algorithm == SignatureAlgorithm::none)
     {
-        return signature.empty();
+        return makeOk<bool>(signature.empty());
     }
 
     if (algorithm == SignatureAlgorithm::hs256 || algorithm == SignatureAlgorithm::hs384 ||
         algorithm == SignatureAlgorithm::hs512)
     {
-        auto expected = sign_(algorithm, key, data);
+        auto [expected_opt, expected_err] = sign_(algorithm, key, data);
+        if (!expected_opt)
+        {
+            return makeError<bool>(expected_err);
+        }
+        auto const &expected = *expected_opt;
         if (expected.size() != signature.size())
         {
-            return false;
+            return makeOk<bool>(false);
         }
-        return CRYPTO_memcmp(expected.data(), signature.data(), signature.size()) == 0;
+        return makeOk<bool>(CRYPTO_memcmp(expected.data(), signature.data(), signature.size()) ==
+                            0);
     }
 
     if (algorithm == SignatureAlgorithm::rs256 || algorithm == SignatureAlgorithm::rs384 ||
         algorithm == SignatureAlgorithm::rs512 || algorithm == SignatureAlgorithm::ps256 ||
         algorithm == SignatureAlgorithm::ps384 || algorithm == SignatureAlgorithm::ps512)
     {
-        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+        EVP_PKEY *pkey_raw = nullptr;
+        try
+        {
+            pkey_raw = importPkeyFromKey(key, false);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
+        auto pkey = makeOpenSSLGuard(pkey_raw,
                                      [](EVP_PKEY *imported)
                                      {
                                          EVP_PKEY_free(imported);
@@ -2270,7 +2341,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                        });
         if (md_ctx == nullptr)
         {
-            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to create digest context: " + getOpenSSLErrorString());
         }
 
         EVP_PKEY_CTX *key_ctx = nullptr;
@@ -2280,8 +2351,8 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                  nullptr,
                                  pkey.get()) != 1)
         {
-            throw runtime_error("Failed to initialize RSA verification: " +
-                                getOpenSSLErrorString());
+            return makeError<bool>("Failed to initialize RSA verification: " +
+                                   getOpenSSLErrorString());
         }
 
         if (algorithm == SignatureAlgorithm::ps256 || algorithm == SignatureAlgorithm::ps384 ||
@@ -2291,8 +2362,8 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
             if (EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
                 EVP_PKEY_CTX_set_rsa_pss_saltlen(key_ctx, salt_length) <= 0)
             {
-                throw runtime_error("Failed to configure RSA-PSS verification: " +
-                                    getOpenSSLErrorString());
+                return makeError<bool>("Failed to configure RSA-PSS verification: " +
+                                       getOpenSSLErrorString());
             }
         }
 
@@ -2301,7 +2372,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                       signature.size(),
                                       data.data(),
                                       data.size());
-        return result == 1;
+        return makeOk<bool>(result == 1);
     }
 
     if (algorithm == SignatureAlgorithm::es256 || algorithm == SignatureAlgorithm::es384 ||
@@ -2310,7 +2381,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
         size_t const coordinate_size = getEcCoordinateSize(algorithm);
         if (signature.size() != (2 * coordinate_size))
         {
-            return false;
+            return makeOk<bool>(false);
         }
 
         BIGNUM *r = BN_bin2bn(signature.data(), static_cast<int>(coordinate_size), nullptr);
@@ -2327,7 +2398,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
             {
                 BN_free(s);
             }
-            return false;
+            return makeOk<bool>(false);
         }
 
         auto r_guard = makeOpenSSLGuard(r,
@@ -2348,19 +2419,19 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                                 });
         if (ecdsa_signature == nullptr)
         {
-            throw runtime_error("Failed to allocate ECDSA signature object");
+            return makeError<bool>("Failed to allocate ECDSA signature object");
         }
 
         if (ECDSA_SIG_set0(ecdsa_signature.get(), r_guard.release(), s_guard.release()) != 1)
         {
-            throw runtime_error("Failed to assemble ECDSA signature");
+            return makeError<bool>("Failed to assemble ECDSA signature");
         }
 
         unsigned char *der_buffer = nullptr;
         int der_size = i2d_ECDSA_SIG(ecdsa_signature.get(), &der_buffer);
         if (der_size <= 0)
         {
-            throw runtime_error("Failed to encode ECDSA signature: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to encode ECDSA signature: " + getOpenSSLErrorString());
         }
 
         auto der_guard = makeOpenSSLGuard(der_buffer,
@@ -2371,7 +2442,16 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
         vector<unsigned char> der_signature(der_guard.get(),
                                             der_guard.get() + static_cast<ptrdiff_t>(der_size));
 
-        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+        EVP_PKEY *pkey_raw = nullptr;
+        try
+        {
+            pkey_raw = importPkeyFromKey(key, false);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
+        auto pkey = makeOpenSSLGuard(pkey_raw,
                                      [](EVP_PKEY *imported)
                                      {
                                          EVP_PKEY_free(imported);
@@ -2384,7 +2464,7 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                        });
         if (md_ctx == nullptr)
         {
-            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to create digest context: " + getOpenSSLErrorString());
         }
 
         if (EVP_DigestVerifyInit(md_ctx.get(),
@@ -2393,8 +2473,8 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                  nullptr,
                                  pkey.get()) != 1)
         {
-            throw runtime_error("Failed to initialize ECDSA verification: " +
-                                getOpenSSLErrorString());
+            return makeError<bool>("Failed to initialize ECDSA verification: " +
+                                   getOpenSSLErrorString());
         }
 
         int result = EVP_DigestVerify(md_ctx.get(),
@@ -2402,12 +2482,21 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                       der_signature.size(),
                                       data.data(),
                                       data.size());
-        return result == 1;
+        return makeOk<bool>(result == 1);
     }
 
     if (algorithm == SignatureAlgorithm::eddsa)
     {
-        auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+        EVP_PKEY *pkey_raw = nullptr;
+        try
+        {
+            pkey_raw = importPkeyFromKey(key, false);
+        }
+        catch (exception const &ex)
+        {
+            return makeError<bool>(ex.what());
+        }
+        auto pkey = makeOpenSSLGuard(pkey_raw,
                                      [](EVP_PKEY *imported)
                                      {
                                          EVP_PKEY_free(imported);
@@ -2420,13 +2509,13 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                        });
         if (md_ctx == nullptr)
         {
-            throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+            return makeError<bool>("Failed to create digest context: " + getOpenSSLErrorString());
         }
 
         if (EVP_DigestVerifyInit(md_ctx.get(), nullptr, nullptr, nullptr, pkey.get()) != 1)
         {
-            throw runtime_error("Failed to initialize EdDSA verification: " +
-                                getOpenSSLErrorString());
+            return makeError<bool>("Failed to initialize EdDSA verification: " +
+                                   getOpenSSLErrorString());
         }
 
         int result = EVP_DigestVerify(md_ctx.get(),
@@ -2434,17 +2523,26 @@ bool OpenSSLBackEnd::verify_(SignatureAlgorithm algorithm,
                                       signature.size(),
                                       data.data(),
                                       data.size());
-        return result == 1;
+        return makeOk<bool>(result == 1);
     }
 
-    throw runtime_error("Unsupported signature algorithm");
+    return makeError<bool>("Unsupported signature algorithm");
 }
 
-vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
-                                              Key *key,
-                                              span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
+                                                      Key *key,
+                                                      span<unsigned char const> const &data) const
 {
-    auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+    EVP_PKEY *pkey_raw = nullptr;
+    try
+    {
+        pkey_raw = importPkeyFromKey(key, true);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
+    auto pkey = makeOpenSSLGuard(pkey_raw,
                                  [](EVP_PKEY *imported)
                                  {
                                      EVP_PKEY_free(imported);
@@ -2457,7 +2555,8 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
                                    });
     if (md_ctx == nullptr)
     {
-        throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to create digest context: " +
+                                                getOpenSSLErrorString());
     }
 
     EVP_PKEY_CTX *key_ctx = nullptr;
@@ -2467,7 +2566,8 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
                            nullptr,
                            pkey.get()) != 1)
     {
-        throw runtime_error("Failed to initialize RSA signing: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to initialize RSA signing: " +
+                                                getOpenSSLErrorString());
     }
 
     if (algorithm == SignatureAlgorithm::ps256 || algorithm == SignatureAlgorithm::ps384 ||
@@ -2477,32 +2577,43 @@ vector<unsigned char> OpenSSLBackEnd::signRsa(SignatureAlgorithm algorithm,
         if (EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_PSS_PADDING) <= 0 ||
             EVP_PKEY_CTX_set_rsa_pss_saltlen(key_ctx, salt_length) <= 0)
         {
-            throw runtime_error("Failed to configure RSA-PSS signing: " + getOpenSSLErrorString());
+            return makeError<vector<unsigned char>>("Failed to configure RSA-PSS signing: " +
+                                                    getOpenSSLErrorString());
         }
     }
 
     size_t signature_size = 0;
     if (EVP_DigestSign(md_ctx.get(), nullptr, &signature_size, data.data(), data.size()) != 1)
     {
-        throw runtime_error("Failed to query RSA signature size: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to query RSA signature size: " +
+                                                getOpenSSLErrorString());
     }
 
     vector<unsigned char> signature(signature_size);
     if (EVP_DigestSign(md_ctx.get(), signature.data(), &signature_size, data.data(), data.size()) !=
         1)
     {
-        throw runtime_error("RSA signing failed: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("RSA signing failed: " + getOpenSSLErrorString());
     }
 
     signature.resize(signature_size);
-    return signature;
+    return makeOk<vector<unsigned char>>(signature);
 }
 
-vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
-                                             Key *key,
-                                             span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
+                                                     Key *key,
+                                                     span<unsigned char const> const &data) const
 {
-    auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+    EVP_PKEY *pkey_raw = nullptr;
+    try
+    {
+        pkey_raw = importPkeyFromKey(key, true);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
+    auto pkey = makeOpenSSLGuard(pkey_raw,
                                  [](EVP_PKEY *imported)
                                  {
                                      EVP_PKEY_free(imported);
@@ -2515,7 +2626,8 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                                    });
     if (md_ctx == nullptr)
     {
-        throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to create digest context: " +
+                                                getOpenSSLErrorString());
     }
 
     if (EVP_DigestSignInit(md_ctx.get(),
@@ -2524,20 +2636,22 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                            nullptr,
                            pkey.get()) != 1)
     {
-        throw runtime_error("Failed to initialize ECDSA signing: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to initialize ECDSA signing: " +
+                                                getOpenSSLErrorString());
     }
 
     size_t der_size = 0;
     if (EVP_DigestSign(md_ctx.get(), nullptr, &der_size, data.data(), data.size()) != 1)
     {
-        throw runtime_error("Failed to query ECDSA signature size: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to query ECDSA signature size: " +
+                                                getOpenSSLErrorString());
     }
 
     vector<unsigned char> der_signature(der_size);
     if (EVP_DigestSign(md_ctx.get(), der_signature.data(), &der_size, data.data(), data.size()) !=
         1)
     {
-        throw runtime_error("ECDSA signing failed: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("ECDSA signing failed: " + getOpenSSLErrorString());
     }
     der_signature.resize(der_size);
 
@@ -2550,7 +2664,8 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
                          });
     if (ecdsa_signature == nullptr)
     {
-        throw runtime_error("Failed to parse ECDSA signature: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to parse ECDSA signature: " +
+                                                getOpenSSLErrorString());
     }
 
     BIGNUM const *r = nullptr;
@@ -2562,19 +2677,28 @@ vector<unsigned char> OpenSSLBackEnd::signEc(SignatureAlgorithm algorithm,
     if (BN_bn2binpad(r, signature.data(), static_cast<int>(coordinate_size)) <= 0 ||
         BN_bn2binpad(s, signature.data() + coordinate_size, static_cast<int>(coordinate_size)) <= 0)
     {
-        throw runtime_error("Failed to format ECDSA signature components");
+        return makeError<vector<unsigned char>>("Failed to format ECDSA signature components");
     }
 
-    return signature;
+    return makeOk<vector<unsigned char>>(signature);
 }
 
-vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
-                                              Key *key,
-                                              span<unsigned char const> const &data) const
+Result<vector<unsigned char>> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
+                                                      Key *key,
+                                                      span<unsigned char const> const &data) const
 {
     (void)algorithm;
 
-    auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+    EVP_PKEY *pkey_raw = nullptr;
+    try
+    {
+        pkey_raw = importPkeyFromKey(key, true);
+    }
+    catch (exception const &ex)
+    {
+        return makeError<vector<unsigned char>>(ex.what());
+    }
+    auto pkey = makeOpenSSLGuard(pkey_raw,
                                  [](EVP_PKEY *imported)
                                  {
                                      EVP_PKEY_free(imported);
@@ -2587,350 +2711,411 @@ vector<unsigned char> OpenSSLBackEnd::signOkp(SignatureAlgorithm algorithm,
                                    });
     if (md_ctx == nullptr)
     {
-        throw runtime_error("Failed to create digest context: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to create digest context: " +
+                                                getOpenSSLErrorString());
     }
 
     if (EVP_DigestSignInit(md_ctx.get(), nullptr, nullptr, nullptr, pkey.get()) != 1)
     {
-        throw runtime_error("Failed to initialize OKP signing: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to initialize OKP signing: " +
+                                                getOpenSSLErrorString());
     }
 
     size_t signature_size = 0;
     if (EVP_DigestSign(md_ctx.get(), nullptr, &signature_size, data.data(), data.size()) != 1)
     {
-        throw runtime_error("Failed to query OKP signature size: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("Failed to query OKP signature size: " +
+                                                getOpenSSLErrorString());
     }
 
     vector<unsigned char> signature(signature_size);
     if (EVP_DigestSign(md_ctx.get(), signature.data(), &signature_size, data.data(), data.size()) !=
         1)
     {
-        throw runtime_error("OKP signing failed: " + getOpenSSLErrorString());
+        return makeError<vector<unsigned char>>("OKP signing failed: " + getOpenSSLErrorString());
     }
 
     signature.resize(signature_size);
-    return signature;
+    return makeOk<vector<unsigned char>>(signature);
 }
 
-vector<unsigned char> OpenSSLBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,
-                                                  Key *key,
-                                                  vector<unsigned char> const &cek,
-                                                  optional<vector<unsigned char>> const &iv,
-                                                  optional<vector<unsigned char>> const &tag,
-                                                  Key *ephemeral_key,
-                                                  ContentEncryptionAlgorithm content_alg) const
+Result<vector<unsigned char>>
+OpenSSLBackEnd::encryptKey_(KeyEncryptionAlgorithm algorithm,
+                            Key *key,
+                            vector<unsigned char> const &cek,
+                            optional<vector<unsigned char>> const &iv,
+                            optional<vector<unsigned char>> const &tag,
+                            Key *ephemeral_key,
+                            ContentEncryptionAlgorithm content_alg) const
 {
     (void)iv;
     (void)tag;
-
-    switch (algorithm)
+    try
     {
-        case KeyEncryptionAlgorithm::dir:
-            return cek;
-        case KeyEncryptionAlgorithm::rsa1_5:
+        switch (algorithm)
         {
-            auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
-                                         [](EVP_PKEY *imported)
-                                         {
-                                             EVP_PKEY_free(imported);
-                                         });
-            return rsaEncrypt(pkey.get(), cek, RSA_PKCS1_PADDING);
-        }
-        case KeyEncryptionAlgorithm::rsa_oaep:
-        {
-            auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
-                                         [](EVP_PKEY *imported)
-                                         {
-                                             EVP_PKEY_free(imported);
-                                         });
-            return rsaEncrypt(pkey.get(), cek, RSA_PKCS1_OAEP_PADDING, EVP_sha1());
-        }
-        case KeyEncryptionAlgorithm::rsa_oaep_256:
-        {
-            auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
-                                         [](EVP_PKEY *imported)
-                                         {
-                                             EVP_PKEY_free(imported);
-                                         });
-            return rsaEncrypt(pkey.get(), cek, RSA_PKCS1_OAEP_PADDING, EVP_sha256());
-        }
-        case KeyEncryptionAlgorithm::a128kw:
-        case KeyEncryptionAlgorithm::a192kw:
-        case KeyEncryptionAlgorithm::a256kw:
-            return aesKeyWrap(getOctKeyBytes(key), cek);
-        case KeyEncryptionAlgorithm::ecdh_es:
-        {
-            auto priv_pkey = makeOpenSSLGuard(importPkeyFromKey(ephemeral_key, true),
-                                              [](EVP_PKEY *p)
-                                              {
-                                                  EVP_PKEY_free(p);
-                                              });
-            auto pub_pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
-                                             [](EVP_PKEY *p)
+            case KeyEncryptionAlgorithm::dir:
+                return makeOk<vector<unsigned char>>(cek);
+            case KeyEncryptionAlgorithm::rsa1_5:
+            {
+                auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+                                             [](EVP_PKEY *imported)
                                              {
-                                                 EVP_PKEY_free(p);
+                                                 EVP_PKEY_free(imported);
                                              });
+                return makeOk<vector<unsigned char>>(
+                    rsaEncrypt(pkey.get(), cek, RSA_PKCS1_PADDING));
+            }
+            case KeyEncryptionAlgorithm::rsa_oaep:
+            {
+                auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+                                             [](EVP_PKEY *imported)
+                                             {
+                                                 EVP_PKEY_free(imported);
+                                             });
+                return makeOk<vector<unsigned char>>(
+                    rsaEncrypt(pkey.get(), cek, RSA_PKCS1_OAEP_PADDING, EVP_sha1()));
+            }
+            case KeyEncryptionAlgorithm::rsa_oaep_256:
+            {
+                auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+                                             [](EVP_PKEY *imported)
+                                             {
+                                                 EVP_PKEY_free(imported);
+                                             });
+                return makeOk<vector<unsigned char>>(
+                    rsaEncrypt(pkey.get(), cek, RSA_PKCS1_OAEP_PADDING, EVP_sha256()));
+            }
+            case KeyEncryptionAlgorithm::a128kw:
+            case KeyEncryptionAlgorithm::a192kw:
+            case KeyEncryptionAlgorithm::a256kw:
+                return makeOk<vector<unsigned char>>(aesKeyWrap(getOctKeyBytes(key), cek));
+            case KeyEncryptionAlgorithm::ecdh_es:
+            {
+                auto priv_pkey = makeOpenSSLGuard(importPkeyFromKey(ephemeral_key, true),
+                                                  [](EVP_PKEY *p)
+                                                  {
+                                                      EVP_PKEY_free(p);
+                                                  });
+                auto pub_pkey = makeOpenSSLGuard(importPkeyFromKey(key, false),
+                                                 [](EVP_PKEY *p)
+                                                 {
+                                                     EVP_PKEY_free(p);
+                                                 });
 
-            auto derive_ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new(priv_pkey.get(), nullptr),
-                                               [](EVP_PKEY_CTX *c)
-                                               {
-                                                   EVP_PKEY_CTX_free(c);
-                                               });
-            if (!derive_ctx)
-                throw runtime_error("EVP_PKEY_CTX_new failed: " + getOpenSSLErrorString());
-            if (EVP_PKEY_derive_init(derive_ctx.get()) <= 0)
-                throw runtime_error("EVP_PKEY_derive_init failed: " + getOpenSSLErrorString());
-            if (EVP_PKEY_derive_set_peer(derive_ctx.get(), pub_pkey.get()) <= 0)
-                throw runtime_error("EVP_PKEY_derive_set_peer failed: " + getOpenSSLErrorString());
+                auto derive_ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new(priv_pkey.get(), nullptr),
+                                                   [](EVP_PKEY_CTX *c)
+                                                   {
+                                                       EVP_PKEY_CTX_free(c);
+                                                   });
+                if (!derive_ctx)
+                    throw runtime_error("EVP_PKEY_CTX_new failed: " + getOpenSSLErrorString());
+                if (EVP_PKEY_derive_init(derive_ctx.get()) <= 0)
+                    throw runtime_error("EVP_PKEY_derive_init failed: " + getOpenSSLErrorString());
+                if (EVP_PKEY_derive_set_peer(derive_ctx.get(), pub_pkey.get()) <= 0)
+                    throw runtime_error("EVP_PKEY_derive_set_peer failed: " +
+                                        getOpenSSLErrorString());
 
-            size_t secret_len = 0;
-            if (EVP_PKEY_derive(derive_ctx.get(), nullptr, &secret_len) <= 0)
-                throw runtime_error("EVP_PKEY_derive (size) failed: " + getOpenSSLErrorString());
-            vector<unsigned char> shared_secret(secret_len);
-            if (EVP_PKEY_derive(derive_ctx.get(), shared_secret.data(), &secret_len) <= 0)
-                throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
-            shared_secret.resize(secret_len);
+                size_t secret_len = 0;
+                if (EVP_PKEY_derive(derive_ctx.get(), nullptr, &secret_len) <= 0)
+                    throw runtime_error("EVP_PKEY_derive (size) failed: " +
+                                        getOpenSSLErrorString());
+                vector<unsigned char> shared_secret(secret_len);
+                if (EVP_PKEY_derive(derive_ctx.get(), shared_secret.data(), &secret_len) <= 0)
+                    throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
+                shared_secret.resize(secret_len);
 
-            return concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
+                auto [kdf_opt, kdf_err] =
+                    concatKDF(shared_secret, cek.size(), JWA::toString(content_alg));
+                if (!kdf_opt)
+                    return makeError<vector<unsigned char>>(kdf_err);
+                return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
+            }
+            case KeyEncryptionAlgorithm::a128gcmkw:
+            case KeyEncryptionAlgorithm::a192gcmkw:
+            case KeyEncryptionAlgorithm::a256gcmkw:
+            {
+                size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
+                                           : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
+                                                                                              : 32;
+                auto kek = getOctKeyBytes(key);
+                if (kek.size() != expected_kek_size)
+                    throw runtime_error("AES-GCM key wrap key size does not match algorithm");
+
+                vector<unsigned char> gcm_iv(12);
+                if (RAND_bytes(gcm_iv.data(), static_cast<int>(gcm_iv.size())) != 1)
+                    throw runtime_error("RAND_bytes failed");
+
+                auto cipher = (kek.size() == 16)   ? EVP_aes_128_gcm()
+                              : (kek.size() == 24) ? EVP_aes_192_gcm()
+                                                   : EVP_aes_256_gcm();
+                auto [wrapped_cek, gcm_tag] = aesGcmEncrypt(cipher, kek, gcm_iv, cek, {});
+
+                vector<unsigned char> result;
+                result.reserve(gcm_iv.size() + wrapped_cek.size() + gcm_tag.size());
+                result.insert(result.end(), gcm_iv.begin(), gcm_iv.end());
+                result.insert(result.end(), wrapped_cek.begin(), wrapped_cek.end());
+                result.insert(result.end(), gcm_tag.begin(), gcm_tag.end());
+                return makeOk<vector<unsigned char>>(std::move(result));
+            }
+            default:
+                throw runtime_error("Unsupported key encryption algorithm");
         }
-        case KeyEncryptionAlgorithm::a128gcmkw:
-        case KeyEncryptionAlgorithm::a192gcmkw:
-        case KeyEncryptionAlgorithm::a256gcmkw:
-        {
-            size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
-                                       : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
-                                                                                          : 32;
-            auto kek = getOctKeyBytes(key);
-            if (kek.size() != expected_kek_size)
-                throw runtime_error("AES-GCM key wrap key size does not match algorithm");
-
-            vector<unsigned char> gcm_iv(12);
-            if (RAND_bytes(gcm_iv.data(), static_cast<int>(gcm_iv.size())) != 1)
-                throw runtime_error("RAND_bytes failed");
-
-            auto cipher = (kek.size() == 16)   ? EVP_aes_128_gcm()
-                          : (kek.size() == 24) ? EVP_aes_192_gcm()
-                                               : EVP_aes_256_gcm();
-            auto [wrapped_cek, gcm_tag] = aesGcmEncrypt(cipher, kek, gcm_iv, cek, {});
-
-            // Return [IV(12)][ciphertext][tag(16)] — jwe.cpp splits these out.
-            vector<unsigned char> result;
-            result.reserve(gcm_iv.size() + wrapped_cek.size() + gcm_tag.size());
-            result.insert(result.end(), gcm_iv.begin(), gcm_iv.end());
-            result.insert(result.end(), wrapped_cek.begin(), wrapped_cek.end());
-            result.insert(result.end(), gcm_tag.begin(), gcm_tag.end());
-            return result;
-        }
-        default:
-            throw runtime_error("Unsupported key encryption algorithm");
+    }
+    catch (exception const &e)
+    {
+        return makeError<vector<unsigned char>>(e.what());
     }
 }
 
-vector<unsigned char> OpenSSLBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
-                                                  Key *key,
-                                                  vector<unsigned char> const &encrypted_cek,
-                                                  optional<vector<unsigned char>> const &iv,
-                                                  optional<vector<unsigned char>> const &tag,
-                                                  Key *ephemeral_key,
-                                                  ContentEncryptionAlgorithm content_alg) const
+Result<vector<unsigned char>>
+OpenSSLBackEnd::decryptKey_(KeyEncryptionAlgorithm algorithm,
+                            Key *key,
+                            vector<unsigned char> const &encrypted_cek,
+                            optional<vector<unsigned char>> const &iv,
+                            optional<vector<unsigned char>> const &tag,
+                            Key *ephemeral_key,
+                            ContentEncryptionAlgorithm content_alg) const
 {
-    switch (algorithm)
+    try
     {
-        case KeyEncryptionAlgorithm::dir:
-            return encrypted_cek;
-        case KeyEncryptionAlgorithm::rsa1_5:
+        switch (algorithm)
         {
-            auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
-                                         [](EVP_PKEY *imported)
-                                         {
-                                             EVP_PKEY_free(imported);
-                                         });
-            return rsaDecrypt(pkey.get(), encrypted_cek, RSA_PKCS1_PADDING);
-        }
-        case KeyEncryptionAlgorithm::rsa_oaep:
-        {
-            auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
-                                         [](EVP_PKEY *imported)
-                                         {
-                                             EVP_PKEY_free(imported);
-                                         });
-            return rsaDecrypt(pkey.get(), encrypted_cek, RSA_PKCS1_OAEP_PADDING, EVP_sha1());
-        }
-        case KeyEncryptionAlgorithm::rsa_oaep_256:
-        {
-            auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
-                                         [](EVP_PKEY *imported)
-                                         {
-                                             EVP_PKEY_free(imported);
-                                         });
-            return rsaDecrypt(pkey.get(), encrypted_cek, RSA_PKCS1_OAEP_PADDING, EVP_sha256());
-        }
-        case KeyEncryptionAlgorithm::a128kw:
-        case KeyEncryptionAlgorithm::a192kw:
-        case KeyEncryptionAlgorithm::a256kw:
-            return aesKeyUnwrap(getOctKeyBytes(key), encrypted_cek);
-        case KeyEncryptionAlgorithm::ecdh_es:
-        {
-            auto priv_pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
-                                              [](EVP_PKEY *p)
-                                              {
-                                                  EVP_PKEY_free(p);
-                                              });
-            auto pub_pkey = makeOpenSSLGuard(importPkeyFromKey(ephemeral_key, false),
-                                             [](EVP_PKEY *p)
+            case KeyEncryptionAlgorithm::dir:
+                return makeOk<vector<unsigned char>>(encrypted_cek);
+            case KeyEncryptionAlgorithm::rsa1_5:
+            {
+                auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+                                             [](EVP_PKEY *imported)
                                              {
-                                                 EVP_PKEY_free(p);
+                                                 EVP_PKEY_free(imported);
                                              });
-
-            auto derive_ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new(priv_pkey.get(), nullptr),
-                                               [](EVP_PKEY_CTX *c)
-                                               {
-                                                   EVP_PKEY_CTX_free(c);
-                                               });
-            if (!derive_ctx)
-                throw runtime_error("EVP_PKEY_CTX_new failed: " + getOpenSSLErrorString());
-            if (EVP_PKEY_derive_init(derive_ctx.get()) <= 0)
-                throw runtime_error("EVP_PKEY_derive_init failed: " + getOpenSSLErrorString());
-            if (EVP_PKEY_derive_set_peer(derive_ctx.get(), pub_pkey.get()) <= 0)
-                throw runtime_error("EVP_PKEY_derive_set_peer failed: " + getOpenSSLErrorString());
-
-            size_t secret_len = 0;
-            if (EVP_PKEY_derive(derive_ctx.get(), nullptr, &secret_len) <= 0)
-                throw runtime_error("EVP_PKEY_derive (size) failed: " + getOpenSSLErrorString());
-            vector<unsigned char> shared_secret(secret_len);
-            if (EVP_PKEY_derive(derive_ctx.get(), shared_secret.data(), &secret_len) <= 0)
-                throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
-            shared_secret.resize(secret_len);
-
-            // Derive the CEK length from content_alg
-            size_t derived_key_len = 0;
-            switch (content_alg)
-            {
-                case ContentEncryptionAlgorithm::a128gcm:
-                    derived_key_len = 16;
-                    break;
-                case ContentEncryptionAlgorithm::a128cbc_hs256:
-                    derived_key_len = 32;
-                    break;  // 16 (AES-128) + 16 (HMAC-SHA-256)
-                case ContentEncryptionAlgorithm::a192gcm:
-                    derived_key_len = 24;
-                    break;
-                case ContentEncryptionAlgorithm::a192cbc_hs384:
-                    derived_key_len = 48;
-                    break;  // 24 (AES-192) + 24 (HMAC-SHA-384)
-                case ContentEncryptionAlgorithm::a256gcm:
-                    derived_key_len = 32;
-                    break;
-                case ContentEncryptionAlgorithm::a256cbc_hs512:
-                    derived_key_len = 64;
-                    break;  // 32 (AES-256) + 32 (HMAC-SHA-512)
-                default:
-                    throw runtime_error("Unsupported content algorithm for ECDH-ES");
+                return makeOk<vector<unsigned char>>(
+                    rsaDecrypt(pkey.get(), encrypted_cek, RSA_PKCS1_PADDING));
             }
-            return concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
-        }
-        case KeyEncryptionAlgorithm::a128gcmkw:
-        case KeyEncryptionAlgorithm::a192gcmkw:
-        case KeyEncryptionAlgorithm::a256gcmkw:
-        {
-            size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
-                                       : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
-                                                                                          : 32;
-            auto kek = getOctKeyBytes(key);
-            if (kek.size() != expected_kek_size)
-                throw runtime_error("AES-GCM key unwrap key size does not match algorithm");
-
-            auto cipher = (kek.size() == 16)   ? EVP_aes_128_gcm()
-                          : (kek.size() == 24) ? EVP_aes_192_gcm()
-                                               : EVP_aes_256_gcm();
-
-            if (iv.has_value() && tag.has_value())
+            case KeyEncryptionAlgorithm::rsa_oaep:
             {
-                return aesGcmDecrypt(cipher, kek, *iv, encrypted_cek, {}, *tag);
+                auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+                                             [](EVP_PKEY *imported)
+                                             {
+                                                 EVP_PKEY_free(imported);
+                                             });
+                return makeOk<vector<unsigned char>>(
+                    rsaDecrypt(pkey.get(), encrypted_cek, RSA_PKCS1_OAEP_PADDING, EVP_sha1()));
             }
+            case KeyEncryptionAlgorithm::rsa_oaep_256:
+            {
+                auto pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+                                             [](EVP_PKEY *imported)
+                                             {
+                                                 EVP_PKEY_free(imported);
+                                             });
+                return makeOk<vector<unsigned char>>(
+                    rsaDecrypt(pkey.get(), encrypted_cek, RSA_PKCS1_OAEP_PADDING, EVP_sha256()));
+            }
+            case KeyEncryptionAlgorithm::a128kw:
+            case KeyEncryptionAlgorithm::a192kw:
+            case KeyEncryptionAlgorithm::a256kw:
+                return makeOk<vector<unsigned char>>(
+                    aesKeyUnwrap(getOctKeyBytes(key), encrypted_cek));
+            case KeyEncryptionAlgorithm::ecdh_es:
+            {
+                auto priv_pkey = makeOpenSSLGuard(importPkeyFromKey(key, true),
+                                                  [](EVP_PKEY *p)
+                                                  {
+                                                      EVP_PKEY_free(p);
+                                                  });
+                auto pub_pkey = makeOpenSSLGuard(importPkeyFromKey(ephemeral_key, false),
+                                                 [](EVP_PKEY *p)
+                                                 {
+                                                     EVP_PKEY_free(p);
+                                                 });
 
-            constexpr size_t kGcmIvSize = 12;
-            constexpr size_t kGcmTagSize = 16;
-            if (encrypted_cek.size() < kGcmIvSize + kGcmTagSize)
-                throw runtime_error("AES-GCM key unwrap: wrapped data too short");
-            vector<unsigned char> gcm_iv(encrypted_cek.begin(), encrypted_cek.begin() + kGcmIvSize);
-            vector<unsigned char> gcm_tag(encrypted_cek.end() - kGcmTagSize, encrypted_cek.end());
-            vector<unsigned char> ciphertext(encrypted_cek.begin() + kGcmIvSize,
-                                             encrypted_cek.end() - kGcmTagSize);
-            return aesGcmDecrypt(cipher, kek, gcm_iv, ciphertext, {}, gcm_tag);
+                auto derive_ctx = makeOpenSSLGuard(EVP_PKEY_CTX_new(priv_pkey.get(), nullptr),
+                                                   [](EVP_PKEY_CTX *c)
+                                                   {
+                                                       EVP_PKEY_CTX_free(c);
+                                                   });
+                if (!derive_ctx)
+                    throw runtime_error("EVP_PKEY_CTX_new failed: " + getOpenSSLErrorString());
+                if (EVP_PKEY_derive_init(derive_ctx.get()) <= 0)
+                    throw runtime_error("EVP_PKEY_derive_init failed: " + getOpenSSLErrorString());
+                if (EVP_PKEY_derive_set_peer(derive_ctx.get(), pub_pkey.get()) <= 0)
+                    throw runtime_error("EVP_PKEY_derive_set_peer failed: " +
+                                        getOpenSSLErrorString());
+
+                size_t secret_len = 0;
+                if (EVP_PKEY_derive(derive_ctx.get(), nullptr, &secret_len) <= 0)
+                    throw runtime_error("EVP_PKEY_derive (size) failed: " +
+                                        getOpenSSLErrorString());
+                vector<unsigned char> shared_secret(secret_len);
+                if (EVP_PKEY_derive(derive_ctx.get(), shared_secret.data(), &secret_len) <= 0)
+                    throw runtime_error("EVP_PKEY_derive failed: " + getOpenSSLErrorString());
+                shared_secret.resize(secret_len);
+
+                size_t derived_key_len = 0;
+                switch (content_alg)
+                {
+                    case ContentEncryptionAlgorithm::a128gcm:
+                        derived_key_len = 16;
+                        break;
+                    case ContentEncryptionAlgorithm::a128cbc_hs256:
+                        derived_key_len = 32;
+                        break;
+                    case ContentEncryptionAlgorithm::a192gcm:
+                        derived_key_len = 24;
+                        break;
+                    case ContentEncryptionAlgorithm::a192cbc_hs384:
+                        derived_key_len = 48;
+                        break;
+                    case ContentEncryptionAlgorithm::a256gcm:
+                        derived_key_len = 32;
+                        break;
+                    case ContentEncryptionAlgorithm::a256cbc_hs512:
+                        derived_key_len = 64;
+                        break;
+                    default:
+                        throw runtime_error("Unsupported content algorithm for ECDH-ES");
+                }
+                auto [kdf_opt, kdf_err] =
+                    concatKDF(shared_secret, derived_key_len, JWA::toString(content_alg));
+                if (!kdf_opt)
+                    return makeError<vector<unsigned char>>(kdf_err);
+                return makeOk<vector<unsigned char>>(std::move(*kdf_opt));
+            }
+            case KeyEncryptionAlgorithm::a128gcmkw:
+            case KeyEncryptionAlgorithm::a192gcmkw:
+            case KeyEncryptionAlgorithm::a256gcmkw:
+            {
+                size_t expected_kek_size = (algorithm == KeyEncryptionAlgorithm::a128gcmkw)   ? 16
+                                           : (algorithm == KeyEncryptionAlgorithm::a192gcmkw) ? 24
+                                                                                              : 32;
+                auto kek = getOctKeyBytes(key);
+                if (kek.size() != expected_kek_size)
+                    throw runtime_error("AES-GCM key unwrap key size does not match algorithm");
+
+                auto cipher = (kek.size() == 16)   ? EVP_aes_128_gcm()
+                              : (kek.size() == 24) ? EVP_aes_192_gcm()
+                                                   : EVP_aes_256_gcm();
+
+                if (iv.has_value() && tag.has_value())
+                {
+                    return makeOk<vector<unsigned char>>(
+                        aesGcmDecrypt(cipher, kek, *iv, encrypted_cek, {}, *tag));
+                }
+
+                constexpr size_t kGcmIvSize = 12;
+                constexpr size_t kGcmTagSize = 16;
+                if (encrypted_cek.size() < kGcmIvSize + kGcmTagSize)
+                    throw runtime_error("AES-GCM key unwrap: wrapped data too short");
+                vector<unsigned char> gcm_iv(encrypted_cek.begin(),
+                                             encrypted_cek.begin() + kGcmIvSize);
+                vector<unsigned char> gcm_tag(encrypted_cek.end() - kGcmTagSize,
+                                              encrypted_cek.end());
+                vector<unsigned char> ciphertext(encrypted_cek.begin() + kGcmIvSize,
+                                                 encrypted_cek.end() - kGcmTagSize);
+                return makeOk<vector<unsigned char>>(
+                    aesGcmDecrypt(cipher, kek, gcm_iv, ciphertext, {}, gcm_tag));
+            }
+            default:
+                throw runtime_error("Unsupported key decryption algorithm");
         }
-        default:
-            throw runtime_error("Unsupported key decryption algorithm");
+    }
+    catch (exception const &e)
+    {
+        return makeError<vector<unsigned char>>(e.what());
     }
 }
 
-pair<vector<unsigned char>, vector<unsigned char>>
+Result<pair<vector<unsigned char>, vector<unsigned char>>>
 OpenSSLBackEnd::encryptContent_(ContentEncryptionAlgorithm algorithm,
                                 vector<unsigned char> const &cek,
                                 vector<unsigned char> const &iv,
                                 vector<unsigned char> const &plaintext,
                                 vector<unsigned char> const &aad) const
 {
-    switch (algorithm)
+    try
     {
-        case ContentEncryptionAlgorithm::a128cbc_hs256:
-            return aesCbcHmacEncrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, plaintext, aad);
-        case ContentEncryptionAlgorithm::a192cbc_hs384:
-            return aesCbcHmacEncrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, plaintext, aad);
-        case ContentEncryptionAlgorithm::a256cbc_hs512:
-            return aesCbcHmacEncrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, plaintext, aad);
-        case ContentEncryptionAlgorithm::a128gcm:
-            return aesGcmEncrypt(EVP_aes_128_gcm(), cek, iv, plaintext, aad);
-        case ContentEncryptionAlgorithm::a192gcm:
-            return aesGcmEncrypt(EVP_aes_192_gcm(), cek, iv, plaintext, aad);
-        case ContentEncryptionAlgorithm::a256gcm:
-            return aesGcmEncrypt(EVP_aes_256_gcm(), cek, iv, plaintext, aad);
-        default:
-            throw runtime_error("Unsupported content encryption algorithm");
+        using R = pair<vector<unsigned char>, vector<unsigned char>>;
+        switch (algorithm)
+        {
+            case ContentEncryptionAlgorithm::a128cbc_hs256:
+                return makeOk<R>(
+                    aesCbcHmacEncrypt(EVP_aes_128_cbc(), EVP_sha256(), cek, iv, plaintext, aad));
+            case ContentEncryptionAlgorithm::a192cbc_hs384:
+                return makeOk<R>(
+                    aesCbcHmacEncrypt(EVP_aes_192_cbc(), EVP_sha384(), cek, iv, plaintext, aad));
+            case ContentEncryptionAlgorithm::a256cbc_hs512:
+                return makeOk<R>(
+                    aesCbcHmacEncrypt(EVP_aes_256_cbc(), EVP_sha512(), cek, iv, plaintext, aad));
+            case ContentEncryptionAlgorithm::a128gcm:
+                return makeOk<R>(aesGcmEncrypt(EVP_aes_128_gcm(), cek, iv, plaintext, aad));
+            case ContentEncryptionAlgorithm::a192gcm:
+                return makeOk<R>(aesGcmEncrypt(EVP_aes_192_gcm(), cek, iv, plaintext, aad));
+            case ContentEncryptionAlgorithm::a256gcm:
+                return makeOk<R>(aesGcmEncrypt(EVP_aes_256_gcm(), cek, iv, plaintext, aad));
+            default:
+                throw runtime_error("Unsupported content encryption algorithm");
+        }
+    }
+    catch (exception const &e)
+    {
+        return makeError<pair<vector<unsigned char>, vector<unsigned char>>>(e.what());
     }
 }
 
-vector<unsigned char> OpenSSLBackEnd::decryptContent_(ContentEncryptionAlgorithm algorithm,
-                                                      vector<unsigned char> const &cek,
-                                                      vector<unsigned char> const &iv,
-                                                      vector<unsigned char> const &ciphertext,
-                                                      vector<unsigned char> const &aad,
-                                                      vector<unsigned char> const &tag) const
+Result<vector<unsigned char>>
+OpenSSLBackEnd::decryptContent_(ContentEncryptionAlgorithm algorithm,
+                                vector<unsigned char> const &cek,
+                                vector<unsigned char> const &iv,
+                                vector<unsigned char> const &ciphertext,
+                                vector<unsigned char> const &aad,
+                                vector<unsigned char> const &tag) const
 {
-    switch (algorithm)
+    try
     {
-        case ContentEncryptionAlgorithm::a128cbc_hs256:
-            return aesCbcHmacDecrypt(EVP_aes_128_cbc(),
-                                     EVP_sha256(),
-                                     cek,
-                                     iv,
-                                     ciphertext,
-                                     aad,
-                                     tag);
-        case ContentEncryptionAlgorithm::a192cbc_hs384:
-            return aesCbcHmacDecrypt(EVP_aes_192_cbc(),
-                                     EVP_sha384(),
-                                     cek,
-                                     iv,
-                                     ciphertext,
-                                     aad,
-                                     tag);
-        case ContentEncryptionAlgorithm::a256cbc_hs512:
-            return aesCbcHmacDecrypt(EVP_aes_256_cbc(),
-                                     EVP_sha512(),
-                                     cek,
-                                     iv,
-                                     ciphertext,
-                                     aad,
-                                     tag);
-        case ContentEncryptionAlgorithm::a128gcm:
-            return aesGcmDecrypt(EVP_aes_128_gcm(), cek, iv, ciphertext, aad, tag);
-        case ContentEncryptionAlgorithm::a192gcm:
-            return aesGcmDecrypt(EVP_aes_192_gcm(), cek, iv, ciphertext, aad, tag);
-        case ContentEncryptionAlgorithm::a256gcm:
-            return aesGcmDecrypt(EVP_aes_256_gcm(), cek, iv, ciphertext, aad, tag);
-        default:
-            throw runtime_error("Unsupported content decryption algorithm");
+        switch (algorithm)
+        {
+            case ContentEncryptionAlgorithm::a128cbc_hs256:
+                return makeOk<vector<unsigned char>>(aesCbcHmacDecrypt(EVP_aes_128_cbc(),
+                                                                       EVP_sha256(),
+                                                                       cek,
+                                                                       iv,
+                                                                       ciphertext,
+                                                                       aad,
+                                                                       tag));
+            case ContentEncryptionAlgorithm::a192cbc_hs384:
+                return makeOk<vector<unsigned char>>(aesCbcHmacDecrypt(EVP_aes_192_cbc(),
+                                                                       EVP_sha384(),
+                                                                       cek,
+                                                                       iv,
+                                                                       ciphertext,
+                                                                       aad,
+                                                                       tag));
+            case ContentEncryptionAlgorithm::a256cbc_hs512:
+                return makeOk<vector<unsigned char>>(aesCbcHmacDecrypt(EVP_aes_256_cbc(),
+                                                                       EVP_sha512(),
+                                                                       cek,
+                                                                       iv,
+                                                                       ciphertext,
+                                                                       aad,
+                                                                       tag));
+            case ContentEncryptionAlgorithm::a128gcm:
+                return makeOk<vector<unsigned char>>(
+                    aesGcmDecrypt(EVP_aes_128_gcm(), cek, iv, ciphertext, aad, tag));
+            case ContentEncryptionAlgorithm::a192gcm:
+                return makeOk<vector<unsigned char>>(
+                    aesGcmDecrypt(EVP_aes_192_gcm(), cek, iv, ciphertext, aad, tag));
+            case ContentEncryptionAlgorithm::a256gcm:
+                return makeOk<vector<unsigned char>>(
+                    aesGcmDecrypt(EVP_aes_256_gcm(), cek, iv, ciphertext, aad, tag));
+            default:
+                throw runtime_error("Unsupported content decryption algorithm");
+        }
+    }
+    catch (exception const &e)
+    {
+        return makeError<vector<unsigned char>>(e.what());
     }
 }
 

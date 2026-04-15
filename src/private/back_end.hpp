@@ -9,6 +9,7 @@
 
 #include "jwa.hpp"
 #include "jwk.hpp"
+#include "result.hpp"
 
 namespace Vlinder {
 namespace JOSE {
@@ -159,56 +160,60 @@ class BackEnd
 public:
     virtual ~BackEnd() = default;
 
-    std::vector<unsigned char> concatKDF(std::vector<unsigned char> const &shared_secret,
-                                         size_t key_data_len,
-                                         std::string const &algorithm,
-                                         std::vector<unsigned char> const &apu = {},
-                                         std::vector<unsigned char> const &apv = {}) const;
+    Result<std::vector<unsigned char>> concatKDF(std::vector<unsigned char> const &shared_secret,
+                                                 size_t key_data_len,
+                                                 std::string const &algorithm,
+                                                 std::vector<unsigned char> const &apu = {},
+                                                 std::vector<unsigned char> const &apv = {}) const;
 
-    virtual std::unique_ptr<Key> generateRSA(unsigned int bits) const = 0;
-    virtual std::unique_ptr<Key> generateRSA(std::vector<unsigned char> const &n_bytes,
-                                             std::vector<unsigned char> const &e_bytes,
-                                             std::vector<unsigned char> const &d_bytes,
-                                             std::vector<unsigned char> const &p_bytes,
-                                             std::vector<unsigned char> const &q_bytes,
-                                             std::vector<unsigned char> const &dp_bytes,
-                                             std::vector<unsigned char> const &dq_bytes,
-                                             std::vector<unsigned char> const &qi_bytes) const = 0;
-    virtual std::unique_ptr<Key> generateEC(std::string const &curve) const = 0;
-    virtual std::unique_ptr<Key> generateEC(std::string const &curve,
-                                            std::vector<unsigned char> const &x_bytes,
-                                            std::vector<unsigned char> const &y_bytes,
-                                            std::vector<unsigned char> const &d_bytes) const = 0;
-    virtual std::unique_ptr<Key> generateOct(unsigned int bits) const = 0;
-    virtual std::unique_ptr<Key> generateOct(unsigned int bits,
-                                             std::vector<unsigned char> const &k_bytes) const = 0;
-    virtual std::unique_ptr<Key> generateOkp(Use use, unsigned int bits) const = 0;
-    virtual std::unique_ptr<Key> generateOkp(std::string const &curve,
-                                             std::vector<unsigned char> const &x_bytes,
-                                             std::vector<unsigned char> const &d_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateRSA(unsigned int bits) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateRSA(std::vector<unsigned char> const &n_bytes,
+                std::vector<unsigned char> const &e_bytes,
+                std::vector<unsigned char> const &d_bytes,
+                std::vector<unsigned char> const &p_bytes,
+                std::vector<unsigned char> const &q_bytes,
+                std::vector<unsigned char> const &dp_bytes,
+                std::vector<unsigned char> const &dq_bytes,
+                std::vector<unsigned char> const &qi_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateEC(std::string const &curve) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateEC(std::string const &curve,
+               std::vector<unsigned char> const &x_bytes,
+               std::vector<unsigned char> const &y_bytes,
+               std::vector<unsigned char> const &d_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateOct(unsigned int bits) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateOct(unsigned int bits, std::vector<unsigned char> const &k_bytes) const = 0;
+    virtual Result<std::unique_ptr<Key>> generateOkp(Use use, unsigned int bits) const = 0;
+    virtual Result<std::unique_ptr<Key>>
+    generateOkp(std::string const &curve,
+                std::vector<unsigned char> const &x_bytes,
+                std::vector<unsigned char> const &d_bytes) const = 0;
 
-    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
-                                    JWK const &key,
-                                    std::vector<unsigned char> const &data) const;
+    Result<std::vector<unsigned char>> sign(SignatureAlgorithm algorithm,
+                                            JWK const &key,
+                                            std::vector<unsigned char> const &data) const;
 
-    std::vector<unsigned char> sign(SignatureAlgorithm algorithm,
-                                    JWK const &key,
-                                    std::span<unsigned char const> const &data) const;
+    Result<std::vector<unsigned char>> sign(SignatureAlgorithm algorithm,
+                                            JWK const &key,
+                                            std::span<unsigned char const> const &data) const;
 
-    bool verify(SignatureAlgorithm algorithm,
-                JWK const &key,
-                std::vector<unsigned char> const &data,
-                std::vector<unsigned char> const &signature) const;
+    Result<bool> verify(SignatureAlgorithm algorithm,
+                        JWK const &key,
+                        std::vector<unsigned char> const &data,
+                        std::vector<unsigned char> const &signature) const;
 
-    std::vector<unsigned char> encryptKey(KeyEncryptionAlgorithm algorithm,
-                                          const JWK &key,
-                                          std::vector<unsigned char> const &cek,
-                                          std::optional<std::vector<unsigned char>> const &iv,
-                                          std::optional<std::vector<unsigned char>> const &tag,
-                                          std::optional<JWK> const &ephemeral_key,
-                                          ContentEncryptionAlgorithm content_alg) const;
+    Result<std::vector<unsigned char>>
+    encryptKey(KeyEncryptionAlgorithm algorithm,
+               JWK const &key,
+               std::vector<unsigned char> const &cek,
+               std::optional<std::vector<unsigned char>> const &iv,
+               std::optional<std::vector<unsigned char>> const &tag,
+               std::optional<JWK> const &ephemeral_key,
+               ContentEncryptionAlgorithm content_alg) const;
 
-    std::vector<unsigned char>
+    Result<std::vector<unsigned char>>
     decryptKey(KeyEncryptionAlgorithm algorithm,
                JWK const &key,
                std::vector<unsigned char> const &encrypted_cek,
@@ -217,27 +222,27 @@ public:
                std::optional<JWK> const &ephemeral_key = {},
                ContentEncryptionAlgorithm content_alg = ContentEncryptionAlgorithm::a128gcm) const;
 
-    std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    Result<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     encryptContent(ContentEncryptionAlgorithm algorithm,
                    std::vector<unsigned char> const &cek,
                    std::vector<unsigned char> const &iv,
                    std::vector<unsigned char> const &plaintext,
                    std::vector<unsigned char> const &aad) const;
 
-    std::vector<unsigned char> decryptContent(ContentEncryptionAlgorithm algorithm,
-                                              std::vector<unsigned char> const &cek,
-                                              std::vector<unsigned char> const &iv,
-                                              std::vector<unsigned char> const &ciphertext,
-                                              std::vector<unsigned char> const &aad,
-                                              std::vector<unsigned char> const &tag) const;
+    Result<std::vector<unsigned char>> decryptContent(ContentEncryptionAlgorithm algorithm,
+                                                      std::vector<unsigned char> const &cek,
+                                                      std::vector<unsigned char> const &iv,
+                                                      std::vector<unsigned char> const &ciphertext,
+                                                      std::vector<unsigned char> const &aad,
+                                                      std::vector<unsigned char> const &tag) const;
 
-    std::vector<unsigned char> hash(HashAlgorithm algorithm,
-                                    std::vector<unsigned char> const &data) const
+    Result<std::vector<unsigned char>> hash(HashAlgorithm algorithm,
+                                            std::vector<unsigned char> const &data) const
     {
         return hash(algorithm, std::span<unsigned char const>{data});
     }
-    virtual std::vector<unsigned char> hash(HashAlgorithm algorithm,
-                                            std::span<unsigned char const> const &data) const = 0;
+    virtual Result<std::vector<unsigned char>>
+    hash(HashAlgorithm algorithm, std::span<unsigned char const> const &data) const = 0;
 
     /// Returns a backend-specific error string (stub for non-OpenSSL backends)
     virtual std::string getErrorString() const
@@ -250,19 +255,20 @@ public:
     /// Base64 encode (standard alphabet, no line breaks, with padding)
     std::string base64Encode(std::span<unsigned char const> const &data) const;
     /// Base64 decode (standard or URL-safe alphabet, optional padding)
-    std::vector<unsigned char> base64Decode(std::string const &encoded) const;
+    Result<std::vector<unsigned char>> base64Decode(std::string const &encoded) const;
 
     ///// Get hash algorithm for signature
     // virtual void const *getHashAlgorithm(SignatureAlgorithm signature_algorithm) const = 0;
 protected:
-    virtual std::vector<unsigned char> sign_(SignatureAlgorithm algorithm,
-                                             Key *key,
-                                             std::span<unsigned char const> const &data) const = 0;
-    virtual bool verify_(SignatureAlgorithm algorithm,
-                         Key *key,
-                         std::vector<unsigned char> const &data,
-                         std::vector<unsigned char> const &signature) const = 0;
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
+    sign_(SignatureAlgorithm algorithm,
+          Key *key,
+          std::span<unsigned char const> const &data) const = 0;
+    virtual Result<bool> verify_(SignatureAlgorithm algorithm,
+                                 Key *key,
+                                 std::vector<unsigned char> const &data,
+                                 std::vector<unsigned char> const &signature) const = 0;
+    virtual Result<std::vector<unsigned char>>
     encryptKey_(KeyEncryptionAlgorithm algorithm,
                 Key *key,
                 std::vector<unsigned char> const &cek,
@@ -270,7 +276,7 @@ protected:
                 std::optional<std::vector<unsigned char>> const &tag,
                 Key *ephemeral_key,
                 ContentEncryptionAlgorithm content_alg) const = 0;
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
     decryptKey_(KeyEncryptionAlgorithm algorithm,
                 Key *key,
                 std::vector<unsigned char> const &encrypted_cek,
@@ -278,13 +284,13 @@ protected:
                 std::optional<std::vector<unsigned char>> const &tag,
                 Key *ephemeral_key,
                 ContentEncryptionAlgorithm content_alg) const = 0;
-    virtual std::pair<std::vector<unsigned char>, std::vector<unsigned char>>
+    virtual Result<std::pair<std::vector<unsigned char>, std::vector<unsigned char>>>
     encryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,
                     std::vector<unsigned char> const &plaintext,
                     std::vector<unsigned char> const &aad) const = 0;
-    virtual std::vector<unsigned char>
+    virtual Result<std::vector<unsigned char>>
     decryptContent_(ContentEncryptionAlgorithm algorithm,
                     std::vector<unsigned char> const &cek,
                     std::vector<unsigned char> const &iv,

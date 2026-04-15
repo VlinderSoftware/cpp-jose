@@ -115,6 +115,8 @@ public:
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
+
+    static std::pair<std::optional<JWE>, std::string> fromJSON_(std::string const &jwe);
 };
 
 }  // namespace JOSE

@@ -7,9 +7,12 @@
 #include "base64url.hpp"
 #include "private/back_end_factory.hpp"
 #include "private/json_utils.hpp"
+#include "private/result.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
+using Vlinder::JOSE::Private::makeError;
+using Vlinder::JOSE::Private::makeOk;
 
 namespace Vlinder {
 namespace JOSE {
@@ -165,79 +168,115 @@ string JWS::toJSON(bool flattened) const
     return j.dump();
 }
 
-JWS JWS::fromCompact(string const &compact)
+pair<optional<JWS>, string> JWS::fromCompact_(string const &compact)
 {
     auto const dot1 = compact.find('.');
     if (dot1 == string::npos)
-    {
-        throw runtime_error("Invalid JWS compact serialization: missing first '.'");
-    }
+        return makeError<JWS>("Invalid JWS compact serialization: missing first '.'");
     auto const dot2 = compact.find('.', dot1 + 1);
     if (dot2 == string::npos)
-    {
-        throw runtime_error("Invalid JWS compact serialization: missing second '.'");
-    }
+        return makeError<JWS>("Invalid JWS compact serialization: missing second '.'");
 
     string const header_b64 = compact.substr(0, dot1);
     string const payload_b64 = compact.substr(dot1 + 1, dot2 - dot1 - 1);
     string const sig_b64 = compact.substr(dot2 + 1);
 
-    json header = json::parse(Base64URL::decodeToString(header_b64));
+    auto header_str_opt = Base64URL::decodeToString(header_b64, nothrow);
+    if (!header_str_opt)
+        return makeError<JWS>("JWS compact: failed to base64url-decode header");
+
+    json header = json::parse(*header_str_opt, nullptr, false);
+    if (header.is_discarded())
+        return makeError<JWS>("JWS compact: header is not valid JSON");
+    if (!header.is_object())
+        return makeError<JWS>("JWS compact: header is not a JSON object");
 
     string alg_str = header.value("alg", "");
-    JWA::SignatureAlgorithm alg = JWA::signatureAlgorithmFromString(alg_str);
-    string kid = header.value("kid", "");
-    string typ = header.value("typ", "");
+    auto alg_opt = JWA::signatureAlgorithmFromString(alg_str, nothrow);
+    if (!alg_opt)
+        return makeError<JWS>("JWS compact: unknown signature algorithm: " + alg_str);
 
+    string const kid = header.value("kid", "");
+    string const typ = header.value("typ", "");
     map<string, string> header_params;
     for (auto const &[k, v] : header.items())
     {
         if (k != "alg" && k != "kid" && k != "typ" && v.is_string())
-        {
             header_params[k] = v.get<string>();
-        }
     }
 
-    auto payload_bytes = Base64URL::decode(payload_b64);
-    auto signature = Base64URL::decode(sig_b64);
+    auto payload_bytes_opt = Base64URL::decode(payload_b64, nothrow);
+    if (!payload_bytes_opt)
+        return makeError<JWS>("JWS compact: failed to base64url-decode payload");
 
-    Impl impl(payload_bytes, alg, kid, typ, header_params, header_b64, payload_b64, signature);
-    return JWS(make_unique<Impl>(std::move(impl)));
+    auto sig_opt = Base64URL::decode(sig_b64, nothrow);
+    if (!sig_opt)
+        return makeError<JWS>("JWS compact: failed to base64url-decode signature");
+
+    Impl impl(*payload_bytes_opt,
+              *alg_opt,
+              kid,
+              typ,
+              header_params,
+              header_b64,
+              payload_b64,
+              *sig_opt);
+    return makeOk<JWS>(JWS(make_unique<Impl>(std::move(impl))));
+}
+
+JWS JWS::fromCompact(string const &compact)
+{
+    auto [jws_opt, jws_err] = fromCompact_(compact);
+    if (!jws_opt)
+        throw runtime_error(jws_err);  // throwing wrapper
+    return std::move(*jws_opt);
 }
 
 optional<JWS> JWS::fromCompact(string const &compact, nothrow_t const &) noexcept
 {
-    try
-    {
-        return fromCompact(compact);
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return fromCompact_(compact).first;
 }
 
-JWS JWS::fromJSON(string const &json_str)
+pair<optional<JWS>, string> JWS::fromJSON_(string const &json_str)
 {
-    json const j = json::parse(json_str);
+    json const j = json::parse(json_str, nullptr, false);
+    if (j.is_discarded())
+        return makeError<JWS>("JWS JSON: input is not valid JSON");
+    if (!j.is_object())
+        return makeError<JWS>("JWS JSON: top-level value is not a JSON object");
 
-    auto const parse_sig_entry = [](string const &hdr_b64,
-                                    string const &sig_b64) -> Impl::SignatureEntry
+    auto const parse_sig_entry_ =
+        [](string const &hdr_b64,
+           string const &raw_sig_b64) -> pair<optional<Impl::SignatureEntry>, string>
     {
-        json header = json::parse(Base64URL::decodeToString(hdr_b64));
+        auto header_str_opt = Base64URL::decodeToString(hdr_b64, nothrow);
+        if (!header_str_opt)
+            return makeError<Impl::SignatureEntry>(
+                "JWS JSON: failed to base64url-decode protected header");
+        json header = json::parse(*header_str_opt, nullptr, false);
+        if (header.is_discarded())
+            return makeError<Impl::SignatureEntry>("JWS JSON: protected header is not valid JSON");
+        if (!header.is_object())
+            return makeError<Impl::SignatureEntry>(
+                "JWS JSON: protected header is not a JSON object");
         string const alg_str = header.value("alg", "");
-        JWA::SignatureAlgorithm alg = JWA::signatureAlgorithmFromString(alg_str);
+        auto alg_opt = JWA::signatureAlgorithmFromString(alg_str, nothrow);
+        if (!alg_opt)
+            return makeError<Impl::SignatureEntry>("JWS JSON: unknown algorithm: " + alg_str);
         string const kid = header.value("kid", "");
         string const typ = header.value("typ", "");
         map<string, string> header_params;
         for (auto const &[k, v] : header.items())
         {
             if (k != "alg" && k != "kid" && k != "typ" && v.is_string())
-            {
                 header_params[k] = v.get<string>();
-            }
         }
-        return {alg, kid, typ, header_params, hdr_b64, Base64URL::decode(sig_b64)};
+        auto sig_bytes_opt = Base64URL::decode(raw_sig_b64, nothrow);
+        if (!sig_bytes_opt)
+            return makeError<Impl::SignatureEntry>(
+                "JWS JSON: failed to base64url-decode signature");
+        return makeOk<Impl::SignatureEntry>(
+            Impl::SignatureEntry{*alg_opt, kid, typ, header_params, hdr_b64, *sig_bytes_opt});
     };
 
     string payload_b64;
@@ -245,41 +284,67 @@ JWS JWS::fromJSON(string const &json_str)
 
     if (j.contains("signatures"))
     {
-        // General JWS JSON serialization (RFC 7515 §7.2)
+        if (!j.contains("payload") || !j.at("payload").is_string())
+            return makeError<JWS>("JWS JSON: missing 'payload' field");
         payload_b64 = j.at("payload").get<string>();
         auto const &sigs = j.at("signatures");
+        if (!sigs.is_array())
+            return makeError<JWS>("JWS JSON: 'signatures' field is not an array");
         if (sigs.empty())
-        {
-            throw runtime_error("JWS JSON has no signatures");
-        }
+            return makeError<JWS>("JWS JSON: 'signatures' array is empty");
         for (auto const &entry : sigs)
         {
-            entries.push_back(parse_sig_entry(entry.at("protected").get<string>(),
-                                              entry.at("signature").get<string>()));
+            if (!entry.is_object())
+                return makeError<JWS>("JWS JSON: signature entry is not a JSON object");
+            if (!entry.contains("protected") || !entry.contains("signature"))
+                return makeError<JWS>(
+                    "JWS JSON: signature entry missing 'protected' or 'signature'");
+            if (!entry["protected"].is_string() || !entry["signature"].is_string())
+                return makeError<JWS>(
+                    "JWS JSON: 'protected' and 'signature' in signature entry must be strings");
+            auto [sig_opt, sig_err] = parse_sig_entry_(entry.at("protected").get<string>(),
+                                                       entry.at("signature").get<string>());
+            if (!sig_opt)
+                return makeError<JWS>(sig_err);
+            entries.push_back(std::move(*sig_opt));
         }
+    }
+    else if (j.contains("protected") && j.contains("signature"))
+    {
+        if (!j.contains("payload") || !j.at("payload").is_string())
+            return makeError<JWS>("JWS JSON: missing 'payload' field");
+        payload_b64 = j.at("payload").get<string>();
+        if (!j["protected"].is_string() || !j["signature"].is_string())
+            return makeError<JWS>("JWS JSON: 'protected' and 'signature' fields must be strings");
+        auto [sig_opt, sig_err] =
+            parse_sig_entry_(j.at("protected").get<string>(), j.at("signature").get<string>());
+        if (!sig_opt)
+            return makeError<JWS>(sig_err);
+        entries.push_back(std::move(*sig_opt));
     }
     else
     {
-        // Flattened JWS JSON serialization (RFC 7515 §7.2.2)
-        payload_b64 = j.at("payload").get<string>();
-        entries.push_back(
-            parse_sig_entry(j.at("protected").get<string>(), j.at("signature").get<string>()));
+        return makeError<JWS>("JWS JSON: not a valid JWS JSON object");
     }
 
-    auto payload_bytes = Base64URL::decode(payload_b64);
-    return JWS(make_unique<Impl>(payload_bytes, payload_b64, std::move(entries)));
+    auto payload_bytes_opt = Base64URL::decode(payload_b64, nothrow);
+    if (!payload_bytes_opt)
+        return makeError<JWS>("JWS JSON: failed to base64url-decode payload");
+
+    return makeOk<JWS>(JWS(make_unique<Impl>(*payload_bytes_opt, payload_b64, std::move(entries))));
+}
+
+JWS JWS::fromJSON(string const &json_str)
+{
+    auto [jws_opt, jws_err] = fromJSON_(json_str);
+    if (!jws_opt)
+        throw runtime_error(jws_err);  // throwing wrapper
+    return std::move(*jws_opt);
 }
 
 optional<JWS> JWS::fromJSON(string const &json_str, nothrow_t const &) noexcept
 {
-    try
-    {
-        return fromJSON(json_str);
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    return fromJSON_(json_str).first;
 }
 
 optional<JWS> JWS::tryLoad(string const &input) noexcept
@@ -350,10 +415,12 @@ bool verify(JWS const &jws, JWK const &key)
         string const signing_input = sig.header_b64_ + "." + impl.payload_b64_;
         vector<unsigned char> const signing_input_bytes(signing_input.begin(), signing_input.end());
         // Any compatible signature that fails to verify causes the whole check to fail.
-        if (!getBackEnd().verify(sig.algorithm_, key, signing_input_bytes, sig.signature_))
-        {
+        auto [result_opt, result_err] =
+            getBackEnd().verify(sig.algorithm_, key, signing_input_bytes, sig.signature_);
+        if (!result_opt)
+            throw runtime_error(result_err);  // throwing wrapper — system error
+        if (!*result_opt)
             return false;
-        }
     }
     // If no signature was applicable to this key, verification fails.
     return found_applicable;
@@ -473,7 +540,10 @@ JWS sign(JWK const &key,
         auto const signing_span =
             span<unsigned char const>(reinterpret_cast<unsigned char const *>(signing_input.data()),
                                       signing_input.size());
-        signature = getBackEnd().sign(alg, key, signing_span);
+        auto [sig_opt, sig_err] = getBackEnd().sign(alg, key, signing_span);
+        if (!sig_opt)
+            throw runtime_error(sig_err);  // throwing wrapper
+        signature = std::move(*sig_opt);
     }
     // else: none algorithm → empty signature
 

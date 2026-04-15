@@ -9,9 +9,12 @@
 #include "jwa.hpp"
 #include "jwk.hpp"
 #include "private/json_utils.hpp"
+#include "private/result.hpp"
 
 using namespace std;
 using json = Vlinder::JOSE::Private::json;
+using Vlinder::JOSE::Private::makeError;
+using Vlinder::JOSE::Private::makeOk;
 namespace Vlinder {
 namespace JOSE {
 
@@ -410,69 +413,85 @@ string JWE::decrypt(string const &jwe, const JWK &key)
     return string(plaintext.begin(), plaintext.end());
 }
 
-JWE JWE::fromJSON(string const &jwe)
+pair<optional<JWE>, string> JWE::fromJSON_(string const &jwe_str)
 {
-    // Split into five parts
     vector<string> parts;
     size_t start = 0;
     size_t pos = 0;
-
-    while ((pos = jwe.find('.', start)) != string::npos)
+    while ((pos = jwe_str.find('.', start)) != string::npos)
     {
-        parts.push_back(jwe.substr(start, pos - start));
+        parts.push_back(jwe_str.substr(start, pos - start));
         start = pos + 1;
     }
-    parts.push_back(jwe.substr(start));
+    parts.push_back(jwe_str.substr(start));
 
     if (parts.size() != 5)
-    {
-        throw runtime_error("Invalid JWE format: expected 5 parts");
-    }
+        return makeError<JWE>("Invalid JWE format: expected 5 parts, got " +
+                              to_string(parts.size()));
 
-    string encoded_header = parts[0];
+    auto header_str_opt = Base64URL::decodeToString(parts[0], nothrow);
+    if (!header_str_opt)
+        return makeError<JWE>("JWE fromJSON: failed to base64url-decode header");
 
-    // Decode header
-    string header_json = Base64URL::decodeToString(encoded_header);
-    json header = json::parse(header_json);
+    json header = json::parse(*header_str_opt, nullptr, false);
+    if (header.is_discarded())
+        return makeError<JWE>("JWE fromJSON: header is not valid JSON");
+    if (!header.is_object())
+        return makeError<JWE>("JWE fromJSON: header is not a JSON object");
 
     JWE result;
-    result.impl_->header_json_ = header_json;
+    result.impl_->header_json_ = *header_str_opt;
 
     if (header.contains("alg"))
     {
-        string alg_str = header["alg"].get<string>();
-        result.impl_->key_algorithm_ = JWA::keyEncryptionAlgorithmFromString(alg_str);
+        if (!header.at("alg").is_string())
+            return makeError<JWE>("JWE fromJSON: 'alg' field must be a string");
+        string alg_str = header.at("alg").get<string>();
+        auto alg_opt = JWA::keyEncryptionAlgorithmFromString(alg_str, nothrow);
+        if (!alg_opt)
+            return makeError<JWE>("JWE fromJSON: unknown key encryption algorithm: " + alg_str);
+        result.impl_->key_algorithm_ = *alg_opt;
     }
 
     if (header.contains("enc"))
     {
-        string enc_str = header["enc"].get<string>();
-        result.impl_->content_algorithm_ = JWA::contentEncryptionAlgorithmFromString(enc_str);
+        if (!header.at("enc").is_string())
+            return makeError<JWE>("JWE fromJSON: 'enc' field must be a string");
+        string enc_str = header.at("enc").get<string>();
+        auto enc_opt = JWA::contentEncryptionAlgorithmFromString(enc_str, nothrow);
+        if (!enc_opt)
+            return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " + enc_str);
+        result.impl_->content_algorithm_ = *enc_opt;
     }
 
     if (header.contains("kid"))
     {
-        result.impl_->kid_ = header["kid"].get<string>();
+        if (!header.at("kid").is_string())
+            return makeError<JWE>("JWE fromJSON: 'kid' field must be a string");
+        result.impl_->kid_ = header.at("kid").get<string>();
     }
 
     if (header.contains("typ"))
     {
-        result.impl_->typ_ = header["typ"].get<string>();
+        if (!header.at("typ").is_string())
+            return makeError<JWE>("JWE fromJSON: 'typ' field must be a string");
+        result.impl_->typ_ = header.at("typ").get<string>();
     }
 
-    return result;
+    return makeOk<JWE>(std::move(result));
 }
 
-optional<JWE> JWE::fromJSON(string const &jwe, nothrow_t const &) noexcept
+JWE JWE::fromJSON(string const &jwe_str)
 {
-    try
-    {
-        return make_optional<JWE>(fromJSON(jwe));
-    }
-    catch (...)
-    {
-        return nullopt;
-    }
+    auto [jwe_opt, jwe_err] = fromJSON_(jwe_str);
+    if (!jwe_opt)
+        throw runtime_error(jwe_err);  // throwing wrapper
+    return std::move(*jwe_opt);
+}
+
+optional<JWE> JWE::fromJSON(string const &jwe_str, nothrow_t const &) noexcept
+{
+    return fromJSON_(jwe_str).first;
 }
 
 string JWE::getPlaintext() const
