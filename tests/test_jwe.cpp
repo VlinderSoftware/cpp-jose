@@ -1361,3 +1361,85 @@ SCENARIO("JWE::fromJSON nothrow returns nullopt for invalid input", "[jwe][json]
         }
     }
 }
+
+// ── Multi-recipient (RFC 7516 §7.2 general serialisation) ───────────────────
+
+SCENARIO("JWE fromJSON parses all recipients in RFC 7516 section 7.2 general serialisation",
+         "[jwe][json][multi-recipient][rfc7516][section-7-2]")
+{
+    GIVEN("a compact JWE produced by encrypt() whose encrypted_key is placed second in a "
+          "hand-crafted general JSON with a garbage first recipient")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"multi-recipient plaintext"});
+
+        // Decompose compact token into its five base64url parts.
+        string const compact = jwe.toCompact();
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const ek_b64  = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64  = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64  = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        // Build a RFC 7516 §7.2 general serialisation with two recipients:
+        //   recipients[0] — garbage encrypted_key (AAAA = 3 zero bytes; will fail RSA-OAEP decrypt)
+        //   recipients[1] — the real encrypted_key from the original encrypt()
+        string const general_json =
+            "{\"protected\":\"" + hdr_b64 + "\""
+            ",\"iv\":\""        + iv_b64  + "\""
+            ",\"ciphertext\":\"" + ct_b64 + "\""
+            ",\"tag\":\""       + tag_b64 + "\""
+            ",\"recipients\":["
+            "{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"AAAA\"}"
+            ",{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"" + ek_b64 + "\"}"
+            "]}";
+
+        WHEN("parsing the general JSON with fromJSON()")
+        {
+            JWE parsed = JWE::fromJSON(general_json);
+
+            THEN("the protected-header algorithm fields are preserved")
+            {
+                REQUIRE(parsed.getKeyEncryptionAlgorithm() ==
+                        JWA::KeyEncryptionAlgorithm::rsa_oaep);
+                REQUIRE(parsed.getContentEncryptionAlgorithm() ==
+                        JWA::ContentEncryptionAlgorithm::a256gcm);
+            }
+
+            AND_WHEN("decrypting with the matching key (second recipient)")
+            {
+                vector<unsigned char> result = decrypt(parsed, key);
+
+                THEN("all recipients are tried and plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "multi-recipient plaintext");
+                }
+            }
+
+            AND_WHEN("re-serialising to JSON")
+            {
+                string const reserialised = parsed.toJSON();
+
+                THEN("the general-format 'recipients' array is present")
+                {
+                    REQUIRE(reserialised.find("\"recipients\"") != string::npos);
+                }
+            }
+
+            AND_WHEN("calling toCompact() on a multi-recipient token")
+            {
+                THEN("it throws std::runtime_error")
+                {
+                    REQUIRE_THROWS_AS(parsed.toCompact(), runtime_error);
+                }
+            }
+        }
+    }
+}

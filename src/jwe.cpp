@@ -71,6 +71,13 @@ size_t getIVSize(JWA::ContentEncryptionAlgorithm algorithm)
 
 struct JWE::Impl
 {
+    /// One entry per recipient (RFC 7516 §7.2.1).
+    struct Recipient
+    {
+        vector<unsigned char> encrypted_key;
+        string header_json; ///< per-recipient unprotected header JSON (may be empty)
+    };
+
     JWA::KeyEncryptionAlgorithm kea_ = JWA::KeyEncryptionAlgorithm::rsa_oaep;
     JWA::ContentEncryptionAlgorithm cea_ = JWA::ContentEncryptionAlgorithm::a256gcm;
     string kid_;
@@ -78,7 +85,7 @@ struct JWE::Impl
     map<string, string> header_params_;
     // RFC 7516 compact serialization parts (set by encrypt() or fromCompact_())
     string header_b64_;
-    vector<unsigned char> encrypted_key_;
+    vector<Recipient> recipients_; ///< one entry per recipient; never empty after construction
     vector<unsigned char> iv_;
     vector<unsigned char> ciphertext_;
     vector<unsigned char> auth_tag_;
@@ -122,7 +129,9 @@ JWE EncryptAttorney::construct(JWA::KeyEncryptionAlgorithm kea,
     impl->typ_ = std::move(typ);
     impl->header_params_ = std::move(header_params);
     impl->header_b64_ = std::move(header_b64);
-    impl->encrypted_key_ = std::move(encrypted_key);
+    JWE::Impl::Recipient r;
+    r.encrypted_key = std::move(encrypted_key);
+    impl->recipients_.push_back(std::move(r));
     impl->iv_ = std::move(iv);
     impl->ciphertext_ = std::move(ciphertext);
     impl->auth_tag_ = std::move(auth_tag);
@@ -192,7 +201,9 @@ pair<optional<JWE>, string> JWE::fromCompact_(string const &compact)
     impl->kea_ = *kea_opt;
     impl->cea_ = *cea_opt;
     impl->header_b64_ = parts[0];
-    impl->encrypted_key_ = std::move(*encrypted_key_opt);
+    Impl::Recipient r;
+    r.encrypted_key = std::move(*encrypted_key_opt);
+    impl->recipients_.push_back(std::move(r));
     impl->iv_ = std::move(*iv_opt);
     impl->ciphertext_ = std::move(*ciphertext_opt);
     impl->auth_tag_ = std::move(*auth_tag_opt);
@@ -260,23 +271,53 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
         return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " +
                               header.at("enc").get<string>());
 
-    // encrypted_key: top-level for flattened, or inside recipients[0] for general
-    string encrypted_key_b64;
+    auto impl = make_unique<Impl>();
+    impl->kea_ = *kea_opt;
+    impl->cea_ = *cea_opt;
+    impl->header_b64_ = header_b64;
+
+    // RFC 7516 §7.2: resolve recipients.
+    // Flattened serialisation: top-level "encrypted_key" (and optional "header").
+    // General serialisation: "recipients" array, each entry with "encrypted_key" and optional "header".
     if (j.contains("encrypted_key") && j.at("encrypted_key").is_string())
     {
-        encrypted_key_b64 = j.at("encrypted_key").get<string>();
+        auto ek_opt = Base64URL::decode(j.at("encrypted_key").get<string>(), nothrow);
+        if (!ek_opt)
+            return makeError<JWE>("JWE fromJSON: failed to base64url-decode 'encrypted_key'");
+        Impl::Recipient r;
+        r.encrypted_key = std::move(*ek_opt);
+        if (j.contains("header") && j.at("header").is_object())
+            r.header_json = j.at("header").dump();
+        impl->recipients_.push_back(std::move(r));
     }
     else if (j.contains("recipients") && j.at("recipients").is_array() &&
              !j.at("recipients").empty())
     {
-        auto const &r = j.at("recipients")[0];
-        if (r.is_object() && r.contains("encrypted_key") && r.at("encrypted_key").is_string())
-            encrypted_key_b64 = r.at("encrypted_key").get<string>();
+        // General serialisation — parse every recipient (not just [0]).
+        for (auto const &rec : j.at("recipients"))
+        {
+            if (!rec.is_object())
+                return makeError<JWE>("JWE fromJSON: each recipient must be a JSON object");
+            Impl::Recipient r;
+            string const ek_b64 = (rec.contains("encrypted_key") &&
+                                   rec.at("encrypted_key").is_string())
+                                      ? rec.at("encrypted_key").get<string>()
+                                      : string{};
+            auto ek_opt = Base64URL::decode(ek_b64, nothrow);
+            if (!ek_opt)
+                return makeError<JWE>(
+                    "JWE fromJSON: failed to base64url-decode recipient 'encrypted_key'");
+            r.encrypted_key = std::move(*ek_opt);
+            if (rec.contains("header") && rec.at("header").is_object())
+                r.header_json = rec.at("header").dump();
+            impl->recipients_.push_back(std::move(r));
+        }
     }
-
-    auto encrypted_key_opt = Base64URL::decode(encrypted_key_b64, nothrow);
-    if (!encrypted_key_opt)
-        return makeError<JWE>("JWE fromJSON: failed to base64url-decode 'encrypted_key'");
+    else
+    {
+        // dir / ECDH-ES in compact-like JSON with no explicit encrypted_key field.
+        impl->recipients_.push_back(Impl::Recipient{});
+    }
 
     auto iv_opt = Base64URL::decode(j.at("iv").get<string>(), nothrow);
     if (!iv_opt)
@@ -290,11 +331,6 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     if (!auth_tag_opt)
         return makeError<JWE>("JWE fromJSON: failed to base64url-decode 'tag'");
 
-    auto impl = make_unique<Impl>();
-    impl->kea_ = *kea_opt;
-    impl->cea_ = *cea_opt;
-    impl->header_b64_ = header_b64;
-    impl->encrypted_key_ = std::move(*encrypted_key_opt);
     impl->iv_ = std::move(*iv_opt);
     impl->ciphertext_ = std::move(*ciphertext_opt);
     impl->auth_tag_ = std::move(*auth_tag_opt);
@@ -321,7 +357,12 @@ optional<JWE> JWE::fromJSON(string const &json_str, nothrow_t const &) noexcept
 
 string JWE::toCompact() const
 {
-    return impl_->header_b64_ + "." + Base64URL::encode(impl_->encrypted_key_) + "." +
+    if (impl_->recipients_.size() != 1)
+        throw runtime_error(
+            "JWE toCompact: compact serialisation requires exactly one recipient; "
+            "use toJSON() for multi-recipient tokens");
+    return impl_->header_b64_ + "." +
+           Base64URL::encode(impl_->recipients_[0].encrypted_key) + "." +
            Base64URL::encode(impl_->iv_) + "." + Base64URL::encode(impl_->ciphertext_) + "." +
            Base64URL::encode(impl_->auth_tag_);
 }
@@ -330,10 +371,36 @@ string JWE::toJSON() const
 {
     json j = json::object();
     j["protected"] = impl_->header_b64_;
-    j["encrypted_key"] = Base64URL::encode(impl_->encrypted_key_);
-    j["iv"] = Base64URL::encode(impl_->iv_);
+
+    bool const single_anon = impl_->recipients_.size() == 1 &&
+                             impl_->recipients_[0].header_json.empty();
+    if (single_anon)
+    {
+        // RFC 7516 §7.2 flattened serialisation (backward-compatible default)
+        j["encrypted_key"] = Base64URL::encode(impl_->recipients_[0].encrypted_key);
+    }
+    else
+    {
+        // RFC 7516 §7.2.1 general serialisation — emit all recipients
+        json recipients_arr = json::array();
+        for (auto const &recipient : impl_->recipients_)
+        {
+            json r = json::object();
+            r["encrypted_key"] = Base64URL::encode(recipient.encrypted_key);
+            if (!recipient.header_json.empty())
+            {
+                json rh = json::parse(recipient.header_json, nullptr, false);
+                if (!rh.is_discarded() && rh.is_object())
+                    r["header"] = rh;
+            }
+            recipients_arr.push_back(r);
+        }
+        j["recipients"] = recipients_arr;
+    }
+
+    j["iv"]         = Base64URL::encode(impl_->iv_);
     j["ciphertext"] = Base64URL::encode(impl_->ciphertext_);
-    j["tag"] = Base64URL::encode(impl_->auth_tag_);
+    j["tag"]        = Base64URL::encode(impl_->auth_tag_);
     return j.dump();
 }
 
@@ -598,75 +665,112 @@ vector<unsigned char> decrypt(JWE const &jwe, JWK const &key)
 {
     JWE::Impl const &impl = *jwe.impl_;
     string const header_str = Base64URL::decodeToString(impl.header_b64_);
-    json header = json::parse(header_str, nullptr, false);
+    json const protected_header = json::parse(header_str, nullptr, false);
 
-    JWA::KeyEncryptionAlgorithm const kea = impl.kea_;
     JWA::ContentEncryptionAlgorithm const cea = impl.cea_;
-
-    vector<unsigned char> cek;
-
-    if (kea == JWA::KeyEncryptionAlgorithm::dir)
-    {
-        // RFC 7518 §4.5 — direct encryption
-        json key_json = json::parse(key.toJSON(true));
-        if (!key_json.contains("kty") || !key_json.at("kty").is_string() ||
-            key_json.at("kty").get<string>() != "oct")
-            throw runtime_error("JWE decrypt: direct encryption requires an oct JWK");
-        if (!key_json.contains("k") || !key_json.at("k").is_string())
-            throw runtime_error("JWE decrypt: oct JWK missing required 'k' field");
-        cek = Base64URL::decode(key_json.at("k").get<string>());
-    }
-    else if (kea == JWA::KeyEncryptionAlgorithm::ecdh_es)
-    {
-        // RFC 7518 §4.6 — derive CEK from ephemeral public key in header
-        if (!header.contains("epk"))
-            throw runtime_error("JWE decrypt: ECDH-ES header missing 'epk'");
-        JWK const ephemeral_key = JWK::fromJSON(header.at("epk").dump());
-        vector<unsigned char> const empty_encrypted_key;
-        try
-        {
-            cek = JWA::decryptKey(kea, key, empty_encrypted_key, {}, {}, ephemeral_key, cea);
-        }
-        catch (exception const &e)
-        {
-            throw runtime_error(string("JWE decrypt: ECDH-ES key agreement failed: ") + e.what());
-        }
-    }
-    else
-    {
-        vector<unsigned char> kek_iv;
-        vector<unsigned char> kek_tag;
-        if (header.contains("iv") && header.at("iv").is_string())
-            kek_iv = Base64URL::decode(header.at("iv").get<string>());
-        if (header.contains("tag") && header.at("tag").is_string())
-            kek_tag = Base64URL::decode(header.at("tag").get<string>());
-
-        optional<vector<unsigned char>> const iv_arg =
-            kek_iv.empty() ? optional<vector<unsigned char>>{} : kek_iv;
-        optional<vector<unsigned char>> const tag_arg =
-            kek_tag.empty() ? optional<vector<unsigned char>>{} : kek_tag;
-
-        try
-        {
-            cek = JWA::decryptKey(kea, key, impl.encrypted_key_, iv_arg, tag_arg, {}, cea);
-        }
-        catch (exception const &e)
-        {
-            throw runtime_error(string("JWE decrypt: key decryption failed: ") + e.what());
-        }
-    }
 
     // AAD = ASCII(BASE64URL(JWE Protected Header)) — RFC 7516 §5.2 step 11
     vector<unsigned char> const aad(impl.header_b64_.begin(), impl.header_b64_.end());
 
-    try
+    string last_error;
+    for (auto const &recipient : impl.recipients_)
     {
-        return JWA::decryptContent(cea, cek, impl.iv_, impl.ciphertext_, aad, impl.auth_tag_);
+        // RFC 7516 §5.2 step 6: effective header = protected ∪ per-recipient header
+        // (per-recipient takes precedence for fields that appear in both).
+        json effective_header = protected_header;
+        if (!recipient.header_json.empty())
+        {
+            json const rh = json::parse(recipient.header_json, nullptr, false);
+            if (!rh.is_discarded() && rh.is_object())
+                for (auto const &[k, v] : rh.items())
+                    effective_header[k] = v;
+        }
+
+        // Resolve kea from the effective header's "alg".
+        JWA::KeyEncryptionAlgorithm kea = impl.kea_;
+        if (effective_header.contains("alg") && effective_header.at("alg").is_string())
+        {
+            auto kea_opt = JWA::keyEncryptionAlgorithmFromString(
+                effective_header.at("alg").get<string>(), nothrow);
+            if (kea_opt)
+                kea = *kea_opt;
+        }
+
+        vector<unsigned char> cek;
+        try
+        {
+            if (kea == JWA::KeyEncryptionAlgorithm::dir)
+            {
+                // RFC 7518 §4.5 — direct encryption
+                json key_json = json::parse(key.toJSON(true));
+                if (!key_json.contains("kty") || !key_json.at("kty").is_string() ||
+                    key_json.at("kty").get<string>() != "oct")
+                    throw runtime_error("JWE decrypt: direct encryption requires an oct JWK");
+                if (!key_json.contains("k") || !key_json.at("k").is_string())
+                    throw runtime_error("JWE decrypt: oct JWK missing required 'k' field");
+                cek = Base64URL::decode(key_json.at("k").get<string>());
+            }
+            else if (kea == JWA::KeyEncryptionAlgorithm::ecdh_es)
+            {
+                // RFC 7518 §4.6 — ephemeral public key may be in per-recipient or protected header
+                if (!effective_header.contains("epk"))
+                    throw runtime_error("JWE decrypt: ECDH-ES header missing 'epk'");
+                JWK const ephemeral_key =
+                    JWK::fromJSON(effective_header.at("epk").dump());
+                try
+                {
+                    cek = JWA::decryptKey(kea, key, {}, {}, {}, ephemeral_key, cea);
+                }
+                catch (exception const &e)
+                {
+                    throw runtime_error(
+                        string("JWE decrypt: ECDH-ES key agreement failed: ") + e.what());
+                }
+            }
+            else
+            {
+                vector<unsigned char> kek_iv;
+                vector<unsigned char> kek_tag;
+                if (effective_header.contains("iv") && effective_header.at("iv").is_string())
+                    kek_iv = Base64URL::decode(effective_header.at("iv").get<string>());
+                if (effective_header.contains("tag") && effective_header.at("tag").is_string())
+                    kek_tag = Base64URL::decode(effective_header.at("tag").get<string>());
+
+                optional<vector<unsigned char>> const iv_arg =
+                    kek_iv.empty() ? optional<vector<unsigned char>>{} : kek_iv;
+                optional<vector<unsigned char>> const tag_arg =
+                    kek_tag.empty() ? optional<vector<unsigned char>>{} : kek_tag;
+
+                try
+                {
+                    cek = JWA::decryptKey(
+                        kea, key, recipient.encrypted_key, iv_arg, tag_arg, {}, cea);
+                }
+                catch (exception const &e)
+                {
+                    throw runtime_error(
+                        string("JWE decrypt: key decryption failed: ") + e.what());
+                }
+            }
+        }
+        catch (exception const &e)
+        {
+            last_error = e.what();
+            continue; // try the next recipient
+        }
+
+        // CEK obtained — decrypt content.
+        try
+        {
+            return JWA::decryptContent(cea, cek, impl.iv_, impl.ciphertext_, aad, impl.auth_tag_);
+        }
+        catch (exception const &e)
+        {
+            throw runtime_error(string("JWE decrypt: content decryption failed: ") + e.what());
+        }
     }
-    catch (exception const &e)
-    {
-        throw runtime_error(string("JWE decrypt: content decryption failed: ") + e.what());
-    }
+
+    throw runtime_error(string("JWE decrypt: no recipient key matched: ") + last_error);
 }
 
 vector<unsigned char> decrypt(string const &compact, JWK const &key)
