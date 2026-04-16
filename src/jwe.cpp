@@ -862,7 +862,8 @@ vector<unsigned char> decrypt(JWE const &jwe, JWK const &key)
         }
         catch (exception const &e)
         {
-            throw runtime_error(string("JWE decrypt: content decryption failed: ") + e.what());
+            last_error = e.what();
+            continue;  // wrong CEK (e.g. unwrap returned bad bytes) — try next recipient
         }
     }
 

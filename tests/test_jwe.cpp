@@ -1591,3 +1591,72 @@ SCENARIO("JWE fromCompact rejects encrypted_key mismatches against the alg field
         }
     }
 }
+
+SCENARIO("JWE decrypt continues past a recipient whose CEK decrypts to garbage",
+         "[jwe][decrypt][multi-recipient][rfc7516][section-5-2]")
+{
+    // RFC 7516 §5.2: a receiver MUST try each recipient until one succeeds,
+    // even if CEK unwrap appears to succeed but the resulting CEK fails to
+    // authenticate the ciphertext.
+    GIVEN("a general-serialisation JWE with recipient[0]=wrong key and recipient[1]=correct key")
+    {
+        JWK key_a = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWK key_b = JWK::generateRSA(JWK::Use::encryption, 2048);
+
+        string const plaintext = "multi-recipient content-decrypt fallback test";
+
+        // Produce a valid JWE for key_b (correct key).
+        JWE jwe_b = encrypt(key_b,
+                            JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                            JWA::ContentEncryptionAlgorithm::a256gcm,
+                            plaintext);
+        string const compact_b = jwe_b.toCompact();
+
+        // Extract ciphertext envelope from jwe_b.
+        auto const d1 = compact_b.find('.');
+        auto const d2 = compact_b.find('.', d1 + 1);
+        auto const d3 = compact_b.find('.', d2 + 1);
+        auto const d4 = compact_b.find('.', d3 + 1);
+        string const hdr_b64 = compact_b.substr(0, d1);
+        string const ek_b_b64 = compact_b.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact_b.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact_b.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact_b.substr(d4 + 1);
+
+        // Produce a wrapped key for key_a (wrong CEK for this ciphertext).
+        JWE jwe_a = encrypt(key_a,
+                            JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                            JWA::ContentEncryptionAlgorithm::a256gcm,
+                            plaintext);
+        string const compact_a = jwe_a.toCompact();
+        auto const a_d1 = compact_a.find('.');
+        auto const a_d2 = compact_a.find('.', a_d1 + 1);
+        string const ek_a_b64 = compact_a.substr(a_d1 + 1, a_d2 - a_d1 - 1);
+
+        // General-serialisation JWE: recipient[0] = key_a's wrapped key (wrong CEK),
+        // recipient[1] = key_b's wrapped key (correct CEK).
+        string const general_json =
+            "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 + "\",\"ciphertext\":\"" +
+            ct_b64 + "\",\"tag\":\"" + tag_b64 + "\",\"recipients\":[{\"encrypted_key\":\"" +
+            ek_a_b64 + "\"},{\"encrypted_key\":\"" + ek_b_b64 + "\"}]}";
+
+        JWE const jwe = JWE::fromJSON(general_json);
+
+        WHEN("decrypting with key_a (wrong key — produces a bad CEK)")
+        {
+            THEN("decrypt throws runtime_error (no recipient matched)")
+            {
+                REQUIRE_THROWS_AS(decrypt(jwe, key_a), runtime_error);
+            }
+        }
+
+        WHEN("decrypting with key_b (correct key — second recipient)")
+        {
+            THEN("plaintext is recovered despite recipient[0] failing content decryption")
+            {
+                vector<unsigned char> result = decrypt(jwe, key_b);
+                REQUIRE(string(result.begin(), result.end()) == plaintext);
+            }
+        }
+    }
+}
