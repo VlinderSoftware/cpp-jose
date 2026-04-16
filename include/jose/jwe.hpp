@@ -22,9 +22,10 @@ class JWK;
 /// deserialised (without decryption) by @c fromCompact() / @c fromJSON().
 /// Actual decryption is performed by the free-function @c decrypt() family.
 ///
-/// Internal helpers use a nothrow-first style for parse and decryption
-/// failures. The public free functions throw @c std::runtime_error on
-/// failure; nothrow overloads return @c std::nullopt.
+/// The public parsing API provides both throwing and nothrow overloads:
+/// @c fromCompact() / @c fromJSON() throw @c std::runtime_error on failure,
+/// while their nothrow overloads return an empty @c std::optional<JWE>.
+/// Public @c decrypt() overloads are throwing-only.
 class JWE
 {
 public:
@@ -69,7 +70,9 @@ public:
     /// @return Compact JWE string.
     std::string toCompact() const;
 
-    /// @brief Serialise to JWE JSON form (RFC 7516 §7.2 flattened serialisation).
+    /// @brief Serialise to JWE JSON form (RFC 7516 §7.2), emitting flattened
+    ///        serialisation for a single recipient or general serialisation for
+    ///        multiple recipients.
     /// @return JSON string.
     std::string toJSON() const;
 
