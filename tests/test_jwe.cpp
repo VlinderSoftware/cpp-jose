@@ -1506,3 +1506,85 @@ SCENARIO("JWE fromJSON rejects key-wrapping algorithms with no encrypted_key",
         }
     }
 }
+
+SCENARIO("JWE fromCompact rejects encrypted_key mismatches against the alg field",
+         "[jwe][fromcompact][validation][rfc7518][section-4-5][section-4-6]")
+{
+    // Build a minimal but structurally valid envelope so all decoding steps
+    // before the encrypted_key check succeed.  IV, ciphertext, and tag can
+    // be any valid base64url strings.
+    string const dummy_iv = Base64URL::encode(vector<unsigned char>(12, 0));
+    string const dummy_ct = Base64URL::encode(string("data"));
+    string const dummy_tag = Base64URL::encode(vector<unsigned char>(16, 0));
+
+    GIVEN("an RSA-OAEP protected header but an EMPTY encrypted_key part")
+    {
+        string const hdr_json = R"({"alg":"RSA-OAEP","enc":"A256GCM"})";
+        string const hdr_b64 = Base64URL::encode(hdr_json);
+        string const compact = hdr_b64 + "." + "" + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
+
+        WHEN("calling fromCompact() with throwing overload")
+        {
+            THEN("it throws std::runtime_error")
+            {
+                REQUIRE_THROWS_AS(JWE::fromCompact(compact), runtime_error);
+            }
+        }
+        WHEN("calling fromCompact(s, nothrow)")
+        {
+            THEN("it returns nullopt")
+            {
+                auto result = JWE::fromCompact(compact, nothrow);
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("a dir protected header but a NON-EMPTY encrypted_key part")
+    {
+        string const hdr_json = R"({"alg":"dir","enc":"A128GCM"})";
+        string const hdr_b64 = Base64URL::encode(hdr_json);
+        string const ek_b64 = Base64URL::encode(string("notempty"));
+        string const compact = hdr_b64 + "." + ek_b64 + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
+
+        WHEN("calling fromCompact() with throwing overload")
+        {
+            THEN("it throws std::runtime_error")
+            {
+                REQUIRE_THROWS_AS(JWE::fromCompact(compact), runtime_error);
+            }
+        }
+        WHEN("calling fromCompact(s, nothrow)")
+        {
+            THEN("it returns nullopt")
+            {
+                auto result = JWE::fromCompact(compact, nothrow);
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+
+    GIVEN("an ECDH-ES protected header but a NON-EMPTY encrypted_key part")
+    {
+        string const hdr_json = R"({"alg":"ECDH-ES","enc":"A128GCM"})";
+        string const hdr_b64 = Base64URL::encode(hdr_json);
+        string const ek_b64 = Base64URL::encode(string("notempty"));
+        string const compact = hdr_b64 + "." + ek_b64 + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
+
+        WHEN("calling fromCompact() with throwing overload")
+        {
+            THEN("it throws std::runtime_error")
+            {
+                REQUIRE_THROWS_AS(JWE::fromCompact(compact), runtime_error);
+            }
+        }
+        WHEN("calling fromCompact(s, nothrow)")
+        {
+            THEN("it returns nullopt")
+            {
+                auto result = JWE::fromCompact(compact, nothrow);
+                REQUIRE_FALSE(result.has_value());
+            }
+        }
+    }
+}
