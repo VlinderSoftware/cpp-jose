@@ -1383,23 +1383,31 @@ SCENARIO("JWE fromJSON parses all recipients in RFC 7516 section 7.2 general ser
         auto const d3 = compact.find('.', d2 + 1);
         auto const d4 = compact.find('.', d3 + 1);
         string const hdr_b64 = compact.substr(0, d1);
-        string const ek_b64  = compact.substr(d1 + 1, d2 - d1 - 1);
-        string const iv_b64  = compact.substr(d2 + 1, d3 - d2 - 1);
-        string const ct_b64  = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const ek_b64 = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
         string const tag_b64 = compact.substr(d4 + 1);
 
         // Build a RFC 7516 §7.2 general serialisation with two recipients:
         //   recipients[0] — garbage encrypted_key (AAAA = 3 zero bytes; will fail RSA-OAEP decrypt)
         //   recipients[1] — the real encrypted_key from the original encrypt()
-        string const general_json =
-            "{\"protected\":\"" + hdr_b64 + "\""
-            ",\"iv\":\""        + iv_b64  + "\""
-            ",\"ciphertext\":\"" + ct_b64 + "\""
-            ",\"tag\":\""       + tag_b64 + "\""
-            ",\"recipients\":["
-            "{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"AAAA\"}"
-            ",{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"" + ek_b64 + "\"}"
-            "]}";
+        string const general_json = "{\"protected\":\"" + hdr_b64 +
+                                    "\""
+                                    ",\"iv\":\"" +
+                                    iv_b64 +
+                                    "\""
+                                    ",\"ciphertext\":\"" +
+                                    ct_b64 +
+                                    "\""
+                                    ",\"tag\":\"" +
+                                    tag_b64 +
+                                    "\""
+                                    ",\"recipients\":["
+                                    "{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"AAAA\"}"
+                                    ",{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"" +
+                                    ek_b64 +
+                                    "\"}"
+                                    "]}";
 
         WHEN("parsing the general JSON with fromJSON()")
         {
@@ -1439,6 +1447,65 @@ SCENARIO("JWE fromJSON parses all recipients in RFC 7516 section 7.2 general ser
                 {
                     REQUIRE_THROWS_AS(parsed.toCompact(), runtime_error);
                 }
+            }
+        }
+    }
+}
+
+SCENARIO("JWE fromJSON rejects key-wrapping algorithms with no encrypted_key",
+         "[jwe][json][validation][rfc7516][section-7-2]")
+{
+    GIVEN("a JSON JWE with alg=RSA-OAEP but no encrypted_key in either flattened or general form")
+    {
+        // Produce a valid protected header and ciphertext envelope so that
+        // all other validation steps pass; only encrypted_key is absent.
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"payload"});
+        string const compact = jwe.toCompact();
+        auto const d1        = compact.find('.');
+        auto const d2        = compact.find('.', d1 + 1);
+        auto const d3        = compact.find('.', d2 + 1);
+        auto const d4        = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const iv_b64  = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64  = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        WHEN("the flattened form has no encrypted_key field")
+        {
+            // Omit encrypted_key entirely; alg is RSA-OAEP (key-wrapping).
+            string const bad_json =
+                "{\"protected\":\"" + hdr_b64 +
+                "\",\"iv\":\"" + iv_b64 +
+                "\",\"ciphertext\":\"" + ct_b64 +
+                "\",\"tag\":\"" + tag_b64 + "\"}";
+
+            THEN("fromJSON throws std::runtime_error")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+
+            AND_THEN("nothrow overload returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+
+        WHEN("the general form has recipients but each recipient is missing encrypted_key")
+        {
+            string const bad_json =
+                "{\"protected\":\"" + hdr_b64 +
+                "\",\"iv\":\"" + iv_b64 +
+                "\",\"ciphertext\":\"" + ct_b64 +
+                "\",\"tag\":\"" + tag_b64 +
+                "\",\"recipients\":[{\"header\":{\"alg\":\"RSA-OAEP\"}}]}";
+
+            THEN("fromJSON throws std::runtime_error")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
             }
         }
     }
