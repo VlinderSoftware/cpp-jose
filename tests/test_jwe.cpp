@@ -1635,10 +1635,10 @@ SCENARIO("JWE decrypt continues past a recipient whose CEK decrypts to garbage",
 
         // General-serialisation JWE: recipient[0] = key_a's wrapped key (wrong CEK),
         // recipient[1] = key_b's wrapped key (correct CEK).
-        string const general_json =
-            "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 + "\",\"ciphertext\":\"" +
-            ct_b64 + "\",\"tag\":\"" + tag_b64 + "\",\"recipients\":[{\"encrypted_key\":\"" +
-            ek_a_b64 + "\"},{\"encrypted_key\":\"" + ek_b_b64 + "\"}]}";
+        string const general_json = "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 +
+                                    "\",\"ciphertext\":\"" + ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                                    "\",\"recipients\":[{\"encrypted_key\":\"" + ek_a_b64 +
+                                    "\"},{\"encrypted_key\":\"" + ek_b_b64 + "\"}]}";
 
         JWE const jwe = JWE::fromJSON(general_json);
 
