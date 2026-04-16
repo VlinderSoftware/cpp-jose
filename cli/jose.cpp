@@ -448,10 +448,9 @@ static int cmdJweEncrypt(Args const &args)
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
 
     string typ = args.get("typ");
-    span<char const> const plain_span(plain.data(), plain.size());
     string compact = typ.empty()
-        ? encrypt(key, kit->second, eit->second, plain_span).toCompact()
-        : encrypt(key, kit->second, eit->second, typ, plain_span).toCompact();
+        ? encrypt(key, kit->second, eit->second, plain).toCompact()
+        : encrypt(key, kit->second, eit->second, typ, plain).toCompact();
 
     cout << compact << "\n";
     return 0;
