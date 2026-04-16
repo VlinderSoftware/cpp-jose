@@ -22,8 +22,8 @@ class JWK;
 /// deserialised (without decryption) by @c fromCompact() / @c fromJSON().
 /// Actual decryption is performed by the free-function @c decrypt() family.
 ///
-/// All internal implementation is nothrow-first (uses @c Result<T>
-/// propagation).  The public free functions throw @c std::runtime_error on
+/// Internal helpers use a nothrow-first style for parse and decryption
+/// failures. The public free functions throw @c std::runtime_error on
 /// failure; nothrow overloads return @c std::nullopt.
 class JWE
 {
