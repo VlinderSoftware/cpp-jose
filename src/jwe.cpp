@@ -213,9 +213,8 @@ pair<optional<JWE>, string> JWE::fromCompact_(string const &compact)
         return makeError<JWE>("JWE fromCompact: 'encrypted_key' must not be empty for alg '" +
                               header.at("alg").get<string>() + "'");
     if (!requiresWrappedKey(*kea_opt) && !encrypted_key_opt->empty())
-        return makeError<JWE>(
-            "JWE fromCompact: 'encrypted_key' must be empty for alg '" +
-            header.at("alg").get<string>() + "' (RFC 7518 §4.5/§4.6)");
+        return makeError<JWE>("JWE fromCompact: 'encrypted_key' must be empty for alg '" +
+                              header.at("alg").get<string>() + "' (RFC 7518 §4.5/§4.6)");
 
     auto iv_opt = Base64URL::decode(parts[2], nothrow);
     if (!iv_opt)

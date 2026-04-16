@@ -1521,7 +1521,8 @@ SCENARIO("JWE fromCompact rejects encrypted_key mismatches against the alg field
     {
         string const hdr_json = R"({"alg":"RSA-OAEP","enc":"A256GCM"})";
         string const hdr_b64 = Base64URL::encode(hdr_json);
-        string const compact = hdr_b64 + "." + "" + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
+        string const compact =
+            hdr_b64 + "." + "" + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
 
         WHEN("calling fromCompact() with throwing overload")
         {
@@ -1545,7 +1546,8 @@ SCENARIO("JWE fromCompact rejects encrypted_key mismatches against the alg field
         string const hdr_json = R"({"alg":"dir","enc":"A128GCM"})";
         string const hdr_b64 = Base64URL::encode(hdr_json);
         string const ek_b64 = Base64URL::encode(string("notempty"));
-        string const compact = hdr_b64 + "." + ek_b64 + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
+        string const compact =
+            hdr_b64 + "." + ek_b64 + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
 
         WHEN("calling fromCompact() with throwing overload")
         {
@@ -1569,7 +1571,8 @@ SCENARIO("JWE fromCompact rejects encrypted_key mismatches against the alg field
         string const hdr_json = R"({"alg":"ECDH-ES","enc":"A128GCM"})";
         string const hdr_b64 = Base64URL::encode(hdr_json);
         string const ek_b64 = Base64URL::encode(string("notempty"));
-        string const compact = hdr_b64 + "." + ek_b64 + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
+        string const compact =
+            hdr_b64 + "." + ek_b64 + "." + dummy_iv + "." + dummy_ct + "." + dummy_tag;
 
         WHEN("calling fromCompact() with throwing overload")
         {
