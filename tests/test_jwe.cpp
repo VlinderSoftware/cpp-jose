@@ -1465,23 +1465,21 @@ SCENARIO("JWE fromJSON rejects key-wrapping algorithms with no encrypted_key",
                           JWA::ContentEncryptionAlgorithm::a256gcm,
                           string{"payload"});
         string const compact = jwe.toCompact();
-        auto const d1        = compact.find('.');
-        auto const d2        = compact.find('.', d1 + 1);
-        auto const d3        = compact.find('.', d2 + 1);
-        auto const d4        = compact.find('.', d3 + 1);
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
         string const hdr_b64 = compact.substr(0, d1);
-        string const iv_b64  = compact.substr(d2 + 1, d3 - d2 - 1);
-        string const ct_b64  = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
         string const tag_b64 = compact.substr(d4 + 1);
 
         WHEN("the flattened form has no encrypted_key field")
         {
             // Omit encrypted_key entirely; alg is RSA-OAEP (key-wrapping).
-            string const bad_json =
-                "{\"protected\":\"" + hdr_b64 +
-                "\",\"iv\":\"" + iv_b64 +
-                "\",\"ciphertext\":\"" + ct_b64 +
-                "\",\"tag\":\"" + tag_b64 + "\"}";
+            string const bad_json = "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 +
+                                    "\",\"ciphertext\":\"" + ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                                    "\"}";
 
             THEN("fromJSON throws std::runtime_error")
             {
@@ -1496,12 +1494,9 @@ SCENARIO("JWE fromJSON rejects key-wrapping algorithms with no encrypted_key",
 
         WHEN("the general form has recipients but each recipient is missing encrypted_key")
         {
-            string const bad_json =
-                "{\"protected\":\"" + hdr_b64 +
-                "\",\"iv\":\"" + iv_b64 +
-                "\",\"ciphertext\":\"" + ct_b64 +
-                "\",\"tag\":\"" + tag_b64 +
-                "\",\"recipients\":[{\"header\":{\"alg\":\"RSA-OAEP\"}}]}";
+            string const bad_json = "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 +
+                                    "\",\"ciphertext\":\"" + ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                                    "\",\"recipients\":[{\"header\":{\"alg\":\"RSA-OAEP\"}}]}";
 
             THEN("fromJSON throws std::runtime_error")
             {

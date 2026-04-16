@@ -301,9 +301,8 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
         if (!ek_opt)
             return makeError<JWE>("JWE fromJSON: failed to base64url-decode 'encrypted_key'");
         if (ek_opt->empty() && requiresWrappedKey(*kea_opt))
-            return makeError<JWE>(
-                "JWE fromJSON: 'encrypted_key' must not be empty for alg '" +
-                header.at("alg").get<string>() + "'");
+            return makeError<JWE>("JWE fromJSON: 'encrypted_key' must not be empty for alg '" +
+                                  header.at("alg").get<string>() + "'");
         Impl::Recipient r;
         r.encrypted_key = std::move(*ek_opt);
         if (j.contains("header") && j.at("header").is_object())
@@ -325,8 +324,9 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             if (rec.contains("header") && rec.at("header").is_object() &&
                 rec.at("header").contains("alg") && rec.at("header").at("alg").is_string())
             {
-                auto rec_kea_opt = JWA::keyEncryptionAlgorithmFromString(
-                    rec.at("header").at("alg").get<string>(), nothrow);
+                auto rec_kea_opt =
+                    JWA::keyEncryptionAlgorithmFromString(rec.at("header").at("alg").get<string>(),
+                                                          nothrow);
                 if (rec_kea_opt)
                     rec_kea = *rec_kea_opt;
             }
@@ -338,8 +338,7 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
                     "JWE fromJSON: recipient is missing 'encrypted_key' for alg '" +
                     JWA::toString(rec_kea) + "'");
 
-            string const ek_b64 =
-                has_ek ? rec.at("encrypted_key").get<string>() : string{};
+            string const ek_b64 = has_ek ? rec.at("encrypted_key").get<string>() : string{};
             auto ek_opt = Base64URL::decode(ek_b64, nothrow);
             if (!ek_opt)
                 return makeError<JWE>(
@@ -362,9 +361,8 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     }
     else
     {
-        return makeError<JWE>(
-            "JWE fromJSON: missing 'encrypted_key' for alg '" +
-            header.at("alg").get<string>() + "'");
+        return makeError<JWE>("JWE fromJSON: missing 'encrypted_key' for alg '" +
+                              header.at("alg").get<string>() + "'");
     }
 
     auto iv_opt = Base64URL::decode(j.at("iv").get<string>(), nothrow);
