@@ -5,7 +5,8 @@
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <map>
-#include <string>
+#include <span>
+#include <stdexcept>
 #include <vector>
 
 #include "jose/jose.hpp"
