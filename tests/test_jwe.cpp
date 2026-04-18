@@ -1435,6 +1435,91 @@ SCENARIO("JWE::fromJSON nothrow returns nullopt for invalid input", "[jwe][json]
     }
 }
 
+SCENARIO("JWE toJSON omits encrypted_key per-recipient in general serialisation for dir and ECDH-ES",
+         "[jwe][json][dir][ecdh][rfc7516][section-7-2-1]")
+{
+    // RFC 7516 §7.2.1: "encrypted_key" MUST NOT be present when the
+    // encrypted key value is empty.  This test covers the general
+    // serialisation path (multi-recipient array) which is distinct from
+    // the flattened path tested in the sibling SCENARIO.
+    GIVEN("a multi-recipient JWE: one RSA-OAEP recipient and one dir recipient")
+    {
+        JWK rsa_key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWK oct_key = JWK::generateOct(JWK::Use::encryption, 256);
+
+        // Two separate single-recipient tokens let us extract compact parts for
+        // hand-building a general-serialisation envelope.
+        JWE rsa_jwe = encrypt(rsa_key,
+                              JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                              JWA::ContentEncryptionAlgorithm::a256gcm,
+                              string{"general-form dir payload"});
+        JWE dir_jwe = encrypt(oct_key,
+                              JWA::KeyEncryptionAlgorithm::dir,
+                              JWA::ContentEncryptionAlgorithm::a256gcm,
+                              string{"general-form dir payload"});
+
+        WHEN("serialising the RSA-OAEP token as flattened JSON")
+        {
+            string const rsa_json = rsa_jwe.toJSON();
+            THEN("'encrypted_key' IS present (non-empty wrapped key)")
+            {
+                REQUIRE(rsa_json.find("\"encrypted_key\"") != string::npos);
+            }
+        }
+
+        WHEN("serialising the dir token as flattened JSON")
+        {
+            string const dir_json = dir_jwe.toJSON();
+
+            THEN("'encrypted_key' is absent (RFC 7516 §7.2.1: MUST NOT be present)")
+            {
+                REQUIRE(dir_json.find("\"encrypted_key\"") == string::npos);
+            }
+
+            AND_WHEN("parsing back and decrypting with the oct key")
+            {
+                JWE parsed = JWE::fromJSON(dir_json);
+                vector<unsigned char> result = decrypt(parsed, oct_key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "general-form dir payload");
+                }
+            }
+        }
+    }
+
+    GIVEN("a JWE with ECDH-ES (no wrapped key) serialised as JSON")
+    {
+        JWK ec_key = JWK::generateEC(JWK::Use::encryption, "P-256");
+        JWE jwe = encrypt(ec_key,
+                          JWA::KeyEncryptionAlgorithm::ecdh_es,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"ecdh-es general payload"});
+
+        WHEN("serialising to JSON")
+        {
+            string const json_str = jwe.toJSON();
+
+            THEN("'encrypted_key' is absent (RFC 7516 §7.2.1: MUST NOT be present)")
+            {
+                REQUIRE(json_str.find("\"encrypted_key\"") == string::npos);
+            }
+
+            AND_WHEN("parsing back and decrypting")
+            {
+                JWE parsed = JWE::fromJSON(json_str);
+                vector<unsigned char> result = decrypt(parsed, ec_key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "ecdh-es general payload");
+                }
+            }
+        }
+    }
+}
+
 // ── Multi-recipient (RFC 7516 §7.2 general serialisation) ───────────────────
 
 SCENARIO("JWE fromJSON parses all recipients in RFC 7516 section 7.2 general serialisation",
