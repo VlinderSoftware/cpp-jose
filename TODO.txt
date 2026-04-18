@@ -129,6 +129,23 @@
             represented public key
         [ ] on parse, if additional header parameters are present they are 
             checked for consistency
+    [ ] JWE: per-recipient header is unauthenticated — harden alg selection
+        RFC 7516 §7.2 per-recipient "header" members are NOT covered by the
+        AAD and can be tampered with undetected.  The current decrypt() reads
+        "alg" from the per-recipient header to override the protected header's
+        kea_ — this is an algorithm-substitution attack surface.
+        Rules to enforce in decrypt():
+        [ ] Only accept "alg" from the protected (authenticated) header.
+            Per-recipient header "alg" must be IGNORED for key-encryption
+            algorithm selection.
+        [ ] Per-recipient "header" may only supply non-security-critical hints:
+            "kid", "x5t", "x5t#S256", "x5u" — i.e. key-identification
+            fields, not algorithm-selection fields.
+        [ ] If a per-recipient header's "alg" is present and DIFFERS from the
+            protected header's "alg", return an error at parse time (fromJSON_)
+            rather than silently trusting it at decrypt time.
+        [ ] Add tests: tampered per-recipient "alg" is rejected; valid
+            per-recipient "kid" hint is still honoured.
     [ ] JWE: validate that the encrypting key's intended use is for encryption
     [ ] JWE: validate that is a signing key's public key is used to encrypt a 
         key *to*, the CLI will refuse unless forced
