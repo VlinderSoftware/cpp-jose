@@ -1435,8 +1435,9 @@ SCENARIO("JWE::fromJSON nothrow returns nullopt for invalid input", "[jwe][json]
     }
 }
 
-SCENARIO("JWE toJSON omits encrypted_key per-recipient in general serialisation for dir and ECDH-ES",
-         "[jwe][json][dir][ecdh][rfc7516][section-7-2-1]")
+SCENARIO(
+    "JWE toJSON omits encrypted_key per-recipient in general serialisation for dir and ECDH-ES",
+    "[jwe][json][dir][ecdh][rfc7516][section-7-2-1]")
 {
     // RFC 7516 §7.2.1: "encrypted_key" MUST NOT be present when the
     // encrypted key value is empty.  This test covers the general
