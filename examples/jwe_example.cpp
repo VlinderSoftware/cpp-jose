@@ -3,21 +3,22 @@
  * @brief JWE encryption and decryption example
  *
  * Demonstrates:
- * - Creating and encrypting JWE
- * - Different key encryption algorithms (RSA-OAEP, AES Key Wrap)
+ * - Creating and encrypting JWE using the free-function API
+ * - Different key encryption algorithms (RSA-OAEP, AES Key Wrap, ECDH-ES, direct)
  * - Different content encryption algorithms (AES-GCM, AES-CBC-HMAC)
  * - Decrypting JWE
- * - Working with JWE headers
- * - Direct encryption with symmetric keys
+ * - Working with JWE headers via observers
+ * - Round-trip through compact and JSON serialisation
  */
 
 #include <exception>
 #include <iostream>
+#include <span>
+#include <string>
 
 #include "jose/jose.hpp"
 
 using namespace std;
-
 using namespace Vlinder::JOSE;
 
 int main()
@@ -28,33 +29,32 @@ int main()
         cout << "\nJSON Web Encryption (JWE) provides encryption" << endl;
         cout << "functionality for arbitrary content." << endl;
 
-        // Example 1: RSA Key Encryption with AES-GCM
+        // Example 1: RSA-OAEP + AES256-GCM
         cout << "\n\n1. RSA-OAEP + AES256-GCM Encryption" << endl;
         cout << "==========================================" << endl;
 
         cout << "\nGenerating 2048-bit RSA key for encryption..." << endl;
         JWK rsa_key = JWK::generateRSA(JWK::Use::encryption);
         cout << "RSA key generated with auto-generated ID: " << rsa_key.getKeyID() << endl;
-        cout << "Algorithm (auto-selected): " << rsa_key.getAlgorithm() << endl;
 
         string sensitive_data = "This is highly confidential information!";
         cout << "\nPlaintext: " << sensitive_data << endl;
 
-        JWE jwe;
-        jwe.setPlaintext(sensitive_data);
-        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
-        jwe.setKeyID(rsa_key.getKeyID());
-        jwe.setType("JWE");
+        JWE jwe = encrypt(rsa_key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          "JWE",
+                          sensitive_data);
 
-        string encrypted = jwe.encrypt(rsa_key);
-        cout << "\nEncrypted JWE: " << encrypted.substr(0, 80) << "..." << endl;
-        cout << "Length: " << encrypted.length() << " characters" << endl;
+        string compact = jwe.toCompact();
+        cout << "\nEncrypted JWE: " << compact.substr(0, 80) << "..." << endl;
+        cout << "Length: " << compact.length() << " characters" << endl;
 
         cout << "\nDecrypting JWE..." << endl;
-        string decrypted = JWE::decrypt(encrypted, rsa_key);
+        auto decrypted_bytes = decrypt(jwe, rsa_key);
+        string decrypted(decrypted_bytes.begin(), decrypted_bytes.end());
         cout << "Decrypted: " << decrypted << endl;
-        cout << "Match: " << (decrypted == sensitive_data ? "✓ SUCCESS" : "✗ FAILED") << endl;
+        cout << "Match: " << (decrypted == sensitive_data ? "SUCCESS" : "FAILED") << endl;
 
         // Example 2: Different Content Encryption Algorithms
         cout << "\n\n2. Different Content Encryption Algorithms" << endl;
@@ -62,121 +62,98 @@ int main()
 
         string payload = "Testing different encryption algorithms";
 
-        // AES128-GCM
         cout << "\n--- AES128-GCM ---" << endl;
-        JWE jwe128;
-        jwe128.setPlaintext(payload);
-        jwe128.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-        jwe128.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
+        {
+            JWE j128 = encrypt(rsa_key,
+                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                               JWA::ContentEncryptionAlgorithm::a128gcm,
+                               payload);
+            auto dec128 = decrypt(j128, rsa_key);
+            string s(dec128.begin(), dec128.end());
+            cout << "Match: " << (s == payload ? "OK" : "FAILED") << endl;
+        }
 
-        string enc128 = jwe128.encrypt(rsa_key);
-        string dec128 = JWE::decrypt(enc128, rsa_key);
-        cout << "Encrypted and decrypted with A128GCM" << endl;
-        cout << "Match: " << (dec128 == payload ? "✓" : "✗") << endl;
-
-        // AES256-CBC-HMAC-SHA512
         cout << "\n--- AES256-CBC-HMAC-SHA512 ---" << endl;
-        JWE jwe_cbc;
-        jwe_cbc.setPlaintext(payload);
-        jwe_cbc.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-        jwe_cbc.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256cbc_hs512);
-
-        string enc_cbc = jwe_cbc.encrypt(rsa_key);
-        string dec_cbc = JWE::decrypt(enc_cbc, rsa_key);
-        cout << "Encrypted and decrypted with A256CBC-HS512" << endl;
-        cout << "Match: " << (dec_cbc == payload ? "✓" : "✗") << endl;
+        {
+            JWE jcbc = encrypt(rsa_key,
+                               JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                               JWA::ContentEncryptionAlgorithm::a256cbc_hs512,
+                               payload);
+            auto deccbc = decrypt(jcbc, rsa_key);
+            string s(deccbc.begin(), deccbc.end());
+            cout << "Match: " << (s == payload ? "OK" : "FAILED") << endl;
+        }
 
         // Example 3: AES Key Wrap
         cout << "\n\n3. AES Key Wrap + AES-GCM" << endl;
         cout << "==========================================" << endl;
 
-        cout << "\nGenerating 256-bit symmetric key..." << endl;
-        JWK kek_key = JWK::generateOct(JWK::Use::encryption);  // Key Encryption Key
-        cout << "Symmetric KEK generated with auto-generated ID: " << kek_key.getKeyID() << endl;
-        cout << "Algorithm (auto-selected): " << kek_key.getAlgorithm() << endl;
+        JWK kek_key = JWK::generateOct(JWK::Use::encryption);
+        cout << "Symmetric KEK generated with ID: " << kek_key.getKeyID() << endl;
 
         string secret_message = "Secret message encrypted with AES Key Wrap";
-        cout << "\nPlaintext: " << secret_message << endl;
+        JWE jwe_kw = encrypt(kek_key,
+                             JWA::KeyEncryptionAlgorithm::a256kw,
+                             JWA::ContentEncryptionAlgorithm::a256gcm,
+                             secret_message);
+        auto dec_kw = decrypt(jwe_kw, kek_key);
+        string s_kw(dec_kw.begin(), dec_kw.end());
+        cout << "Decrypted: " << s_kw << endl;
+        cout << "Match: " << (s_kw == secret_message ? "SUCCESS" : "FAILED") << endl;
 
-        JWE jwe_kw;
-        jwe_kw.setPlaintext(secret_message);
-        jwe_kw.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::a256kw);
-        jwe_kw.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
-        jwe_kw.setKeyID(kek_key.getKeyID());
-
-        string enc_kw = jwe_kw.encrypt(kek_key);
-        cout << "\nEncrypted with A256KW + A256GCM" << endl;
-
-        string dec_kw = JWE::decrypt(enc_kw, kek_key);
-        cout << "Decrypted: " << dec_kw << endl;
-        cout << "Match: " << (dec_kw == secret_message ? "✓ SUCCESS" : "✗ FAILED") << endl;
-
-        // Example 4: Direct Encryption (No Key Wrapping)
+        // Example 4: Direct Encryption
         cout << "\n\n4. Direct Encryption (DIR)" << endl;
         cout << "==========================================" << endl;
+        {
+            JWK dir_key = JWK::generateOct(JWK::Use::encryption, 256);
+            JWE jdir = encrypt(dir_key,
+                               JWA::KeyEncryptionAlgorithm::dir,
+                               JWA::ContentEncryptionAlgorithm::a256gcm,
+                               "Direct encryption example");
+            auto dec_dir = decrypt(jdir, dir_key);
+            string s(dec_dir.begin(), dec_dir.end());
+            cout << "Match: " << (s == "Direct encryption example" ? "SUCCESS" : "FAILED") << endl;
+        }
 
-        cout << "\nNote: DIR algorithm uses direct encryption with pre-shared key" << endl;
-        cout << "(Implementation may vary by library - skipping for compatibility)" << endl;
-
-        // Example 5: Working with Headers
+        // Example 5: Header Observers
         cout << "\n\n5. JWE Header Inspection" << endl;
         cout << "==========================================" << endl;
-
-        JWE header_example;
-        header_example.setPlaintext("Inspecting JWE headers");
-        header_example.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep_256);
-        header_example.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
-        header_example.setKeyID(rsa_key.getKeyID());  // Use auto-generated key ID
-        header_example.setType("JWE");
-        header_example.setHeaderParam("cty", "application/json");
-
-        string enc_header = header_example.encrypt(rsa_key);
-
-        JWE parsed_header = JWE::fromJSON(enc_header);
-        cout << "\nJWE Header: " << parsed_header.getHeader() << endl;
-
-        // Example 6: JWE Compact Serialization Format
-        cout << "\n\n6. JWE Compact Serialization Format" << endl;
-        cout << "==========================================" << endl;
-
-        cout << "\nJWE format: Header.EncKey.IV.Ciphertext.Tag" << endl;
-        cout << "Full JWE length: " << encrypted.length() << " characters" << endl;
-
-        int dot_count = 0;
-        for (char c : encrypted)
         {
-            if (c == '.')
-                dot_count++;
+            JWE jh = encrypt(rsa_key,
+                             JWA::KeyEncryptionAlgorithm::rsa_oaep_256,
+                             JWA::ContentEncryptionAlgorithm::a256gcm,
+                             "JWE",
+                             "Inspecting JWE headers");
+            cout << "alg : " << JWA::toString(jh.getKeyEncryptionAlgorithm()) << endl;
+            cout << "enc : " << JWA::toString(jh.getContentEncryptionAlgorithm()) << endl;
+            cout << "kid : " << jh.getKeyID() << endl;
+            cout << "typ : " << jh.getType() << endl;
+            cout << "header JSON: " << jh.getHeader() << endl;
         }
-        cout << "Number of dots (should be 4): " << dot_count << endl;
 
-        cout << "\nFirst 100 characters: " << encrypted.substr(0, 100) << "..." << endl;
-
-        // Example 7: JSON Payload Encryption
-        cout << "\n\n7. Encrypting JSON Data" << endl;
+        // Example 6: Compact Serialisation Format
+        cout << "\n\n6. JWE Compact Serialisation Format" << endl;
         cout << "==========================================" << endl;
+        cout << "JWE format: Header.EncKey.IV.Ciphertext.Tag" << endl;
+        {
+            size_t dot_count = 0;
+            for (char c : compact)
+                if (c == '.')
+                    ++dot_count;
+            cout << "Number of dots (should be 4): " << dot_count << endl;
+        }
 
-        string json_payload = R"({
-  "userId": "12345",
-  "email": "user@example.com",
-  "creditCard": "4111-1111-1111-1111",
-  "ssn": "123-45-6789"
-})";
-
-        cout << "\nJSON Payload:\n" << json_payload << endl;
-
-        JWE jwe_json;
-        jwe_json.setPlaintext(json_payload);
-        jwe_json.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-        jwe_json.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a256gcm);
-        jwe_json.setHeaderParam("cty", "application/json");
-
-        string enc_json = jwe_json.encrypt(rsa_key);
-        cout << "\n✓ JSON payload encrypted" << endl;
-
-        string dec_json = JWE::decrypt(enc_json, rsa_key);
-        cout << "\nDecrypted JSON:\n" << dec_json << endl;
-        cout << "\nMatch: " << (dec_json == json_payload ? "✓ SUCCESS" : "✗ FAILED") << endl;
+        // Example 7: Round-trip through compact/JSON serialisation
+        cout << "\n\n7. Round-trip compact -> fromCompact -> toJSON -> fromJSON" << endl;
+        cout << "==========================================" << endl;
+        {
+            JWE parsed = JWE::fromCompact(compact);
+            string json_form = parsed.toJSON();
+            JWE from_json = JWE::fromJSON(json_form);
+            auto rt_bytes = decrypt(from_json, rsa_key);
+            string rt(rt_bytes.begin(), rt_bytes.end());
+            cout << "Round-trip match: " << (rt == sensitive_data ? "SUCCESS" : "FAILED") << endl;
+        }
 
         cout << "\n\n=== JWE Example Complete ===" << endl;
         return 0;

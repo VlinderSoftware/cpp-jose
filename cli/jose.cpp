@@ -126,6 +126,34 @@ struct Args
     }
 };
 
+// ─── Key resolution ───────────────────────────────────────────────────────────
+
+/// Resolve a JWK from either a bare JWK or a JWK Set.
+/// If @p kid is non-empty the key is looked up by ID in the set; otherwise the
+/// input is parsed as a bare JWK.
+static JWK resolveKey(string const &key_json, string const &kid)
+{
+    if (!kid.empty())
+    {
+        bool parsed_as_set = false;
+        try
+        {
+            JWKSet ks = JWKSet::fromJSON(key_json);
+            parsed_as_set = true;
+            auto entry = ks.getKey(kid);
+            if (!holds_alternative<JWK>(entry))
+                throw runtime_error("Key '" + kid + "' is not a JWK");
+            return get<JWK>(entry);
+        }
+        catch (...)
+        {
+            if (parsed_as_set)
+                throw;  // getKey error (kid not found, wrong type); don't swallow
+        }
+    }
+    return JWK::fromJSON(key_json);
+}
+
 // ─── Algorithm name maps ──────────────────────────────────────────────────────
 
 static map<string, JWA::SignatureAlgorithm> const kSigAlgs = {
@@ -302,31 +330,7 @@ static int cmdJwsSign(Args const &args)
     if (it == kSigAlgs.end())
         throw runtime_error("Unknown signature algorithm: " + alg_s);
 
-    string key_json = trim(readInput(key_src));
-
-    // If --kid is given, try to resolve from a JWK Set first.
-    JWK key = [&]() -> JWK
-    {
-        if (!kid.empty())
-        {
-            bool parsed_as_set = false;
-            try
-            {
-                JWKSet ks = JWKSet::fromJSON(key_json);
-                parsed_as_set = true;
-                auto entry = ks.getKey(kid);
-                if (!holds_alternative<JWK>(entry))
-                    throw runtime_error("Key '" + kid + "' is a JWE, not a signing key");
-                return get<JWK>(entry);
-            }
-            catch (...)
-            {
-                if (parsed_as_set)
-                    throw;  // getKey error (kid not found, wrong type); don't swallow
-            }
-        }
-        return JWK::fromJSON(key_json);
-    }();
+    JWK key = resolveKey(trim(readInput(key_src)), kid);
 
     // RFC 7515 §4.1.9: typ is optional with no defined default for general JWS.
     span<char const> const payload_span(payload.data(), payload.size());
@@ -445,19 +449,14 @@ static int cmdJweEncrypt(Args const &args)
     if (eit == kCea.end())
         throw runtime_error("Unknown content encryption algorithm: " + enc_s);
 
-    JWK key = JWK::fromJSON(trim(readInput(key_src)));
+    JWK key = resolveKey(trim(readInput(key_src)), args.get("kid"));
 
-    JWE jwe;
-    jwe.setPlaintext(plain);
-    jwe.setKeyEncryptionAlgorithm(kit->second);
-    jwe.setContentEncryptionAlgorithm(eit->second);
+    string typ = args.get("typ");
+    string compact = typ.empty()
+        ? encrypt(key, kit->second, eit->second, plain).toCompact()
+        : encrypt(key, kit->second, eit->second, typ, plain).toCompact();
 
-    if (string kid = args.get("kid"); !kid.empty())
-        jwe.setKeyID(kid);
-    if (string typ = args.get("typ"); !typ.empty())
-        jwe.setType(typ);
-
-    cout << jwe.encrypt(key) << "\n";
+    cout << compact << "\n";
     return 0;
 }
 
@@ -467,7 +466,9 @@ static int cmdJweDecrypt(Args const &args)
     string token   = trim(readInput(args.input()));
 
     JWK key = JWK::fromJSON(trim(readInput(key_src)));
-    cout << JWE::decrypt(token, key);
+    auto plaintext = decrypt(token, key);
+    cout.write(reinterpret_cast<char const *>(plaintext.data()),
+               static_cast<streamsize>(plaintext.size()));
     return 0;
 }
 
@@ -498,7 +499,8 @@ static void helpJwe()
         "  --key FILE   JWK key file (required)\n"
         "  --alg ALG    Key encryption: RSA-OAEP|RSA-OAEP-256|A128KW|A256KW|dir|ECDH-ES|A128GCMKW|...  (required)\n"
         "  --enc ENC    Content encryption: A128GCM|A256GCM|A128CBC-HS256|A256CBC-HS512|...  (required)\n"
-        "  --kid ID     Key ID to embed in header\n"
+        "  --kid ID     Select encryption key by ID from a JWK Set\n"
+        "  --typ TYPE   typ header value; omitted by default (RFC 7516 §4.1.11)\n"
         "\n"
         "decrypt options:\n"
         "  --key FILE   JWK key file with private material (required)\n";

@@ -42,6 +42,8 @@ using namespace Vlinder::JOSE::Private;
 
 `using namespace std;` (and project namespaces) is **required** at file scope in every `.cpp`. Do not use `std::` qualification when `using namespace std;` is in scope, except to resolve ambiguity.
 
+**Exception — `std::move` and `std::forward`:** Always write `std::move(...)` and `std::forward<T>(...)` even inside `.cpp` files where `using namespace std;` is present. Compilers warn about unqualified `move` and `forward` under `-Wall` because they shadow user-defined functions and interact with ADL in surprising ways. The `std::` prefix suppresses those warnings and makes intent unambiguous.
+
 ## Naming — Enforced by clang-tidy
 
 | Construct | Convention |

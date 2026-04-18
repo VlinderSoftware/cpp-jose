@@ -78,6 +78,7 @@ Check every new/changed identifier:
 
 - [ ] `using namespace std;` and the relevant project namespaces appear immediately after the `#include` block.
 - [ ] No `std::` qualification when `using namespace std;` is in scope (unless needed for disambiguation).
+- [ ] **Exception**: `std::move(...)` and `std::forward<T>(...)` are always written with the `std::` prefix even in `.cpp` files — unqualified `move`/`forward` generates compiler warnings under `-Wall` and obscures intent.
 
 ### 1.7 Pointer / Reference Formatting
 

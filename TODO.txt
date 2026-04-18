@@ -129,12 +129,63 @@
             represented public key
         [ ] on parse, if additional header parameters are present they are 
             checked for consistency
+    [ ] JWE: per-recipient header is unauthenticated — harden alg selection
+        RFC 7516 §7.2 per-recipient "header" members are NOT covered by the
+        AAD and can be tampered with undetected.  The current decrypt() reads
+        "alg" from the per-recipient header to override the protected header's
+        kea_ — this is an algorithm-substitution attack surface.
+        Rules to enforce in decrypt():
+        [ ] Only accept "alg" from the protected (authenticated) header.
+            Per-recipient header "alg" must be IGNORED for key-encryption
+            algorithm selection.
+        [ ] Per-recipient "header" may only supply non-security-critical hints:
+            "kid", "x5t", "x5t#S256", "x5u" — i.e. key-identification
+            fields, not algorithm-selection fields.
+        [ ] If a per-recipient header's "alg" is present and DIFFERS from the
+            protected header's "alg", return an error at parse time (fromJSON_)
+            rather than silently trusting it at decrypt time.
+        [ ] Add tests: tampered per-recipient "alg" is rejected; valid
+            per-recipient "kid" hint is still honoured.
     [ ] JWE: validate that the encrypting key's intended use is for encryption
     [ ] JWE: validate that is a signing key's public key is used to encrypt a 
         key *to*, the CLI will refuse unless forced
     [ ] JWE: validate we don't encrypt *to* a signing key unless forced
+    [ ] JWE fromJSON: absent "protected" header (RFC 7516 §7.2.1 compliance gap)
+        RFC 7516 §7.2.1: "protected" MUST be present only when the protected
+        header is non-empty; an absent "protected" means an empty protected
+        header is in use and alg/enc arrive via the top-level "unprotected"
+        (shared) header instead.  The current parser rejects any JSON JWE
+        lacking "protected".
+        Deferred because:
+        [ ] The top-level "unprotected" (shared) header needs to be parsed and
+            merged per RFC 7516 §5.2 step 5 before alg/enc can be resolved.
+        [ ] Accepting alg/enc from an unauthenticated source requires the
+            per-recipient-header hardening item (above) to land first so the
+            same security rules apply uniformly to all unprotected header
+            locations.
+        [ ] Add test: JSON JWE with absent "protected" and alg/enc in
+            top-level "unprotected" round-trips correctly.
 
 [ ] CLI
+    [ ] Extract CLI logic to a thin library (future PR)
+        The bulk of cli/jose.cpp (command dispatch, key resolution, I/O
+        helpers, algorithm-name maps) should move into a separate static
+        library (e.g. libjose_cli) so the functions can be unit-tested
+        independently.  The cli/ executable becomes a thin main() that
+        delegates to that library.
+        [ ] resolveKey(): unit tests for bare-JWK path, JWK-Set + matching
+            kid path, JWK-Set + missing kid throws, and empty-kid falls back
+            to bare-JWK parse
+        [ ] readInput() / trim() helpers
+        [ ] cmdJwsSign / cmdJweEncrypt dispatch logic
+    [ ] Use nothrow API consistently in CLI (future PR)
+        The CLI should use the nothrow (optional<>-returning) overloads
+        whenever it is probing whether input parses as a given type (e.g.
+        trying JWKSet before falling back to JWK).  The throwing overloads
+        should be reserved for operations the CLI unconditionally expects to
+        succeed (i.e. programmer errors, not user input errors).
+        Large try/catch blocks used as type-dispatch should be replaced with
+        nothrow calls + if (result) branches.
     [ ] JWK sets
     [ ] validate streaming with jq
     [ ] JWK: allow specification of a x5u parameter

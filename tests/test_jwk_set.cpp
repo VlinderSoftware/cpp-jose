@@ -828,12 +828,12 @@ SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE 
         JWK payload_key = JWK::generateEC(JWK::Use::signature, "P-256");
         payload_key.setKeyID("payload-ec");
 
-        JWE jwe;
-        jwe.setPlaintext(payload_key.toJSON(true));
-        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
-        string compact = jwe.encrypt(enc_key);
-        JWE parsed_jwe = JWE::fromJSON(compact);
+        JWE jwe = encrypt(enc_key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a128gcm,
+                          payload_key.toJSON(true));
+        string compact = jwe.toCompact();
+        JWE parsed_jwe = JWE::fromCompact(compact);
 
         JWK plain_key = JWK::generateEC(JWK::Use::signature, "P-384");
         plain_key.setKeyID("plain-ec");
@@ -886,12 +886,12 @@ SCENARIO("JWKSet can be constructed from an initializer list mixing JWK and JWE 
         JWK payload_key = JWK::generateEC(JWK::Use::signature, "P-256");
         payload_key.setKeyID("payload-ec");
 
-        JWE jwe;
-        jwe.setPlaintext(payload_key.toJSON(true));
-        jwe.setKeyEncryptionAlgorithm(JWA::KeyEncryptionAlgorithm::rsa_oaep);
-        jwe.setContentEncryptionAlgorithm(JWA::ContentEncryptionAlgorithm::a128gcm);
-        string compact = jwe.encrypt(enc_key);
-        JWE parsed_jwe = JWE::fromJSON(compact);
+        JWE jwe2 = encrypt(enc_key,
+                           JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                           JWA::ContentEncryptionAlgorithm::a128gcm,
+                           payload_key.toJSON(true));
+        string compact2 = jwe2.toCompact();
+        JWE parsed_jwe = JWE::fromCompact(compact2);
 
         JWK plain_key = JWK::generateEC(JWK::Use::signature, "P-384");
         plain_key.setKeyID("plain-ec");
