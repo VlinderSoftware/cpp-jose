@@ -66,13 +66,10 @@ public:
 
     // ── Serialisation ────────────────────────────────────────────────────────
 
-    /// @brief Serialise to JWE compact form (five dot-delimited Base64url parts).
-    /// @return Compact JWE string.
-    std::string toCompact() const;
-
     /// @brief Serialise to JWE JSON form (RFC 7516 §7.2), emitting flattened
-    ///        serialisation for a single recipient or general serialisation for
-    ///        multiple recipients.
+    ///        serialisation only when there is a single recipient and no
+    ///        separate per-recipient header needs to be represented; otherwise
+    ///        emits general serialisation.
     /// @return JSON string.
     std::string toJSON() const;
 
