@@ -66,6 +66,12 @@ public:
 
     // ── Serialisation ────────────────────────────────────────────────────────
 
+    /// @brief Serialise to JWE compact serialisation (RFC 7516 §7.1).
+    /// @return Five-part dot-delimited Base64url string.
+    /// @throws std::runtime_error if the token has more than one recipient
+    ///         (compact serialisation supports exactly one recipient).
+    std::string toCompact() const;
+
     /// @brief Serialise to JWE JSON form (RFC 7516 §7.2), emitting flattened
     ///        serialisation only when there is a single recipient and no
     ///        separate per-recipient header needs to be represented; otherwise
