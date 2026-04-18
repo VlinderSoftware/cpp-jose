@@ -303,6 +303,9 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
         if (ek_opt->empty() && requiresWrappedKey(*kea_opt))
             return makeError<JWE>("JWE fromJSON: 'encrypted_key' must not be empty for alg '" +
                                   header.at("alg").get<string>() + "'");
+        if (!ek_opt->empty() && !requiresWrappedKey(*kea_opt))
+            return makeError<JWE>("JWE fromJSON: 'encrypted_key' must be empty or absent for alg '" +
+                                  header.at("alg").get<string>() + "'");
         Impl::Recipient r;
         r.encrypted_key = std::move(*ek_opt);
         if (j.contains("header") && j.at("header").is_object())
