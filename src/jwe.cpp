@@ -474,7 +474,10 @@ string JWE::toJSON() const
     if (single_anon)
     {
         // RFC 7516 §7.2 flattened serialisation (backward-compatible default)
-        j["encrypted_key"] = Base64URL::encode(impl_->recipients_[0].encrypted_key);
+        // Do not emit "encrypted_key" for direct key agreement / direct encryption
+        // (RFC 7516 §7.2.2: MUST NOT be present when the encrypted key value is empty).
+        if (!impl_->recipients_[0].encrypted_key.empty())
+            j["encrypted_key"] = Base64URL::encode(impl_->recipients_[0].encrypted_key);
     }
     else
     {
@@ -483,7 +486,10 @@ string JWE::toJSON() const
         for (auto const &recipient : impl_->recipients_)
         {
             json r = json::object();
-            r["encrypted_key"] = Base64URL::encode(recipient.encrypted_key);
+            // Omit "encrypted_key" for direct key agreement / direct encryption
+            // (RFC 7516 §7.2.1: only present when key wrapping/encryption is used).
+            if (!recipient.encrypted_key.empty())
+                r["encrypted_key"] = Base64URL::encode(recipient.encrypted_key);
             if (!recipient.header_json.empty())
             {
                 json rh = json::parse(recipient.header_json, nullptr, false);

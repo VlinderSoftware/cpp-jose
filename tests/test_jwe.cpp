@@ -1302,6 +1302,78 @@ SCENARIO("JWE toJSON produces valid RFC 7516 section 7.2 flattened JSON", "[jwe]
     }
 }
 
+SCENARIO("JWE toJSON omits encrypted_key for direct key agreement algorithms",
+         "[jwe][json][dir][ecdh][rfc7516][section-7-2]")
+{
+    GIVEN("a JWE encrypted with dir + A128GCM")
+    {
+        JWK key = JWK::generateOct(JWK::Use::encryption, 128);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::dir,
+                          JWA::ContentEncryptionAlgorithm::a128gcm,
+                          string{"direct key payload"});
+
+        WHEN("serialising to flattened JSON")
+        {
+            string const json_str = jwe.toJSON();
+
+            THEN("'encrypted_key' is absent (RFC 7516 §7.2.2: MUST NOT be present)")
+            {
+                REQUIRE(json_str.find("\"encrypted_key\"") == string::npos);
+            }
+
+            AND_THEN("required envelope fields are present")
+            {
+                REQUIRE(json_str.find("\"protected\"") != string::npos);
+                REQUIRE(json_str.find("\"iv\"") != string::npos);
+                REQUIRE(json_str.find("\"ciphertext\"") != string::npos);
+                REQUIRE(json_str.find("\"tag\"") != string::npos);
+            }
+
+            AND_WHEN("parsing the JSON back and decrypting")
+            {
+                JWE parsed = JWE::fromJSON(json_str);
+                vector<unsigned char> result = decrypt(parsed, key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "direct key payload");
+                }
+            }
+        }
+    }
+
+    GIVEN("a JWE encrypted with ECDH-ES + A128GCM")
+    {
+        JWK key = JWK::generateEC(JWK::Use::encryption, "P-256");
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::ecdh_es,
+                          JWA::ContentEncryptionAlgorithm::a128gcm,
+                          string{"ecdh-es payload"});
+
+        WHEN("serialising to flattened JSON")
+        {
+            string const json_str = jwe.toJSON();
+
+            THEN("'encrypted_key' is absent (RFC 7516 §7.2.2: MUST NOT be present)")
+            {
+                REQUIRE(json_str.find("\"encrypted_key\"") == string::npos);
+            }
+
+            AND_WHEN("parsing the JSON back and decrypting")
+            {
+                JWE parsed = JWE::fromJSON(json_str);
+                vector<unsigned char> result = decrypt(parsed, key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "ecdh-es payload");
+                }
+            }
+        }
+    }
+}
+
 SCENARIO("JWE::fromJSON nothrow returns optional<JWE> on success", "[jwe][json][nothrow][rfc7516]")
 {
     GIVEN("a valid RFC 7516 §7.2 JSON JWE")
