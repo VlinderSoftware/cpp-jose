@@ -135,6 +135,25 @@
     [ ] JWE: validate we don't encrypt *to* a signing key unless forced
 
 [ ] CLI
+    [ ] Extract CLI logic to a thin library (future PR)
+        The bulk of cli/jose.cpp (command dispatch, key resolution, I/O
+        helpers, algorithm-name maps) should move into a separate static
+        library (e.g. libjose_cli) so the functions can be unit-tested
+        independently.  The cli/ executable becomes a thin main() that
+        delegates to that library.
+        [ ] resolveKey(): unit tests for bare-JWK path, JWK-Set + matching
+            kid path, JWK-Set + missing kid throws, and empty-kid falls back
+            to bare-JWK parse
+        [ ] readInput() / trim() helpers
+        [ ] cmdJwsSign / cmdJweEncrypt dispatch logic
+    [ ] Use nothrow API consistently in CLI (future PR)
+        The CLI should use the nothrow (optional<>-returning) overloads
+        whenever it is probing whether input parses as a given type (e.g.
+        trying JWKSet before falling back to JWK).  The throwing overloads
+        should be reserved for operations the CLI unconditionally expects to
+        succeed (i.e. programmer errors, not user input errors).
+        Large try/catch blocks used as type-dispatch should be replaced with
+        nothrow calls + if (result) branches.
     [ ] JWK sets
     [ ] validate streaming with jq
     [ ] JWK: allow specification of a x5u parameter
