@@ -1507,6 +1507,52 @@ SCENARIO("JWE fromJSON rejects key-wrapping algorithms with no encrypted_key",
     }
 }
 
+SCENARIO("JWE fromJSON rejects an unrecognised alg value in a per-recipient header",
+         "[jwe][json][validation][rfc7516][section-7-2]")
+{
+    GIVEN("a general-serialisation JWE whose recipient header contains an unknown alg string")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"payload"});
+        string const compact = jwe.toCompact();
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const ek_b64 = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        // "BOGUS-ALG-999" is not a registered JWA algorithm name.
+        string const bad_json = "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 +
+                                "\",\"ciphertext\":\"" + ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                                "\",\"recipients\":[{\"header\":{\"alg\":\"BOGUS-ALG-999\"},"
+                                "\"encrypted_key\":\"" +
+                                ek_b64 + "\"}]}";
+
+        WHEN("calling fromJSON() with throwing overload")
+        {
+            THEN("it throws std::runtime_error")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+        }
+
+        WHEN("calling fromJSON(s, nothrow)")
+        {
+            THEN("it returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+    }
+}
+
 SCENARIO("JWE fromCompact rejects encrypted_key mismatches against the alg field",
          "[jwe][fromcompact][validation][rfc7518][section-4-5][section-4-6]")
 {

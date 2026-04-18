@@ -365,15 +365,19 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
 
             // Effective per-recipient alg: prefer the per-recipient header's "alg" if present,
             // otherwise fall back to the protected header's value already parsed into *kea_opt.
+            // An unrecognised "alg" value is a parse error — silently ignoring it would accept
+            // malformed tokens and mask configuration errors.
             JWA::KeyEncryptionAlgorithm rec_kea = *kea_opt;
             if (rec.contains("header") && rec.at("header").is_object() &&
                 rec.at("header").contains("alg") && rec.at("header").at("alg").is_string())
             {
-                auto rec_kea_opt =
-                    JWA::keyEncryptionAlgorithmFromString(rec.at("header").at("alg").get<string>(),
-                                                          nothrow);
-                if (rec_kea_opt)
-                    rec_kea = *rec_kea_opt;
+                string const rec_alg_str = rec.at("header").at("alg").get<string>();
+                auto rec_kea_opt = JWA::keyEncryptionAlgorithmFromString(rec_alg_str, nothrow);
+                if (!rec_kea_opt)
+                    return makeError<JWE>(
+                        "JWE fromJSON: recipient header contains unknown 'alg' value '" +
+                        rec_alg_str + "'");
+                rec_kea = *rec_kea_opt;
             }
 
             bool const has_ek =
