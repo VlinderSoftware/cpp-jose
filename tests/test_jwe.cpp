@@ -1864,3 +1864,216 @@ SCENARIO("JWE decrypt continues past a recipient whose CEK decrypts to garbage",
         }
     }
 }
+
+// ── Per-recipient header alg hardening (RFC 7516 §7.2 / security) ────────────
+
+SCENARIO("Per-recipient header alg substitution is rejected at parse time",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // RFC 7516 §7.2: the per-recipient unprotected header is NOT covered by
+    // the AAD and can be tampered with.  If an attacker replaces "alg" in a
+    // per-recipient header with a DIFFERENT (but recognised) algorithm name,
+    // the parser MUST reject the token.
+    //
+    // Attack modelled here: original protected header has "alg":"RSA-OAEP";
+    // attacker substitutes "alg":"RSA1_5" in the per-recipient header.
+    // RSA1_5 is a recognised key-wrapping algorithm, so the encrypted_key
+    // presence check would not catch this without the explicit alg-consistency
+    // check.
+    GIVEN("a valid RSA-OAEP JWE compact token reformatted as general JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"attack-me"});
+
+        string const compact = jwe.toCompact();
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const ek_b64 = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        WHEN("the per-recipient header carries a DIFFERENT recognised alg (RSA1_5)")
+        {
+            // The protected header still says RSA-OAEP; the attacker tampers
+            // the per-recipient header's "alg" field to RSA1_5.
+            string const bad_json =
+                "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 + "\",\"ciphertext\":\"" +
+                ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                "\",\"recipients\":[{\"header\":{\"alg\":\"RSA1_5\"},\"encrypted_key\":\"" +
+                ek_b64 + "\"}]}";
+
+            THEN("fromJSON() (throwing) rejects the token")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+
+            AND_THEN("fromJSON(s, nothrow) returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("Per-recipient header alg matching protected header alg is accepted at parse time",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // Redundant (but harmless) repetition of the protected header's "alg" in
+    // a per-recipient header MUST NOT be rejected — it is idempotent.
+    // This scenario guards against regression where the new alg-consistency
+    // check rejects even matching values.
+    GIVEN("a valid RSA-OAEP compact JWE reformatted as general JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"matching-alg-payload"});
+
+        string const compact = jwe.toCompact();
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const ek_b64 = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        WHEN("the per-recipient header repeats the same alg as the protected header (RSA-OAEP)")
+        {
+            string const json_str =
+                "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 + "\",\"ciphertext\":\"" +
+                ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                "\",\"recipients\":[{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"" +
+                ek_b64 + "\"}]}";
+
+            THEN("fromJSON() succeeds")
+            {
+                REQUIRE_NOTHROW(JWE::fromJSON(json_str));
+            }
+
+            AND_WHEN("decrypting with the correct key")
+            {
+                JWE parsed = JWE::fromJSON(json_str);
+                vector<unsigned char> result = decrypt(parsed, key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "matching-alg-payload");
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("Per-recipient kid hint is honoured during decryption",
+         "[jwe][json][security][kid][rfc7516][section-7-2]")
+{
+    // RFC 7516 §7.2: per-recipient headers may carry key-identification hints
+    // such as "kid".  These are non-security-critical and must remain
+    // functional after the alg-hardening change.
+    GIVEN("a valid RSA-OAEP compact JWE reformatted as general JSON with a kid in per-recipient "
+          "header")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"kid-hint-payload"});
+
+        string const compact = jwe.toCompact();
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const ek_b64 = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        WHEN("the per-recipient header carries only a kid hint (no alg)")
+        {
+            string const json_str =
+                "{\"protected\":\"" + hdr_b64 + "\",\"iv\":\"" + iv_b64 + "\",\"ciphertext\":\"" +
+                ct_b64 + "\",\"tag\":\"" + tag_b64 +
+                "\",\"recipients\":[{\"header\":{\"kid\":\"my-rsa-key\"},\"encrypted_key\":\"" +
+                ek_b64 + "\"}]}";
+
+            THEN("fromJSON() succeeds")
+            {
+                REQUIRE_NOTHROW(JWE::fromJSON(json_str));
+            }
+
+            AND_WHEN("decrypting with the correct key")
+            {
+                JWE parsed = JWE::fromJSON(json_str);
+                vector<unsigned char> result = decrypt(parsed, key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "kid-hint-payload");
+                }
+            }
+        }
+    }
+}
+
+SCENARIO("Flattened JSON per-recipient header alg substitution is rejected at parse time",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // RFC 7516 §7.2 flattened form: the top-level "header" member is the
+    // per-recipient unprotected header and is NOT covered by the AAD.
+    // An attacker can tamper its "alg" field to downgrade the key-encryption
+    // algorithm (e.g. RSA-OAEP → RSA1_5 to enable padding-oracle attacks).
+    // The parser MUST reject any token where the per-recipient "header"
+    // carries an "alg" that DIFFERS from the protected header's "alg".
+    GIVEN("a valid RSA-OAEP compact JWE reformatted as flattened JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"flattened-attack-me"});
+
+        string const compact = jwe.toCompact();
+        auto const d1 = compact.find('.');
+        auto const d2 = compact.find('.', d1 + 1);
+        auto const d3 = compact.find('.', d2 + 1);
+        auto const d4 = compact.find('.', d3 + 1);
+        string const hdr_b64 = compact.substr(0, d1);
+        string const ek_b64 = compact.substr(d1 + 1, d2 - d1 - 1);
+        string const iv_b64 = compact.substr(d2 + 1, d3 - d2 - 1);
+        string const ct_b64 = compact.substr(d3 + 1, d4 - d3 - 1);
+        string const tag_b64 = compact.substr(d4 + 1);
+
+        WHEN("the top-level per-recipient header carries a DIFFERENT recognised alg (RSA1_5)")
+        {
+            // Flattened form: "header" is at the top level, not inside a
+            // "recipients" array.  The attacker tampers "alg" to RSA1_5.
+            string const bad_json = "{\"protected\":\"" + hdr_b64 +
+                                    "\",\"header\":{\"alg\":\"RSA1_5\"}" + ",\"encrypted_key\":\"" +
+                                    ek_b64 + "\",\"iv\":\"" + iv_b64 + "\",\"ciphertext\":\"" +
+                                    ct_b64 + "\",\"tag\":\"" + tag_b64 + "\"}";
+
+            THEN("fromJSON() (throwing) rejects the token")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+
+            AND_THEN("fromJSON(s, nothrow) returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+    }
+}

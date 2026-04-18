@@ -351,7 +351,23 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
         Impl::Recipient r;
         r.encrypted_key = std::move(*ek_opt);
         if (j.contains("header") && j.at("header").is_object())
-            r.header_json = j.at("header").dump();
+        {
+            json const &per_hdr = j.at("header");
+            // RFC 7516 §7.2: the per-recipient header is NOT authenticated by
+            // the AAD.  If it carries "alg", it MUST match the protected
+            // header's value — a mismatch indicates an algorithm-substitution
+            // attack attempt.
+            if (per_hdr.contains("alg") && per_hdr.at("alg").is_string())
+            {
+                string const per_alg_str = per_hdr.at("alg").get<string>();
+                auto per_kea_opt = JWA::keyEncryptionAlgorithmFromString(per_alg_str, nothrow);
+                if (!per_kea_opt || *per_kea_opt != *kea_opt)
+                    return makeError<JWE>("JWE fromJSON: per-recipient header 'alg' '" +
+                                          per_alg_str + "' differs from protected header 'alg' '" +
+                                          JWA::toString(*kea_opt) + "'");
+            }
+            r.header_json = per_hdr.dump();
+        }
         impl->recipients_.push_back(std::move(r));
     }
     else if (j.contains("recipients") && j.at("recipients").is_array() &&
@@ -363,10 +379,10 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             if (!rec.is_object())
                 return makeError<JWE>("JWE fromJSON: each recipient must be a JSON object");
 
-            // Effective per-recipient alg: prefer the per-recipient header's "alg" if present,
-            // otherwise fall back to the protected header's value already parsed into *kea_opt.
-            // An unrecognised "alg" value is a parse error — silently ignoring it would accept
-            // malformed tokens and mask configuration errors.
+            // Per-recipient "alg", if present, MUST match the protected header's "alg".
+            // The per-recipient header is unauthenticated and MUST NOT be used to
+            // override the protected algorithm — doing so would enable algorithm-
+            // substitution attacks (e.g. RSA-OAEP → RSA1_5 downgrade).
             JWA::KeyEncryptionAlgorithm rec_kea = *kea_opt;
             if (rec.contains("header") && rec.at("header").is_object() &&
                 rec.at("header").contains("alg") && rec.at("header").at("alg").is_string())
@@ -377,7 +393,11 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
                     return makeError<JWE>(
                         "JWE fromJSON: recipient header contains unknown 'alg' value '" +
                         rec_alg_str + "'");
-                rec_kea = *rec_kea_opt;
+                if (*rec_kea_opt != *kea_opt)
+                    return makeError<JWE>("JWE fromJSON: recipient header 'alg' '" + rec_alg_str +
+                                          "' differs from protected header 'alg' '" +
+                                          JWA::toString(*kea_opt) + "'");
+                // rec_alg matches protected alg — rec_kea stays *kea_opt (set above)
             }
 
             bool const has_ek =
@@ -789,16 +809,10 @@ vector<unsigned char> decrypt(JWE const &jwe, JWK const &key)
                     effective_header[k] = v;
         }
 
-        // Resolve kea from the effective header's "alg".
+        // Always use the authenticated protected header's "alg" for key-encryption
+        // algorithm selection.  The per-recipient header is unauthenticated; any
+        // "alg" it carries was already validated to match kea_ at parse time.
         JWA::KeyEncryptionAlgorithm kea = impl.kea_;
-        if (effective_header.contains("alg") && effective_header.at("alg").is_string())
-        {
-            auto kea_opt =
-                JWA::keyEncryptionAlgorithmFromString(effective_header.at("alg").get<string>(),
-                                                      nothrow);
-            if (kea_opt)
-                kea = *kea_opt;
-        }
 
         vector<unsigned char> cek;
         try
