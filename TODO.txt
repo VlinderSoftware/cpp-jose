@@ -5,7 +5,7 @@
     [x] JWK Thumbprints
     [x] Base64URL
     [x] JWS
-    [ ] JWE
+    [x] JWE
     [ ] JWT
 
 [x] on second thought, the nothrow versions can just return an optional<> rather than a pair<optional<>, bool>: if the optional<> is empty it failed
@@ -15,6 +15,7 @@
     [x] JWKS
     [x] JWK Thumbprints
     [x] Base64URL
+    [x] JWE
 
 [ ] Add functional tests for import & export:
     [x] Import an RSA from JSON, exported public key only, use the validate 
