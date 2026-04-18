@@ -26,7 +26,14 @@ vector<unsigned char> generateRandomBytes(size_t byte_count)
         return {};
     JWK random_key = JWK::generateOct(JWK::Use::encryption, static_cast<int>(byte_count * 8));
     json key_json = json::parse(random_key.toJSON(true));
-    return Base64URL::decode(key_json["k"].get<string>());
+    if (!key_json.contains("k"))
+        throw runtime_error("Generated octet key is missing required JWK parameter 'k'");
+
+    auto const decoded_key = Base64URL::decode(key_json.at("k").get<string>());
+    if (decoded_key.size() != byte_count)
+        throw runtime_error("Generated octet key has invalid length");
+
+    return decoded_key;
 }
 
 size_t getKeySize(JWA::ContentEncryptionAlgorithm algorithm)
@@ -270,15 +277,40 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     if (header.is_discarded() || !header.is_object())
         return makeError<JWE>("JWE fromJSON: 'protected' is not a valid JSON object");
 
-    if (!header.contains("alg") || !header.at("alg").is_string())
-        return makeError<JWE>("JWE fromJSON: protected header missing required 'alg' field");
+    string alg_value;
+    if (header.contains("alg") && header.at("alg").is_string())
+    {
+        alg_value = header.at("alg").get<string>();
+    }
+    else if (j.contains("header") && j.at("header").is_object() && j.at("header").contains("alg") &&
+             j.at("header").at("alg").is_string())
+    {
+        alg_value = j.at("header").at("alg").get<string>();
+    }
+    else if (j.contains("recipients") && j.at("recipients").is_array())
+    {
+        for (auto const &recipient : j.at("recipients"))
+        {
+            if (!recipient.is_object() || !recipient.contains("header") ||
+                !recipient.at("header").is_object() || !recipient.at("header").contains("alg") ||
+                !recipient.at("header").at("alg").is_string())
+            {
+                continue;
+            }
+
+            alg_value = recipient.at("header").at("alg").get<string>();
+            break;
+        }
+    }
+
+    if (alg_value.empty())
+        return makeError<JWE>("JWE fromJSON: missing required 'alg' field");
     if (!header.contains("enc") || !header.at("enc").is_string())
         return makeError<JWE>("JWE fromJSON: protected header missing required 'enc' field");
 
-    auto kea_opt = JWA::keyEncryptionAlgorithmFromString(header.at("alg").get<string>(), nothrow);
+    auto kea_opt = JWA::keyEncryptionAlgorithmFromString(alg_value, nothrow);
     if (!kea_opt)
-        return makeError<JWE>("JWE fromJSON: unknown key encryption algorithm: " +
-                              header.at("alg").get<string>());
+        return makeError<JWE>("JWE fromJSON: unknown key encryption algorithm: " + alg_value);
 
     auto cea_opt =
         JWA::contentEncryptionAlgorithmFromString(header.at("enc").get<string>(), nothrow);
@@ -349,6 +381,10 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             if (ek_opt->empty() && requiresWrappedKey(rec_kea))
                 return makeError<JWE>(
                     "JWE fromJSON: recipient 'encrypted_key' must not be empty for alg '" +
+                    JWA::toString(rec_kea) + "'");
+            if (!requiresWrappedKey(rec_kea) && !ek_opt->empty())
+                return makeError<JWE>(
+                    "JWE fromJSON: recipient 'encrypted_key' must be empty for alg '" +
                     JWA::toString(rec_kea) + "'");
             Impl::Recipient r;
             r.encrypted_key = std::move(*ek_opt);
