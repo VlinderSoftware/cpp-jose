@@ -26,12 +26,12 @@ vector<unsigned char> generateRandomBytes(size_t byte_count)
         return {};
     JWK random_key = JWK::generateOct(JWK::Use::encryption, static_cast<int>(byte_count * 8));
     json key_json = json::parse(random_key.toJSON(true));
-    if (!key_json.contains("k"))
-        throw runtime_error("Generated octet key is missing required JWK parameter 'k'");
+    if (!key_json.contains("k") || !key_json.at("k").is_string())
+        throw logic_error("Generated octet key is missing required JWK parameter 'k'");
 
     auto const decoded_key = Base64URL::decode(key_json.at("k").get<string>());
     if (decoded_key.size() != byte_count)
-        throw runtime_error("Generated octet key has invalid length");
+        throw logic_error("Generated octet key has invalid length");
 
     return decoded_key;
 }
