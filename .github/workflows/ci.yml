@@ -185,7 +185,7 @@ jobs:
 
       - name: Set up MSVC environment (Windows)
         if: runner.os == 'Windows'
-        uses: blytkerchan/devsecops-setup-msvc@v1
+        uses: vln-devsecops/actions-msvc@v1
 
       - name: Locate OpenSSL (Windows)
         if: ${{ runner.os == 'Windows' && matrix.backend == 'OpenSSL' }}
