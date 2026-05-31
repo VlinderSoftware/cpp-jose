@@ -137,6 +137,10 @@ If the change touches JWS, JWE, JWK, or JWT serialisation:
 - [ ] No plaintext secrets in comments, test payloads, or example files.
 - [ ] Input validation is performed at the public API boundary (parsing functions), not deep in the call stack.
 - [ ] **Protocol field injection**: any function that merges a caller-supplied parameter map into a protocol-defined header or claims set validates every key against the reserved-name set **before** writing any entry. Throws `std::invalid_argument` on the first reserved name. See implementation instructions for the reserved-name lists.
+- [ ] **Algorithm source integrity (JWE/JWS)**: any field that selects a cryptographic algorithm (`"alg"`, `"enc"`) MUST be read exclusively from the **authenticated** (integrity-protected) header. For JWE JSON serialisation, this means the JWE Protected Header only. Fallback to the per-recipient `"header"` or shared `"unprotected"` header is **not permitted** — doing so makes algorithm-consistency checks tautological and opens an algorithm-substitution attack. A review FAILS if:
+  - `"alg"` or `"enc"` are read from any unauthenticated source as a primary or fallback value.
+  - A consistency check compares a value against another value derived from the same unauthenticated source (circular check).
+  - There is no test proving that a token with `"alg"` absent from the protected header is rejected.
 
 ---
 
