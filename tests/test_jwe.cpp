@@ -2077,3 +2077,90 @@ SCENARIO("Flattened JSON per-recipient header alg substitution is rejected at pa
         }
     }
 }
+
+// ── alg MUST come from the protected (authenticated) header only ─────────────
+
+SCENARIO("fromJSON rejects a token whose alg is absent from the protected header (flattened form)",
+         "[jwe][json][security][rfc7516][section-4-1-1]")
+{
+    // RFC 7516 §4.1.1 + security requirement: "alg" identifies the key-encryption
+    // algorithm and MUST be read exclusively from the JWE Protected Header, which
+    // is integrity-protected by the AAD.  If "alg" is absent from the protected
+    // header the token MUST be rejected — accepting it would allow an attacker to
+    // supply any algorithm via the unauthenticated per-recipient "header", making
+    // the per-recipient consistency check tautological.
+    GIVEN("a JSON JWE whose protected header has 'enc' but no 'alg', with 'alg' only in the "
+          "top-level per-recipient header")
+    {
+        // Build a protected header that deliberately omits "alg".
+        string const prot_json = R"({"enc":"A256GCM"})";
+        string const prot_b64 = Base64URL::encode(prot_json);
+        string const dummy_iv = Base64URL::encode(vector<unsigned char>(12, 0));
+        string const dummy_ct = Base64URL::encode(string("data"));
+        string const dummy_tag = Base64URL::encode(vector<unsigned char>(16, 0));
+
+        // "alg" appears ONLY in the unauthenticated per-recipient "header".
+        // "AAAA" = 3 zero bytes, non-empty so the encrypted_key presence check
+        // for RSA-OAEP does not fire before the alg check.
+        string const bad_json =
+            "{\"protected\":\"" + prot_b64 + "\",\"header\":{\"alg\":\"RSA-OAEP\"}" +
+            ",\"encrypted_key\":\"AAAA\",\"iv\":\"" + dummy_iv + "\",\"ciphertext\":\"" + dummy_ct +
+            "\",\"tag\":\"" + dummy_tag + "\"}";
+
+        WHEN("calling fromJSON() with throwing overload")
+        {
+            THEN("it rejects the token (alg not in protected header)")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+        }
+
+        WHEN("calling fromJSON(s, nothrow)")
+        {
+            THEN("it returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+    }
+}
+
+SCENARIO("fromJSON rejects a token whose alg is absent from the protected header (general form)",
+         "[jwe][json][security][rfc7516][section-4-1-1]")
+{
+    // Same vulnerability via the general-serialisation ("recipients" array) path.
+    // Current code falls back to reading "alg" from the first recipient's
+    // per-recipient "header" when absent from "protected"; the resulting kea_opt
+    // is set from an unauthenticated source, making subsequent consistency
+    // checks tautological.
+    GIVEN("a JSON JWE whose protected header has 'enc' but no 'alg', with 'alg' only in a "
+          "per-recipient header inside the recipients array")
+    {
+        string const prot_json = R"({"enc":"A256GCM"})";
+        string const prot_b64 = Base64URL::encode(prot_json);
+        string const dummy_iv = Base64URL::encode(vector<unsigned char>(12, 0));
+        string const dummy_ct = Base64URL::encode(string("data"));
+        string const dummy_tag = Base64URL::encode(vector<unsigned char>(16, 0));
+
+        string const bad_json =
+            "{\"protected\":\"" + prot_b64 + "\",\"iv\":\"" + dummy_iv + "\",\"ciphertext\":\"" +
+            dummy_ct + "\",\"tag\":\"" + dummy_tag +
+            "\",\"recipients\":[{\"header\":{\"alg\":\"RSA-OAEP\"},\"encrypted_key\":\"AAAA\"}]}";
+
+        WHEN("calling fromJSON() with throwing overload")
+        {
+            THEN("it rejects the token (alg not in protected header)")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+        }
+
+        WHEN("calling fromJSON(s, nothrow)")
+        {
+            THEN("it returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+    }
+}

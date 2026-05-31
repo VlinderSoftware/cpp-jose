@@ -286,34 +286,16 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     if (header.is_discarded() || !header.is_object())
         return makeError<JWE>("JWE fromJSON: 'protected' is not a valid JSON object");
 
-    string alg_value;
-    if (header.contains("alg") && header.at("alg").is_string())
-    {
-        alg_value = header.at("alg").get<string>();
-    }
-    else if (j.contains("header") && j.at("header").is_object() && j.at("header").contains("alg") &&
-             j.at("header").at("alg").is_string())
-    {
-        alg_value = j.at("header").at("alg").get<string>();
-    }
-    else if (j.contains("recipients") && j.at("recipients").is_array())
-    {
-        for (auto const &recipient : j.at("recipients"))
-        {
-            if (!recipient.is_object() || !recipient.contains("header") ||
-                !recipient.at("header").is_object() || !recipient.at("header").contains("alg") ||
-                !recipient.at("header").at("alg").is_string())
-            {
-                continue;
-            }
-
-            alg_value = recipient.at("header").at("alg").get<string>();
-            break;
-        }
-    }
-
-    if (alg_value.empty())
-        return makeError<JWE>("JWE fromJSON: missing required 'alg' field");
+    // "alg" MUST be in the protected (authenticated) header.  Reading it from
+    // any unauthenticated source (per-recipient "header", shared "unprotected")
+    // would allow an attacker to substitute the key-encryption algorithm without
+    // detection.  The deferred "absent protected header" TODO will address the
+    // RFC 7516 §7.2 case where alg/enc come from a shared unprotected header
+    // under strict security controls — that requires top-level "unprotected"
+    // header parsing and is explicitly deferred (see TODO.txt).
+    if (!header.contains("alg") || !header.at("alg").is_string())
+        return makeError<JWE>("JWE fromJSON: protected header missing required 'alg' field");
+    string const alg_value = header.at("alg").get<string>();
     if (!header.contains("enc") || !header.at("enc").is_string())
         return makeError<JWE>("JWE fromJSON: protected header missing required 'enc' field");
 
