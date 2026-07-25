@@ -89,6 +89,53 @@ bool requiresWrappedKey(JWA::KeyEncryptionAlgorithm kea)
     }
 }
 
+/// Validate the cryptographic algorithm fields of a per-recipient unprotected
+/// header against the authenticated protected header.
+///
+/// RFC 7516 §7.2: the per-recipient header is NOT covered by the AAD, so an
+/// attacker can rewrite it at will.  Neither @c "alg" nor @c "enc" may be taken
+/// from it; where it repeats them they MUST agree with the protected header,
+/// otherwise the token has been tampered with (e.g. an RSA-OAEP → RSA1_5
+/// downgrade) and is rejected.  A present-but-malformed value is rejected too:
+/// skipping validation for a non-string would accept exactly the tokens this
+/// check exists to catch.
+///
+/// @return an error message, or an empty string if the header is acceptable.
+string validatePerRecipientAlgorithms(json const &header,
+                                      JWA::KeyEncryptionAlgorithm kea,
+                                      JWA::ContentEncryptionAlgorithm cea)
+{
+    if (header.contains("alg"))
+    {
+        if (!header.at("alg").is_string())
+            return "JWE fromJSON: per-recipient header 'alg' must be a string";
+        string const alg_str = header.at("alg").get<string>();
+        auto const alg_opt = JWA::keyEncryptionAlgorithmFromString(alg_str, nothrow);
+        if (!alg_opt)
+            return "JWE fromJSON: per-recipient header contains unknown 'alg' value '" + alg_str +
+                   "'";
+        if (*alg_opt != kea)
+            return "JWE fromJSON: per-recipient header 'alg' '" + alg_str +
+                   "' differs from protected header 'alg' '" + JWA::toString(kea) + "'";
+    }
+
+    if (header.contains("enc"))
+    {
+        if (!header.at("enc").is_string())
+            return "JWE fromJSON: per-recipient header 'enc' must be a string";
+        string const enc_str = header.at("enc").get<string>();
+        auto const enc_opt = JWA::contentEncryptionAlgorithmFromString(enc_str, nothrow);
+        if (!enc_opt)
+            return "JWE fromJSON: per-recipient header contains unknown 'enc' value '" + enc_str +
+                   "'";
+        if (*enc_opt != cea)
+            return "JWE fromJSON: per-recipient header 'enc' '" + enc_str +
+                   "' differs from protected header 'enc' '" + JWA::toString(cea) + "'";
+    }
+
+    return {};
+}
+
 }  // anonymous namespace
 
 struct JWE::Impl
@@ -335,19 +382,9 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
         if (j.contains("header") && j.at("header").is_object())
         {
             json const &per_hdr = j.at("header");
-            // RFC 7516 §7.2: the per-recipient header is NOT authenticated by
-            // the AAD.  If it carries "alg", it MUST match the protected
-            // header's value — a mismatch indicates an algorithm-substitution
-            // attack attempt.
-            if (per_hdr.contains("alg") && per_hdr.at("alg").is_string())
-            {
-                string const per_alg_str = per_hdr.at("alg").get<string>();
-                auto per_kea_opt = JWA::keyEncryptionAlgorithmFromString(per_alg_str, nothrow);
-                if (!per_kea_opt || *per_kea_opt != *kea_opt)
-                    return makeError<JWE>("JWE fromJSON: per-recipient header 'alg' '" +
-                                          per_alg_str + "' differs from protected header 'alg' '" +
-                                          JWA::toString(*kea_opt) + "'");
-            }
+            string const err = validatePerRecipientAlgorithms(per_hdr, *kea_opt, *cea_opt);
+            if (!err.empty())
+                return makeError<JWE>(err);
             r.header_json = per_hdr.dump();
         }
         impl->recipients_.push_back(std::move(r));
@@ -361,47 +398,36 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             if (!rec.is_object())
                 return makeError<JWE>("JWE fromJSON: each recipient must be a JSON object");
 
-            // Per-recipient "alg", if present, MUST match the protected header's "alg".
-            // The per-recipient header is unauthenticated and MUST NOT be used to
-            // override the protected algorithm — doing so would enable algorithm-
-            // substitution attacks (e.g. RSA-OAEP → RSA1_5 downgrade).
-            JWA::KeyEncryptionAlgorithm rec_kea = *kea_opt;
-            if (rec.contains("header") && rec.at("header").is_object() &&
-                rec.at("header").contains("alg") && rec.at("header").at("alg").is_string())
+            // The per-recipient header is unauthenticated and MUST NOT override the
+            // protected header's algorithms; where it repeats them they must agree.
+            if (rec.contains("header") && rec.at("header").is_object())
             {
-                string const rec_alg_str = rec.at("header").at("alg").get<string>();
-                auto rec_kea_opt = JWA::keyEncryptionAlgorithmFromString(rec_alg_str, nothrow);
-                if (!rec_kea_opt)
-                    return makeError<JWE>(
-                        "JWE fromJSON: recipient header contains unknown 'alg' value '" +
-                        rec_alg_str + "'");
-                if (*rec_kea_opt != *kea_opt)
-                    return makeError<JWE>("JWE fromJSON: recipient header 'alg' '" + rec_alg_str +
-                                          "' differs from protected header 'alg' '" +
-                                          JWA::toString(*kea_opt) + "'");
-                // rec_alg matches protected alg — rec_kea stays *kea_opt (set above)
+                string const err =
+                    validatePerRecipientAlgorithms(rec.at("header"), *kea_opt, *cea_opt);
+                if (!err.empty())
+                    return makeError<JWE>(err);
             }
 
             bool const has_ek =
                 rec.contains("encrypted_key") && rec.at("encrypted_key").is_string();
-            if (!has_ek && requiresWrappedKey(rec_kea))
+            if (!has_ek && requiresWrappedKey(*kea_opt))
                 return makeError<JWE>(
                     "JWE fromJSON: recipient is missing 'encrypted_key' for alg '" +
-                    JWA::toString(rec_kea) + "'");
+                    JWA::toString(*kea_opt) + "'");
 
             string const ek_b64 = has_ek ? rec.at("encrypted_key").get<string>() : string{};
             auto ek_opt = Base64URL::decode(ek_b64, nothrow);
             if (!ek_opt)
                 return makeError<JWE>(
                     "JWE fromJSON: failed to base64url-decode recipient 'encrypted_key'");
-            if (ek_opt->empty() && requiresWrappedKey(rec_kea))
+            if (ek_opt->empty() && requiresWrappedKey(*kea_opt))
                 return makeError<JWE>(
                     "JWE fromJSON: recipient 'encrypted_key' must not be empty for alg '" +
-                    JWA::toString(rec_kea) + "'");
-            if (!requiresWrappedKey(rec_kea) && !ek_opt->empty())
+                    JWA::toString(*kea_opt) + "'");
+            if (!requiresWrappedKey(*kea_opt) && !ek_opt->empty())
                 return makeError<JWE>(
                     "JWE fromJSON: recipient 'encrypted_key' must be empty for alg '" +
-                    JWA::toString(rec_kea) + "'");
+                    JWA::toString(*kea_opt) + "'");
             Impl::Recipient r;
             r.encrypted_key = std::move(*ek_opt);
             if (rec.contains("header") && rec.at("header").is_object())
@@ -794,7 +820,7 @@ vector<unsigned char> decrypt(JWE const &jwe, JWK const &key)
         // Always use the authenticated protected header's "alg" for key-encryption
         // algorithm selection.  The per-recipient header is unauthenticated; any
         // "alg" it carries was already validated to match kea_ at parse time.
-        JWA::KeyEncryptionAlgorithm kea = impl.kea_;
+        JWA::KeyEncryptionAlgorithm const kea = impl.kea_;
 
         vector<unsigned char> cek;
         try

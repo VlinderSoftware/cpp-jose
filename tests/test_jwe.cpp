@@ -4,6 +4,7 @@
 // RFC references: RFC 7516 (JWE), RFC 7518 §4 (alg), RFC 7518 §5 (enc).
 #include <algorithm>
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <map>
 #include <span>
 #include <stdexcept>
@@ -19,6 +20,50 @@ using namespace Vlinder::JOSE;
 static int countDots(string const &s)
 {
     return static_cast<int>(count(s.begin(), s.end(), '.'));
+}
+
+/// The five base64url-encoded members of a compact JWE (RFC 7516 §7.1), split
+/// out so a token can be re-serialised as flattened or general JSON with a
+/// caller-chosen per-recipient header.
+struct CompactParts
+{
+    string header_;
+    string encrypted_key_;
+    string iv_;
+    string ciphertext_;
+    string tag_;
+};
+
+static CompactParts splitCompact(string const &compact)
+{
+    auto const d1 = compact.find('.');
+    auto const d2 = compact.find('.', d1 + 1);
+    auto const d3 = compact.find('.', d2 + 1);
+    auto const d4 = compact.find('.', d3 + 1);
+    return CompactParts{compact.substr(0, d1),
+                        compact.substr(d1 + 1, d2 - d1 - 1),
+                        compact.substr(d2 + 1, d3 - d2 - 1),
+                        compact.substr(d3 + 1, d4 - d3 - 1),
+                        compact.substr(d4 + 1)};
+}
+
+/// Re-serialise @a parts as RFC 7516 §7.2.1 general JSON, with @a header_json
+/// (a JSON object literal) as the single recipient's unprotected header.
+static string toGeneralJSON(CompactParts const &parts, string const &header_json)
+{
+    return "{\"protected\":\"" + parts.header_ + "\",\"iv\":\"" + parts.iv_ +
+           "\",\"ciphertext\":\"" + parts.ciphertext_ + "\",\"tag\":\"" + parts.tag_ +
+           "\",\"recipients\":[{\"header\":" + header_json + ",\"encrypted_key\":\"" +
+           parts.encrypted_key_ + "\"}]}";
+}
+
+/// Re-serialise @a parts as RFC 7516 §7.2.2 flattened JSON, with @a header_json
+/// (a JSON object literal) as the top-level per-recipient unprotected header.
+static string toFlattenedJSON(CompactParts const &parts, string const &header_json)
+{
+    return "{\"protected\":\"" + parts.header_ + "\",\"header\":" + header_json +
+           ",\"encrypted_key\":\"" + parts.encrypted_key_ + "\",\"iv\":\"" + parts.iv_ +
+           "\",\"ciphertext\":\"" + parts.ciphertext_ + "\",\"tag\":\"" + parts.tag_ + "\"}";
 }
 
 // ── Compact round-trips ───────────────────────────────────────────────────────
@@ -2160,6 +2205,211 @@ SCENARIO("fromJSON rejects a token whose alg is absent from the protected header
             THEN("it returns nullopt")
             {
                 REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+    }
+}
+
+// ── Per-recipient header "enc" hardening (RFC 7516 §7.2 / security) ──────────
+
+SCENARIO("Per-recipient header enc substitution is rejected at parse time",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // RFC 7516 §7.2: the per-recipient unprotected header is NOT covered by the
+    // AAD.  "enc" selects the content-encryption algorithm, so — exactly like
+    // "alg" — a value carried in an unauthenticated header MUST NOT be allowed
+    // to disagree with the protected header.  A mismatch indicates tampering
+    // and MUST be rejected rather than silently ignored.
+    GIVEN("a valid RSA-OAEP / A256GCM JWE reformatted as JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"enc-attack-me"});
+        CompactParts const parts = splitCompact(jwe.toCompact());
+
+        WHEN("a recipient header carries a DIFFERENT recognised enc (A128GCM)")
+        {
+            string const bad_json = toGeneralJSON(parts, R"({"enc":"A128GCM"})");
+
+            THEN("fromJSON() (throwing) rejects the token")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+
+            AND_THEN("fromJSON(s, nothrow) returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+
+        WHEN("the flattened per-recipient header carries a DIFFERENT recognised enc (A128GCM)")
+        {
+            string const bad_json = toFlattenedJSON(parts, R"({"enc":"A128GCM"})");
+
+            THEN("fromJSON() (throwing) rejects the token")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+
+            AND_THEN("fromJSON(s, nothrow) returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+
+        WHEN("a recipient header carries an unrecognised enc")
+        {
+            string const bad_json = toGeneralJSON(parts, R"({"enc":"BOGUS-ENC"})");
+
+            THEN("fromJSON() reports the unknown value rather than a mismatch")
+            {
+                REQUIRE_THROWS_WITH(JWE::fromJSON(bad_json),
+                                    Catch::Matchers::ContainsSubstring("unknown 'enc' value"));
+            }
+        }
+    }
+}
+
+SCENARIO("Per-recipient header enc matching the protected header is accepted",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // Redundant repetition of the protected header's "enc" in a per-recipient
+    // header is idempotent and MUST NOT be rejected.  Guards against a
+    // regression where the new consistency check rejects matching values.
+    GIVEN("a valid RSA-OAEP / A256GCM JWE reformatted as JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"matching-enc-payload"});
+        CompactParts const parts = splitCompact(jwe.toCompact());
+
+        WHEN("a recipient header repeats both the protected alg and enc")
+        {
+            string const json_str = toGeneralJSON(parts, R"({"alg":"RSA-OAEP","enc":"A256GCM"})");
+
+            THEN("fromJSON() succeeds")
+            {
+                REQUIRE_NOTHROW(JWE::fromJSON(json_str));
+            }
+
+            AND_WHEN("decrypting with the correct key")
+            {
+                JWE parsed = JWE::fromJSON(json_str);
+                vector<unsigned char> result = decrypt(parsed, key);
+
+                THEN("plaintext is recovered")
+                {
+                    REQUIRE(string(result.begin(), result.end()) == "matching-enc-payload");
+                }
+            }
+        }
+
+        WHEN("the flattened per-recipient header repeats the protected enc")
+        {
+            string const json_str = toFlattenedJSON(parts, R"({"enc":"A256GCM"})");
+
+            THEN("fromJSON() succeeds")
+            {
+                REQUIRE_NOTHROW(JWE::fromJSON(json_str));
+            }
+        }
+    }
+}
+
+// ── Per-recipient header type validation ─────────────────────────────────────
+
+SCENARIO("A per-recipient header whose alg or enc is not a string is rejected",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // A present-but-non-string "alg"/"enc" must not slip past the consistency
+    // checks: an is_string() guard alone would skip validation entirely and
+    // accept the token, which is the wrong answer for a malformed header.
+    GIVEN("a valid RSA-OAEP / A256GCM JWE reformatted as JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"non-string-alg"});
+        CompactParts const parts = splitCompact(jwe.toCompact());
+
+        WHEN("a recipient header carries a numeric alg")
+        {
+            string const bad_json = toGeneralJSON(parts, R"({"alg":5})");
+
+            THEN("fromJSON() rejects the token")
+            {
+                REQUIRE_THROWS_WITH(JWE::fromJSON(bad_json),
+                                    Catch::Matchers::ContainsSubstring("'alg' must be a string"));
+            }
+
+            AND_THEN("fromJSON(s, nothrow) returns nullopt")
+            {
+                REQUIRE_FALSE(JWE::fromJSON(bad_json, nothrow).has_value());
+            }
+        }
+
+        WHEN("the flattened per-recipient header carries a numeric alg")
+        {
+            string const bad_json = toFlattenedJSON(parts, R"({"alg":5})");
+
+            THEN("fromJSON() rejects the token")
+            {
+                REQUIRE_THROWS_AS(JWE::fromJSON(bad_json), runtime_error);
+            }
+        }
+
+        WHEN("a recipient header carries a non-string enc")
+        {
+            string const bad_json = toGeneralJSON(parts, R"({"enc":["A256GCM"]})");
+
+            THEN("fromJSON() rejects the token")
+            {
+                REQUIRE_THROWS_WITH(JWE::fromJSON(bad_json),
+                                    Catch::Matchers::ContainsSubstring("'enc' must be a string"));
+            }
+        }
+    }
+}
+
+SCENARIO("An unrecognised per-recipient alg is reported as unknown in both JSON forms",
+         "[jwe][json][security][rfc7516][section-7-2]")
+{
+    // The general and flattened paths must agree on how they describe a
+    // per-recipient "alg" that names no known algorithm: "unknown value", not
+    // "differs from the protected header".
+    GIVEN("a valid RSA-OAEP / A256GCM JWE reformatted as JSON")
+    {
+        JWK key = JWK::generateRSA(JWK::Use::encryption, 2048);
+        JWE jwe = encrypt(key,
+                          JWA::KeyEncryptionAlgorithm::rsa_oaep,
+                          JWA::ContentEncryptionAlgorithm::a256gcm,
+                          string{"unknown-alg"});
+        CompactParts const parts = splitCompact(jwe.toCompact());
+
+        WHEN("a recipient header carries an unrecognised alg")
+        {
+            string const bad_json = toGeneralJSON(parts, R"({"alg":"BOGUS-ALG"})");
+
+            THEN("fromJSON() reports the unknown value")
+            {
+                REQUIRE_THROWS_WITH(JWE::fromJSON(bad_json),
+                                    Catch::Matchers::ContainsSubstring("unknown 'alg' value"));
+            }
+        }
+
+        WHEN("the flattened per-recipient header carries an unrecognised alg")
+        {
+            string const bad_json = toFlattenedJSON(parts, R"({"alg":"BOGUS-ALG"})");
+
+            THEN("fromJSON() reports the unknown value, not a mismatch")
+            {
+                REQUIRE_THROWS_WITH(JWE::fromJSON(bad_json),
+                                    Catch::Matchers::ContainsSubstring("unknown 'alg' value"));
             }
         }
     }
