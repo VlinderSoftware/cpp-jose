@@ -156,8 +156,11 @@ This project follows a strict TDD/BDD workflow. Detailed per-phase instructions 
 
 ### Process in Brief
 
-1. **Design** — Finalise the header/interface first. Trace every addition to an RFC in `doc/`.
-2. **Write failing tests** — Use Catch2 `SCENARIO`/`GIVEN`/`WHEN`/`THEN` for behaviour tests; `TEST_CASE` for unit-level checks. Include RFC 7520 test vectors for any serialisation change.
-3. **Implement** — Make the tests green with the minimum necessary code. Build and test **both the CNG and OpenSSL backends** before committing. Run `clang-format` and `clang-tidy` before committing.
-4. **Review** — Every PR must pass the style checklist in `04-review.instructions.md`. Coverage on modified `src/` files must be ≥ **85 %**.
-5. **PR** — Use the PR description template, ensure the CI matrix is fully green, and squash-merge into `dev`.
+**Mandatory order — do not skip or reorder steps. Do not commit or push without completing step 5.**
+
+1. **BDD** — Write failing `SCENARIO`/`GIVEN`/`WHEN`/`THEN` tests first, one scenario per observable behaviour. Tests must be red before any implementation begins.
+2. **TDD** — Add any supporting unit-level `TEST_CASE` tests (edge cases, error paths). All new tests must fail first.
+3. **Implement** — Write the minimum code to make all tests green. Build and verify **both CNG and OpenSSL backends**. Run `clang-format` and `clang-tidy` before proceeding.
+4. **Review** — Self-review every change against the full checklist in `04-review.instructions.md`. Fix all style, coverage, security, and architecture findings.
+5. **User review** — Present a diff summary and test results to the user. **Wait for explicit user approval before running `git commit`, `git push`, or any other destructive/publishing operation.**
+6. **PR** — After user approval, use the PR description template, ensure the CI matrix is fully green, and squash-merge into `dev`.

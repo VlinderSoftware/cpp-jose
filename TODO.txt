@@ -5,7 +5,7 @@
     [x] JWK Thumbprints
     [x] Base64URL
     [x] JWS
-    [ ] JWE
+    [x] JWE
     [ ] JWT
 
 [x] on second thought, the nothrow versions can just return an optional<> rather than a pair<optional<>, bool>: if the optional<> is empty it failed
@@ -15,6 +15,7 @@
     [x] JWKS
     [x] JWK Thumbprints
     [x] Base64URL
+    [x] JWE
 
 [ ] Add functional tests for import & export:
     [x] Import an RSA from JSON, exported public key only, use the validate 
@@ -131,21 +132,46 @@
             checked for consistency
     [ ] JWE: per-recipient header is unauthenticated — harden alg selection
         RFC 7516 §7.2 per-recipient "header" members are NOT covered by the
-        AAD and can be tampered with undetected.  The current decrypt() reads
+        AAD and can be tampered with undetected.  decrypt() used to read
         "alg" from the per-recipient header to override the protected header's
-        kea_ — this is an algorithm-substitution attack surface.
+        kea_ — that algorithm-substitution attack surface is now closed.
         Rules to enforce in decrypt():
-        [ ] Only accept "alg" from the protected (authenticated) header.
+        [x] Only accept "alg" from the protected (authenticated) header.
             Per-recipient header "alg" must be IGNORED for key-encryption
             algorithm selection.
         [ ] Per-recipient "header" may only supply non-security-critical hints:
             "kid", "x5t", "x5t#S256", "x5u" — i.e. key-identification
             fields, not algorithm-selection fields.
-        [ ] If a per-recipient header's "alg" is present and DIFFERS from the
+            Partially done: "alg" and "enc" are now rejected when they
+            disagree with the protected header, but the per-recipient header
+            is not restricted to a whitelist.  Note that a whitelist of only
+            key-identification fields would be too strict: RFC 7518 §4.6
+            puts "epk" in the per-recipient header for ECDH-ES, and §4.7 puts
+            "iv"/"tag" there for AES-GCM key wrapping.  Both are read from
+            the merged effective header by decrypt().
+        [x] If a per-recipient header's "alg" is present and DIFFERS from the
             protected header's "alg", return an error at parse time (fromJSON_)
             rather than silently trusting it at decrypt time.
-        [ ] Add tests: tampered per-recipient "alg" is rejected; valid
+            Also applied to "enc", and to values that are present but not
+            strings or not recognised algorithm names.
+        [x] Add tests: tampered per-recipient "alg" is rejected; valid
             per-recipient "kid" hint is still honoured.
+    [ ] JWE fromJSON: recipients selecting different algorithms (RFC 7516
+        §7.2.1 / RFC 7520 §5.13 compliance gap)
+        Enforcing "alg" consistency against the protected header means a token
+        whose recipients each use a DIFFERENT key-encryption algorithm is
+        rejected — including the multiple-recipient example in RFC 7520 §5.13,
+        which wraps one CEK under RSA1_5, ECDH-ES+A256KW and A256GCMKW, with a
+        protected header of {"enc":"A128CBC-HS256"} that carries no "alg" at
+        all.  Multiple recipients sharing one algorithm are supported.
+        Deferred because:
+        [ ] JWE::Impl holds a single kea_ for the whole token; per-recipient
+            algorithm selection needs the algorithm to move onto Recipient.
+        [ ] Accepting a per-recipient "alg" means accepting it from an
+            unauthenticated source, so it needs a decision on which algorithms
+            may be selected that way (an allow-list) before it can be safe.
+        [ ] Add test: the RFC 7520 §5.13 vector round-trips and each recipient
+            decrypts with its own key.
     [ ] JWE: validate that the encrypting key's intended use is for encryption
     [ ] JWE: validate that is a signing key's public key is used to encrypt a 
         key *to*, the CLI will refuse unless forced

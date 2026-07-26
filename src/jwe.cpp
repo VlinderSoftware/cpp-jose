@@ -89,6 +89,53 @@ bool requiresWrappedKey(JWA::KeyEncryptionAlgorithm kea)
     }
 }
 
+/// Validate the cryptographic algorithm fields of a per-recipient unprotected
+/// header against the authenticated protected header.
+///
+/// RFC 7516 §7.2: the per-recipient header is NOT covered by the AAD, so an
+/// attacker can rewrite it at will.  Neither @c "alg" nor @c "enc" may be taken
+/// from it; where it repeats them they MUST agree with the protected header,
+/// otherwise the token has been tampered with (e.g. an RSA-OAEP → RSA1_5
+/// downgrade) and is rejected.  A present-but-malformed value is rejected too:
+/// skipping validation for a non-string would accept exactly the tokens this
+/// check exists to catch.
+///
+/// @return an error message, or an empty string if the header is acceptable.
+string validatePerRecipientAlgorithms(json const &header,
+                                      JWA::KeyEncryptionAlgorithm kea,
+                                      JWA::ContentEncryptionAlgorithm cea)
+{
+    if (header.contains("alg"))
+    {
+        if (!header.at("alg").is_string())
+            return "JWE fromJSON: per-recipient header 'alg' must be a string";
+        string const alg_str = header.at("alg").get<string>();
+        auto const alg_opt = JWA::keyEncryptionAlgorithmFromString(alg_str, nothrow);
+        if (!alg_opt)
+            return "JWE fromJSON: per-recipient header contains unknown 'alg' value '" + alg_str +
+                   "'";
+        if (*alg_opt != kea)
+            return "JWE fromJSON: per-recipient header 'alg' '" + alg_str +
+                   "' differs from protected header 'alg' '" + JWA::toString(kea) + "'";
+    }
+
+    if (header.contains("enc"))
+    {
+        if (!header.at("enc").is_string())
+            return "JWE fromJSON: per-recipient header 'enc' must be a string";
+        string const enc_str = header.at("enc").get<string>();
+        auto const enc_opt = JWA::contentEncryptionAlgorithmFromString(enc_str, nothrow);
+        if (!enc_opt)
+            return "JWE fromJSON: per-recipient header contains unknown 'enc' value '" + enc_str +
+                   "'";
+        if (*enc_opt != cea)
+            return "JWE fromJSON: per-recipient header 'enc' '" + enc_str +
+                   "' differs from protected header 'enc' '" + JWA::toString(cea) + "'";
+    }
+
+    return {};
+}
+
 }  // anonymous namespace
 
 struct JWE::Impl
@@ -192,16 +239,17 @@ pair<optional<JWE>, string> JWE::fromCompact_(string const &compact)
     if (!header.contains("enc") || !header.at("enc").is_string())
         return makeError<JWE>("JWE fromCompact: protected header missing required 'enc' field");
 
-    auto kea_opt = JWA::keyEncryptionAlgorithmFromString(header.at("alg").get<string>(), nothrow);
-    if (!kea_opt)
-        return makeError<JWE>("JWE fromCompact: unknown key encryption algorithm: " +
-                              header.at("alg").get<string>());
+    string const alg_value = header.at("alg").get<string>();
+    string const enc_value = header.at("enc").get<string>();
 
-    auto cea_opt =
-        JWA::contentEncryptionAlgorithmFromString(header.at("enc").get<string>(), nothrow);
+    auto kea_opt = JWA::keyEncryptionAlgorithmFromString(alg_value, nothrow);
+    if (!kea_opt)
+        return makeError<JWE>("JWE fromCompact: unknown key encryption algorithm: " + alg_value);
+
+    auto cea_opt = JWA::contentEncryptionAlgorithmFromString(enc_value, nothrow);
     if (!cea_opt)
         return makeError<JWE>("JWE fromCompact: unknown content encryption algorithm: " +
-                              header.at("enc").get<string>());
+                              enc_value);
 
     auto encrypted_key_opt = Base64URL::decode(parts[1], nothrow);
     if (!encrypted_key_opt)
@@ -211,10 +259,10 @@ pair<optional<JWE>, string> JWE::fromCompact_(string const &compact)
     // All key-wrapping algorithms MUST have a non-empty encrypted_key part.
     if (requiresWrappedKey(*kea_opt) && encrypted_key_opt->empty())
         return makeError<JWE>("JWE fromCompact: 'encrypted_key' must not be empty for alg '" +
-                              header.at("alg").get<string>() + "'");
+                              alg_value + "'");
     if (!requiresWrappedKey(*kea_opt) && !encrypted_key_opt->empty())
         return makeError<JWE>("JWE fromCompact: 'encrypted_key' must be empty for alg '" +
-                              header.at("alg").get<string>() + "' (RFC 7518 §4.5/§4.6)");
+                              alg_value + "' (RFC 7518 §4.5/§4.6)");
 
     auto iv_opt = Base64URL::decode(parts[2], nothrow);
     if (!iv_opt)
@@ -286,46 +334,27 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     if (header.is_discarded() || !header.is_object())
         return makeError<JWE>("JWE fromJSON: 'protected' is not a valid JSON object");
 
-    string alg_value;
-    if (header.contains("alg") && header.at("alg").is_string())
-    {
-        alg_value = header.at("alg").get<string>();
-    }
-    else if (j.contains("header") && j.at("header").is_object() && j.at("header").contains("alg") &&
-             j.at("header").at("alg").is_string())
-    {
-        alg_value = j.at("header").at("alg").get<string>();
-    }
-    else if (j.contains("recipients") && j.at("recipients").is_array())
-    {
-        for (auto const &recipient : j.at("recipients"))
-        {
-            if (!recipient.is_object() || !recipient.contains("header") ||
-                !recipient.at("header").is_object() || !recipient.at("header").contains("alg") ||
-                !recipient.at("header").at("alg").is_string())
-            {
-                continue;
-            }
-
-            alg_value = recipient.at("header").at("alg").get<string>();
-            break;
-        }
-    }
-
-    if (alg_value.empty())
-        return makeError<JWE>("JWE fromJSON: missing required 'alg' field");
+    // "alg" MUST be in the protected (authenticated) header.  Reading it from
+    // any unauthenticated source (per-recipient "header", shared "unprotected")
+    // would allow an attacker to substitute the key-encryption algorithm without
+    // detection.  The deferred "absent protected header" TODO will address the
+    // RFC 7516 §7.2 case where alg/enc come from a shared unprotected header
+    // under strict security controls — that requires top-level "unprotected"
+    // header parsing and is explicitly deferred (see TODO.txt).
+    if (!header.contains("alg") || !header.at("alg").is_string())
+        return makeError<JWE>("JWE fromJSON: protected header missing required 'alg' field");
+    string const alg_value = header.at("alg").get<string>();
     if (!header.contains("enc") || !header.at("enc").is_string())
         return makeError<JWE>("JWE fromJSON: protected header missing required 'enc' field");
+    string const enc_value = header.at("enc").get<string>();
 
     auto kea_opt = JWA::keyEncryptionAlgorithmFromString(alg_value, nothrow);
     if (!kea_opt)
         return makeError<JWE>("JWE fromJSON: unknown key encryption algorithm: " + alg_value);
 
-    auto cea_opt =
-        JWA::contentEncryptionAlgorithmFromString(header.at("enc").get<string>(), nothrow);
+    auto cea_opt = JWA::contentEncryptionAlgorithmFromString(enc_value, nothrow);
     if (!cea_opt)
-        return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " +
-                              header.at("enc").get<string>());
+        return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " + enc_value);
 
     auto impl = make_unique<Impl>();
     impl->kea_ = *kea_opt;
@@ -343,15 +372,21 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             return makeError<JWE>("JWE fromJSON: failed to base64url-decode 'encrypted_key'");
         if (ek_opt->empty() && requiresWrappedKey(*kea_opt))
             return makeError<JWE>("JWE fromJSON: 'encrypted_key' must not be empty for alg '" +
-                                  header.at("alg").get<string>() + "'");
+                                  alg_value + "'");
         if (!ek_opt->empty() && !requiresWrappedKey(*kea_opt))
             return makeError<JWE>(
-                "JWE fromJSON: 'encrypted_key' must be empty or absent for alg '" +
-                header.at("alg").get<string>() + "'");
+                "JWE fromJSON: 'encrypted_key' must be empty or absent for alg '" + alg_value +
+                "'");
         Impl::Recipient r;
         r.encrypted_key = std::move(*ek_opt);
         if (j.contains("header") && j.at("header").is_object())
-            r.header_json = j.at("header").dump();
+        {
+            json const &per_hdr = j.at("header");
+            string const err = validatePerRecipientAlgorithms(per_hdr, *kea_opt, *cea_opt);
+            if (!err.empty())
+                return makeError<JWE>(err);
+            r.header_json = per_hdr.dump();
+        }
         impl->recipients_.push_back(std::move(r));
     }
     else if (j.contains("recipients") && j.at("recipients").is_array() &&
@@ -363,43 +398,36 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             if (!rec.is_object())
                 return makeError<JWE>("JWE fromJSON: each recipient must be a JSON object");
 
-            // Effective per-recipient alg: prefer the per-recipient header's "alg" if present,
-            // otherwise fall back to the protected header's value already parsed into *kea_opt.
-            // An unrecognised "alg" value is a parse error — silently ignoring it would accept
-            // malformed tokens and mask configuration errors.
-            JWA::KeyEncryptionAlgorithm rec_kea = *kea_opt;
-            if (rec.contains("header") && rec.at("header").is_object() &&
-                rec.at("header").contains("alg") && rec.at("header").at("alg").is_string())
+            // The per-recipient header is unauthenticated and MUST NOT override the
+            // protected header's algorithms; where it repeats them they must agree.
+            if (rec.contains("header") && rec.at("header").is_object())
             {
-                string const rec_alg_str = rec.at("header").at("alg").get<string>();
-                auto rec_kea_opt = JWA::keyEncryptionAlgorithmFromString(rec_alg_str, nothrow);
-                if (!rec_kea_opt)
-                    return makeError<JWE>(
-                        "JWE fromJSON: recipient header contains unknown 'alg' value '" +
-                        rec_alg_str + "'");
-                rec_kea = *rec_kea_opt;
+                string const err =
+                    validatePerRecipientAlgorithms(rec.at("header"), *kea_opt, *cea_opt);
+                if (!err.empty())
+                    return makeError<JWE>(err);
             }
 
             bool const has_ek =
                 rec.contains("encrypted_key") && rec.at("encrypted_key").is_string();
-            if (!has_ek && requiresWrappedKey(rec_kea))
+            if (!has_ek && requiresWrappedKey(*kea_opt))
                 return makeError<JWE>(
                     "JWE fromJSON: recipient is missing 'encrypted_key' for alg '" +
-                    JWA::toString(rec_kea) + "'");
+                    JWA::toString(*kea_opt) + "'");
 
             string const ek_b64 = has_ek ? rec.at("encrypted_key").get<string>() : string{};
             auto ek_opt = Base64URL::decode(ek_b64, nothrow);
             if (!ek_opt)
                 return makeError<JWE>(
                     "JWE fromJSON: failed to base64url-decode recipient 'encrypted_key'");
-            if (ek_opt->empty() && requiresWrappedKey(rec_kea))
+            if (ek_opt->empty() && requiresWrappedKey(*kea_opt))
                 return makeError<JWE>(
                     "JWE fromJSON: recipient 'encrypted_key' must not be empty for alg '" +
-                    JWA::toString(rec_kea) + "'");
-            if (!requiresWrappedKey(rec_kea) && !ek_opt->empty())
+                    JWA::toString(*kea_opt) + "'");
+            if (!requiresWrappedKey(*kea_opt) && !ek_opt->empty())
                 return makeError<JWE>(
                     "JWE fromJSON: recipient 'encrypted_key' must be empty for alg '" +
-                    JWA::toString(rec_kea) + "'");
+                    JWA::toString(*kea_opt) + "'");
             Impl::Recipient r;
             r.encrypted_key = std::move(*ek_opt);
             if (rec.contains("header") && rec.at("header").is_object())
@@ -414,8 +442,7 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     }
     else
     {
-        return makeError<JWE>("JWE fromJSON: missing 'encrypted_key' for alg '" +
-                              header.at("alg").get<string>() + "'");
+        return makeError<JWE>("JWE fromJSON: missing 'encrypted_key' for alg '" + alg_value + "'");
     }
 
     auto iv_opt = Base64URL::decode(j.at("iv").get<string>(), nothrow);
@@ -789,16 +816,10 @@ vector<unsigned char> decrypt(JWE const &jwe, JWK const &key)
                     effective_header[k] = v;
         }
 
-        // Resolve kea from the effective header's "alg".
-        JWA::KeyEncryptionAlgorithm kea = impl.kea_;
-        if (effective_header.contains("alg") && effective_header.at("alg").is_string())
-        {
-            auto kea_opt =
-                JWA::keyEncryptionAlgorithmFromString(effective_header.at("alg").get<string>(),
-                                                      nothrow);
-            if (kea_opt)
-                kea = *kea_opt;
-        }
+        // Always use the authenticated protected header's "alg" for key-encryption
+        // algorithm selection.  The per-recipient header is unauthenticated; any
+        // "alg" it carries was already validated to match kea_ at parse time.
+        JWA::KeyEncryptionAlgorithm const kea = impl.kea_;
 
         vector<unsigned char> cek;
         try
