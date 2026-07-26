@@ -239,16 +239,17 @@ pair<optional<JWE>, string> JWE::fromCompact_(string const &compact)
     if (!header.contains("enc") || !header.at("enc").is_string())
         return makeError<JWE>("JWE fromCompact: protected header missing required 'enc' field");
 
-    auto kea_opt = JWA::keyEncryptionAlgorithmFromString(header.at("alg").get<string>(), nothrow);
-    if (!kea_opt)
-        return makeError<JWE>("JWE fromCompact: unknown key encryption algorithm: " +
-                              header.at("alg").get<string>());
+    string const alg_value = header.at("alg").get<string>();
+    string const enc_value = header.at("enc").get<string>();
 
-    auto cea_opt =
-        JWA::contentEncryptionAlgorithmFromString(header.at("enc").get<string>(), nothrow);
+    auto kea_opt = JWA::keyEncryptionAlgorithmFromString(alg_value, nothrow);
+    if (!kea_opt)
+        return makeError<JWE>("JWE fromCompact: unknown key encryption algorithm: " + alg_value);
+
+    auto cea_opt = JWA::contentEncryptionAlgorithmFromString(enc_value, nothrow);
     if (!cea_opt)
         return makeError<JWE>("JWE fromCompact: unknown content encryption algorithm: " +
-                              header.at("enc").get<string>());
+                              enc_value);
 
     auto encrypted_key_opt = Base64URL::decode(parts[1], nothrow);
     if (!encrypted_key_opt)
@@ -258,10 +259,10 @@ pair<optional<JWE>, string> JWE::fromCompact_(string const &compact)
     // All key-wrapping algorithms MUST have a non-empty encrypted_key part.
     if (requiresWrappedKey(*kea_opt) && encrypted_key_opt->empty())
         return makeError<JWE>("JWE fromCompact: 'encrypted_key' must not be empty for alg '" +
-                              header.at("alg").get<string>() + "'");
+                              alg_value + "'");
     if (!requiresWrappedKey(*kea_opt) && !encrypted_key_opt->empty())
         return makeError<JWE>("JWE fromCompact: 'encrypted_key' must be empty for alg '" +
-                              header.at("alg").get<string>() + "' (RFC 7518 §4.5/§4.6)");
+                              alg_value + "' (RFC 7518 §4.5/§4.6)");
 
     auto iv_opt = Base64URL::decode(parts[2], nothrow);
     if (!iv_opt)
@@ -345,16 +346,15 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     string const alg_value = header.at("alg").get<string>();
     if (!header.contains("enc") || !header.at("enc").is_string())
         return makeError<JWE>("JWE fromJSON: protected header missing required 'enc' field");
+    string const enc_value = header.at("enc").get<string>();
 
     auto kea_opt = JWA::keyEncryptionAlgorithmFromString(alg_value, nothrow);
     if (!kea_opt)
         return makeError<JWE>("JWE fromJSON: unknown key encryption algorithm: " + alg_value);
 
-    auto cea_opt =
-        JWA::contentEncryptionAlgorithmFromString(header.at("enc").get<string>(), nothrow);
+    auto cea_opt = JWA::contentEncryptionAlgorithmFromString(enc_value, nothrow);
     if (!cea_opt)
-        return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " +
-                              header.at("enc").get<string>());
+        return makeError<JWE>("JWE fromJSON: unknown content encryption algorithm: " + enc_value);
 
     auto impl = make_unique<Impl>();
     impl->kea_ = *kea_opt;
@@ -372,11 +372,11 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
             return makeError<JWE>("JWE fromJSON: failed to base64url-decode 'encrypted_key'");
         if (ek_opt->empty() && requiresWrappedKey(*kea_opt))
             return makeError<JWE>("JWE fromJSON: 'encrypted_key' must not be empty for alg '" +
-                                  header.at("alg").get<string>() + "'");
+                                  alg_value + "'");
         if (!ek_opt->empty() && !requiresWrappedKey(*kea_opt))
             return makeError<JWE>(
-                "JWE fromJSON: 'encrypted_key' must be empty or absent for alg '" +
-                header.at("alg").get<string>() + "'");
+                "JWE fromJSON: 'encrypted_key' must be empty or absent for alg '" + alg_value +
+                "'");
         Impl::Recipient r;
         r.encrypted_key = std::move(*ek_opt);
         if (j.contains("header") && j.at("header").is_object())
@@ -442,8 +442,7 @@ pair<optional<JWE>, string> JWE::fromJSON_(string const &json_str)
     }
     else
     {
-        return makeError<JWE>("JWE fromJSON: missing 'encrypted_key' for alg '" +
-                              header.at("alg").get<string>() + "'");
+        return makeError<JWE>("JWE fromJSON: missing 'encrypted_key' for alg '" + alg_value + "'");
     }
 
     auto iv_opt = Base64URL::decode(j.at("iv").get<string>(), nothrow);
