@@ -181,11 +181,10 @@ jobs:
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1
         run: |
-          for pkg in ninja openssl@3 lcov llvm; do
+          for pkg in ninja openssl@3 lcov; do
             brew list "$pkg" &>/dev/null || brew install "$pkg"
           done
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> "$GITHUB_ENV"
-          echo "LLVM_PREFIX=$(brew --prefix llvm)" >> "$GITHUB_ENV"
 
       - name: Set up MSVC environment (Windows)
         if: runner.os == 'Windows'
@@ -304,9 +303,16 @@ jobs:
           profraw_files=()
           while IFS= read -r f; do profraw_files+=("$f"); done \
             < <(find build -name "*.profraw")
-          "$LLVM_PREFIX/bin/llvm-profdata" merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
+          # Use Xcode's own llvm-profdata/llvm-cov, not Homebrew's: the
+          # .profraw files were written by the system clang (matrix.cc is
+          # plain "clang", i.e. Xcode's), and Homebrew's llvm formula
+          # tracks upstream LLVM independently of whatever LLVM version
+          # Xcode bundles on the current macos-latest image. Mixing the
+          # two raises "raw profile version mismatch" the moment they
+          # drift apart, as happened here (format 10 vs. expected 11).
+          xcrun llvm-profdata merge -sparse "${profraw_files[@]}" -o build/coverage.profdata
           test_exe=$(find build -name 'jose_tests' -type f | head -1)
-          "$LLVM_PREFIX/bin/llvm-cov" export "$test_exe" \
+          xcrun llvm-cov export "$test_exe" \
             -instr-profile=build/coverage.profdata \
             -format=lcov \
             "--ignore-filename-regex=/_deps/|/build/src/|/tests/" \
