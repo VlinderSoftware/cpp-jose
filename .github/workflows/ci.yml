@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build-and-test:
     name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner || matrix.os }}
     strategy:
       fail-fast: false
       matrix:
@@ -21,6 +21,7 @@ jobs:
           # ── Linux GCC ─────────────────────────────────────────────────────
           - name: "Linux GCC Debug"
             os: ubuntu-24.04
+            runner: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-24.04' || 'littlemonarch' }}
             compiler: gcc
             cc: gcc
             cxx: g++
@@ -30,6 +31,7 @@ jobs:
             coverage_tool: lcov-gcov
           - name: "Linux GCC Release"
             os: ubuntu-24.04
+            runner: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-24.04' || 'littlemonarch' }}
             compiler: gcc
             cc: gcc
             cxx: g++
@@ -39,6 +41,7 @@ jobs:
           # ── Linux Clang ───────────────────────────────────────────────────
           - name: "Linux Clang Debug"
             os: ubuntu-24.04
+            runner: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-24.04' || 'littlemonarch' }}
             compiler: clang
             cc: clang
             cxx: clang++
@@ -48,6 +51,7 @@ jobs:
             coverage_tool: llvm-cov-instr
           - name: "Linux Clang Release"
             os: ubuntu-24.04
+            runner: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-24.04' || 'littlemonarch' }}
             compiler: clang
             cc: clang
             cxx: clang++
@@ -476,7 +480,7 @@ jobs:
   # ── Coverage summary (single pane of glass) ──────────────────────────────
   coverage-summary:
     name: Coverage Summary
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || 'littlemonarch' }}
     if: always()
     needs: [build-and-test, build-mingw, build-cygwin]
     steps:
@@ -634,7 +638,7 @@ jobs:
               print("::warning::Some configurations have files below the 85% coverage threshold. See the job summary.")
 
   format-check:
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || 'littlemonarch' }}
     steps:
       - uses: actions/checkout@v7
 
